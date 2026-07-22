@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Covered Call Portfolio Optimizer | 統一 00981A + 復華 00991A + 台積電期貨</title>
+    <link rel="stylesheet" href="index.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark-theme">
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo-area">
+                <span class="logo-icon">📊</span>
+                <div class="logo-text">
+                    <h1>台股主動型 ETF 搭配個股期貨之 Covered Call 策略回測系統</h1>
+                    <p class="subtitle">00981A (統一台股增長) + 00991A (復華未來50) + 台積電期貨 (CDF)</p>
+                </div>
+            </div>
+            <div class="status-badge" id="data-status-badge">
+                <span class="dot green"></span> 數據載入中...
+            </div>
+        </div>
+    </header>
+
+    <main class="app-container">
+        <!-- Input Panel -->
+        <section class="panel config-panel">
+            <div class="panel-header">
+                <h2>⚙️ 策略參數配置</h2>
+            </div>
+            
+            <form id="strategy-form" onsubmit="event.preventDefault();">
+                <!-- Capital Mode & Input -->
+                <div class="form-row">
+                    <div class="input-group half">
+                        <label for="capital-mode">資金模式</label>
+                        <select id="capital-mode">
+                            <option value="fixed">自定義初始資金</option>
+                            <option value="auto-solve" selected>自動計算 1口 所需資金</option>
+                        </select>
+                    </div>
+                    <div class="input-group half" id="capital-input-container">
+                        <label for="input-capital">初始資金 (TWD)</label>
+                        <input type="number" id="input-capital" value="1000000" min="100000" step="50000" disabled>
+                    </div>
+                </div>
+
+                <div class="form-row" id="target-ratio-row">
+                    <div class="input-group">
+                        <label for="target-margin-ratio">目標初始維持率 (%)</label>
+                        <input type="number" id="target-margin-ratio" value="130" min="100" max="500" step="5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <small class="help-text" style="color: var(--warning); display: block; margin-top: 4px;">⚠️ 自動計算資金時的目標期貨帳戶保證金維持率。調高維持率會增加所需初始資金（作為現金保證金緩衝以防追繳），但不會增加對沖部位（ETF/期貨口數）。若要放大部位，請增加「賣出部位口數」。</small>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="portfolio-mode">投資組合模式</label>
+                    <select id="portfolio-mode">
+                        <option value="manual">手動比例分配 (Manual Weight)</option>
+                        <option value="delta-neutral" selected>自動 Delta 覆蓋對沖 (超越大盤模式)</option>
+                    </select>
+                </div>
+
+                <!-- Date Range Selection -->
+                <div class="form-row">
+                    <div class="input-group half">
+                        <label for="start-date">開始日期</label>
+                        <select id="start-date"></select>
+                    </div>
+                    <div class="input-group half">
+                        <label for="end-date">結束日期</label>
+                        <select id="end-date"></select>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Call Option Configuration -->
+                <div class="panel-subheader">
+                    <h3>🔔 選擇權賣出 (Short Call) 設定</h3>
+                </div>
+
+                <div class="form-row">
+                    <div class="input-group half">
+                        <label for="option-type">賣出選擇權標的</label>
+                        <select id="option-type">
+                            <option value="taiex" selected>台指選擇權 (TAIEX)</option>
+                            <option value="tsmc">台積電選擇權 (TSMC)</option>
+                        </select>
+                    </div>
+                    <div class="input-group half">
+                        <label for="option-cycle">合約滾動週期</label>
+                        <select id="option-cycle">
+                            <option value="weekly" selected>周選擇權 (Weekly)</option>
+                            <option value="monthly">月選擇權 (Monthly)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="input-group half">
+                        <label for="strike-rule">履約價選擇規則</label>
+                        <select id="strike-rule">
+                            <option value="ATM">ATM (等價平值)</option>
+                            <option value="OTM_2">OTM 2%</option>
+                            <option value="OTM_5">OTM 5%</option>
+                            <option value="OTM_10" selected>OTM 10%</option>
+                            <option value="CUSTOM_OTM">自定義 OTM %</option>
+                            <option value="DELTA_3">Delta 0.30</option>
+                            <option value="DELTA_2">Delta 0.20</option>
+                            <option value="DELTA_1">Delta 0.10</option>
+                        </select>
+                    </div>
+                    <div class="input-group half">
+                        <label for="option-contracts">賣出部位口數</label>
+                        <input type="number" id="option-contracts" value="1" min="1" max="100" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <small class="help-text">自定義賣出的選擇權口數</small>
+                    </div>
+                </div>
+
+                <div class="form-row hidden" id="custom-otm-row">
+                    <div class="input-group">
+                        <label for="custom-otm-value">自定義 OTM 比例 (%)</label>
+                        <input type="number" id="custom-otm-value" value="7.0" min="0.0" max="50.0" step="0.5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">請輸入自定義的價外（OTM）百分比，例如 7.5 代表履約價設為大盤現價的 +7.5%</small>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Asset Weight Configuration -->
+                <div class="panel-subheader">
+                    <h3>📈 現貨與期貨覆蓋資產權重 (Cover Assets)</h3>
+                    <p class="subtitle" style="margin-top:2px;">(手動模式下調整。三者權重加總必須為 100%)</p>
+                </div>
+
+                <div class="weight-sliders hidden" id="manual-weights-container">
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span>00981A 統一台股增長 (ETF)</span>
+                            <span class="weight-value" id="val-w-981">40%</span>
+                        </div>
+                        <input type="range" id="w-981" min="0" max="100" value="40">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span>00991A 復華台灣未來50 (ETF)</span>
+                            <span class="weight-value" id="val-w-991">40%</span>
+                        </div>
+                        <input type="range" id="w-991" min="0" max="100" value="40">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span>小型台積電期貨 (QFF, 100股等值)</span>
+                            <span class="weight-value" id="val-w-futures">20%</span>
+                        </div>
+                        <input type="range" id="w-futures" min="0" max="100" value="20">
+                        <small class="help-text">小型期貨合約規模為 100 股台積電。此处代表合約價值對應的資產曝險權重</small>
+                    </div>
+
+                    <div id="weight-error-msg" class="error-msg">
+                        ⚠️ 總權重加總必須等於 100%（目前為 100%）！
+                    </div>
+                </div>
+
+                <div class="auto-weights-info" id="auto-weights-container">
+                    <div class="info-card">
+                        <p>ℹ️ <strong>自動 Delta 覆蓋對沖模式已啟用 (超越大盤)</strong></p>
+                        <p class="desc">系統將根據每日選擇權 Delta，自動動態調整 00981A、00991A 與小型台積電期貨的部位（目標曝險為 1.0 + Delta），使整體投資組合的淨多頭 Delta 始終維持在 <strong>+1.0</strong>。這能確保您的現貨持股 100% 跟隨大盤成長，並將賣出選擇權所收取的權利金完全轉化為<strong>超額報酬 (Alpha)</strong>，實現穩定超越大盤績效的目標。</p>
+                        <p class="desc" style="margin-top: 5px;"><strong>配置分配基準：</strong></p>
+                        <ul>
+                            <li>00981A (ETF)：分配 40% 的 Delta 避險比重</li>
+                            <li>00991A (ETF)：分配 40% 的 Delta 避險比重</li>
+                            <li>小型台積電期貨 (QFF)：分配 20% 的 Delta 避險比重</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="btn-run">🚀 開始執行策略回測</button>
+            </form>
+        </section>
+
+        <!-- Output Panel -->
+        <div class="output-container">
+            <!-- Metrics Row -->
+            <section class="panel metrics-panel">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-label">策略累積收益率</span>
+                        <span class="metric-value positive" id="metric-total-return">+0.00%</span>
+                        <span class="metric-sub" id="metric-total-pnl">TWD 0 | 大盤對比: 0.00%</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">累計收得權利金</span>
+                        <span class="metric-value positive" id="metric-total-premium">TWD 0</span>
+                        <span class="metric-sub" id="metric-premium-yield">選擇權勝率: 0% (共轉倉 0 次)</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">夏普比率 (Sharpe)</span>
+                        <span class="metric-value" id="metric-sharpe">0.00</span>
+                        <span class="metric-sub">無風險利率: 1.5%</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">最大回撤 (MDD)</span>
+                        <span class="metric-value negative" id="metric-mdd">0.00%</span>
+                        <span class="metric-sub" id="metric-margin-calls">保證金追繳次數: 0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chart Panel -->
+            <section class="panel chart-panel">
+                <div class="panel-header">
+                    <h2>📈 策略累積淨值走勢對比 (Equity Curve)</h2>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="pnlChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Bottom Info Grid -->
+            <div class="bottom-grid">
+                <!-- Current Allocation Advice -->
+                <section class="panel advice-panel">
+                    <div class="panel-header">
+                        <h2>📌 現階段交易部位判斷 (今日建倉建議)</h2>
+                    </div>
+                    <div class="advice-content">
+                        <div class="advice-row">
+                            <span class="advice-label">建議 Sell Call 位置：</span>
+                            <span class="advice-valhighlight" id="advice-strike">---</span>
+                        </div>
+                        <div class="advice-row">
+                            <span class="advice-label">預估收取權利金：</span>
+                            <span class="advice-val" id="advice-premium">---</span>
+                        </div>
+                        <div class="advice-table-wrapper">
+                            <table class="advice-table">
+                               <thead>
+                                   <tr>
+                                       <th>標的</th>
+                                       <th>配置權重</th>
+                                       <th>建議買進數量</th>
+                                       <th>預估市值 / 維持保證金</th>
+                                   </tr>
+                               </thead>
+                               <tbody>
+                                   <tr>
+                                       <td>00981A 統一台股增長</td>
+                                       <td id="advice-w-981">--</td>
+                                       <td class="bold-val" id="advice-qty-981">-- 股</td>
+                                       <td id="advice-val-981">-- TWD</td>
+                                   </tr>
+                                   <tr>
+                                       <td>00991A 復華未來50</td>
+                                       <td id="advice-w-991">--</td>
+                                       <td class="bold-val" id="advice-qty-991">-- 股</td>
+                                       <td id="advice-val-991">-- TWD</td>
+                                   </tr>
+                                    <tr>
+                                        <td>小型台積電期貨 (QFF)</td>
+                                        <td id="advice-w-futures">--</td>
+                                        <td class="bold-val" id="advice-qty-futures">-- 口</td>
+                                        <td id="advice-val-futures">-- TWD (11.5% 維持保)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>賣出選擇權 (Short Call)</td>
+                                        <td colspan="2" style="color: var(--text-muted); font-size: 0.85em;">選擇權維持保證金</td>
+                                        <td id="advice-val-option-margin">-- TWD</td>
+                                    </tr>
+                                    <tr style="border-top: 1px solid var(--accent); background: rgba(59,130,246,0.06);">
+                                        <td style="font-weight: 700;">總保證金需求</td>
+                                        <td colspan="2" style="color: var(--text-muted); font-size: 0.85em;">期貨 + 選擇權維持保證金</td>
+                                        <td id="advice-val-total-margin" style="font-weight: 700; color: var(--warning);">-- TWD</td>
+                                    </tr>
+                                    <tr class="cash-row">
+                                        <td>可用保證金 (現金)</td>
+                                        <td id="advice-w-cash">--</td>
+                                        <td id="advice-margin-ratio" style="font-weight: 600; color: var(--success);">維持率: --%</td>
+                                        <td id="advice-val-cash">-- TWD</td>
+                                    </tr>
+                               </tbody>
+                            </table>
+                        </div>
+                        <div class="advice-note">
+                            💡 <strong>計算依據：</strong>基於目前最新市價 (大盤: <span id="latest-taiex">--</span>, 台積電: <span id="latest-tsmc">--</span> TWD, 00981A: <span id="latest-981">--</span> TWD, 00991A: <span id="latest-991">--</span> TWD)。<br>
+                            * <strong>Delta對沖說明</strong>：自動對沖模式下，現貨與期貨部位大小是為了完全對沖賣出選擇權的曝險。調整「目標維持率」會增減所需的「可用保證金」（現金緩衝），並不影響對沖部位數量。若要放大保證金部位，請調整<strong>「賣出部位口數」</strong>。<br>
+                            * 台積電期貨保證金以合約價值之 15% 估算，買進數量四捨五入至整數股。
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Strategy Rules Explanation -->
+                <section class="panel rules-panel">
+                    <div class="panel-header">
+                        <h2>📝 策略回測機制說明</h2>
+                    </div>
+                    <div class="rules-content">
+                        <ul>
+                            <li><strong>滾動周期</strong>：每月第三個星期三（台股期權結算日）收盤時將舊合約平倉（以結算價結算損益），並以收盤價賣出下一個月的 Call 合約。</li>
+                            <li><strong>權利金計算</strong>：以 Black-Scholes 模型計算每日理論價格，並以交易當日的理論價格作為新合約收取的權利金。</li>
+                            <li><strong>現貨與期貨配置</strong>：每到結算日（Roll Date），系統將重新計算資金規模，並根據設定的權重重新配置 00981A、00991A 及小型台積電期貨。</li>
+                            <li><strong>期貨與選擇權保證金</strong>：
+                                <ul>
+                                    <li>小型台積電期貨：合約價值為 100 股台積電現貨，保證金成數設為 15%。</li>
+                                    <li>Sell Call 賣方保證金：估算為標的價值的 15% 加上權利金。</li>
+                                </ul>
+                            </li>
+                            <li><strong>保證金追繳機制</strong>：若每日帳戶的可用現金不足以支付期貨與選擇權的維持保證金要求，即判定為<strong>保證金追繳（Margin Call）</strong>，警告計數器加 1。</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
+    </footer>
+
+    <script src="app.js?v=4"></script>
+</body>
+</html>

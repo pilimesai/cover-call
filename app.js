@@ -338,8 +338,18 @@ function updateRecommendation() {
     const S_underlying = optionType === 'taiex' ? row.taiex : row.tsmc;
     
     if (capitalMode === 'auto-solve') {
-        capital = solveRequiredCapital(row, optionType, optionCycle, strikeRule, portfolioMode);
-        capitalInput.value = capital;
+        // Calculate today's recommended capital (based on latest market price)
+        const todayCapital = solveRequiredCapital(row, optionType, optionCycle, strikeRule, portfolioMode);
+        capital = todayCapital;
+        // Show a hint under the capital input - do NOT overwrite it (backtest uses start-date price)
+        const todayHint = document.getElementById('today-capital-hint');
+        if (todayHint) {
+            todayHint.textContent = `📅 今日建倉建議資金：${todayCapital.toLocaleString()} TWD（回測資金以開始日市價計算，可能不同）`;
+            todayHint.style.display = 'block';
+        }
+    } else {
+        const todayHint = document.getElementById('today-capital-hint');
+        if (todayHint) todayHint.style.display = 'none';
     }
     
     // Set prices
@@ -397,7 +407,6 @@ function updateRecommendation() {
     // Update display weights
     adviceW981.textContent = `${(w981 * 100).toFixed(1)}%`;
     adviceW991.textContent = `${(w991 * 100).toFixed(1)}%`;
-    adviceWFutures.textContent = `${(wFutures * 100).toFixed(1)}%`;
     adviceWCash.textContent = `${(wCash * 100).toFixed(1)}%`;
     
     // Qty Calculations
@@ -422,21 +431,30 @@ function updateRecommendation() {
     adviceVal991.textContent = row.etf_991 ? `${Math.round(qty991 * row.etf_991).toLocaleString()} TWD` : '0 TWD';
     
     adviceQtyFutures.textContent = `${qtyFutures} 口`;
-    adviceValFutures.textContent = `${Math.round(maintMarginFutures).toLocaleString()} TWD`;
+    
+    const adviceQtyOptions = document.getElementById('advice-qty-options');
+    if (adviceQtyOptions) {
+        adviceQtyOptions.textContent = `${optionContracts} 口`;
+    }
     
     // Calculate Margin Maintenance Ratio (整體保證金維持率)
     // Option maintenance margin is premium + 11.5% of underlying value
     const optionMaintMargin = optionContracts * multiplier * (optInfo.premium + S_underlying * 0.115);
     const totalMaintMargin = maintMarginFutures + optionMaintMargin;
     
-    // Fill in option margin and total margin DOM elements
-    const adviceValOptionMargin = document.getElementById('advice-val-option-margin');
+    // Target margin based on configured ratio
+    const targetRatio = parseFloat(targetMarginRatioInput.value) || 130;
+    const targetMargin = totalMaintMargin * (targetRatio / 100);
+    
+    // Fill in total margin DOM elements
     const adviceValTotalMargin = document.getElementById('advice-val-total-margin');
-    if (adviceValOptionMargin) {
-        adviceValOptionMargin.textContent = `${Math.round(optionMaintMargin).toLocaleString()} TWD`;
-    }
+    const adviceValTargetMargin = document.getElementById('advice-val-target-margin');
+    
     if (adviceValTotalMargin) {
         adviceValTotalMargin.textContent = `${Math.round(totalMaintMargin).toLocaleString()} TWD`;
+    }
+    if (adviceValTargetMargin) {
+        adviceValTargetMargin.textContent = `${Math.round(targetMargin).toLocaleString()} TWD`;
     }
     
     if (totalMaintMargin > 0) {

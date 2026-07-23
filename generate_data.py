@@ -78,7 +78,7 @@ def main():
     }
     
     start_date = "2025-05-01"
-    end_date = "2026-07-21"
+    end_date = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
     
     dfs = {}
     for name, ticker in tickers.items():

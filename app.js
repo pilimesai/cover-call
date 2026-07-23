@@ -523,6 +523,8 @@ function runBacktest() {
     const dates = [];
     
     let marginCalls = 0;
+    let liquidations = 0;
+    let isBankrupt = false;
     let optionCyclesCount = 0;
     let optionWinsCount = 0;
     let totalPremiumIncome = 0;
@@ -543,6 +545,18 @@ function runBacktest() {
         const price_tsmc = row.tsmc;
         const price_981 = row.etf_981;
         const price_991 = row.etf_991;
+        
+        if (isBankrupt) {
+            qty981 = 0;
+            qty991 = 0;
+            qtyFutures = 0;
+            cash = 0;
+            activeOption = null;
+            strategyEquity.push(0);
+            taiexEquity.push(initialCapital * (price_taiex / initialTaiex));
+            tsmcEquity.push(initialCapital * (price_tsmc / initialTsmc));
+            continue;
+        }
         
         const currentUnderlyingPrice = optionType === 'taiex' ? price_taiex : price_tsmc;
         
@@ -664,14 +678,52 @@ function runBacktest() {
         taiexEquity.push(initialCapital * (price_taiex / initialTaiex));
         tsmcEquity.push(initialCapital * (price_tsmc / initialTsmc));
         
-        // 4. Margin Call check (using Maintenance Margin 11.5% to check for margin calls)
+        // 4. Margin Call & Liquidation checks
         const futuresMargin = qtyFutures * 100 * price_tsmc * 0.115;
         const optionMargin = activeOption ? (optionLiability + optionContracts * multiplier * currentUnderlyingPrice * 0.115) : 0;
         const totalRequiredMargin = futuresMargin + optionMargin;
-        const freeCash = cash + futuresPnL;
+        let freeCash = cash + futuresPnL;
         
         if (freeCash < totalRequiredMargin) {
             marginCalls++;
+            
+            // Forced Liquidation Check (Margin Ratio < 25% relative to maintenance standard)
+            if (freeCash < 0.25 * totalRequiredMargin && (qtyFutures > 0 || activeOption !== null)) {
+                liquidations++;
+                
+                // Realize derivatives losses
+                cash += futuresPnL;
+                cash -= optionLiability;
+                
+                // Deduct 5% of maintenance margin standard as liquidation slippage/penalty fee
+                cash -= totalRequiredMargin * 0.05;
+                
+                // Clear derivative positions
+                qtyFutures = 0;
+                activeOption = null;
+                
+                // Recalculate daily equity
+                let postLiqEquity = cash + etfValue981 + etfValue991;
+                if (postLiqEquity <= 0) {
+                    postLiqEquity = 0;
+                    isBankrupt = true;
+                    cash = 0;
+                    qty981 = 0;
+                    qty991 = 0;
+                }
+                strategyEquity[strategyEquity.length - 1] = postLiqEquity;
+            }
+        }
+        
+        // Dynamic Bankruptcy check on the final daily equity
+        if (!isBankrupt && strategyEquity[strategyEquity.length - 1] <= 0) {
+            isBankrupt = true;
+            strategyEquity[strategyEquity.length - 1] = 0;
+            cash = 0;
+            qty981 = 0;
+            qty991 = 0;
+            qtyFutures = 0;
+            activeOption = null;
         }
     }
     
@@ -692,18 +744,23 @@ function runBacktest() {
     let peak = 0;
     strategyEquity.forEach(val => {
         if (val > peak) peak = val;
-        const dd = (val - peak) / peak;
+        const dd = peak > 0 ? (val - peak) / peak : 0;
         if (dd < maxDrawdownVal) maxDrawdownVal = dd;
     });
     
     // Daily volatility & Sharpe
     const dailyReturns = [];
     for (let k = 1; k < strategyEquity.length; k++) {
-        dailyReturns.push((strategyEquity[k] - strategyEquity[k-1]) / strategyEquity[k-1]);
+        const prev = strategyEquity[k-1];
+        if (prev <= 0) {
+            dailyReturns.push(0);
+        } else {
+            dailyReturns.push((strategyEquity[k] - prev) / prev);
+        }
     }
     
-    const meanReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-    const variance = dailyReturns.reduce((sum, val) => sum + Math.pow(val - meanReturn, 2), 0) / dailyReturns.length;
+    const meanReturn = dailyReturns.length > 0 ? dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length : 0;
+    const variance = dailyReturns.length > 0 ? dailyReturns.reduce((sum, val) => sum + Math.pow(val - meanReturn, 2), 0) / dailyReturns.length : 0;
     const dailyVol = Math.sqrt(variance);
     const annVol = dailyVol * Math.sqrt(252);
     
@@ -722,7 +779,7 @@ function runBacktest() {
     
     // Premium Metrics Update
     document.getElementById('metric-total-premium').textContent = `TWD ${Math.round(totalPremiumIncome).toLocaleString()}`;
-    document.getElementById('metric-premium-yield').textContent = `選擇權勝率: ${winRate.toFixed(0)}% (共轉倉 ${optionCyclesCount} 次)`;
+    document.getElementById('metric-premium-yield').textContent = `選擇權勝率: ${winRate.toFixed(0)}% (共转仓 ${optionCyclesCount} 次)`;
     
     document.getElementById('metric-sharpe').textContent = sharpeVal.toFixed(2);
     
@@ -730,8 +787,13 @@ function runBacktest() {
     mddSpan.textContent = `${(maxDrawdownVal * 100).toFixed(2)}%`;
     mddSpan.className = `metric-value negative`;
     
-    // Margin Calls
-    document.getElementById('metric-margin-calls').innerHTML = `保證金追繳次數: <span style="color: ${marginCalls > 0 ? 'var(--danger)' : 'inherit'}; font-weight:bold">${marginCalls}</span>`;
+    // Margin Calls & Liquidations
+    let marginCallsHtml = `追繳: <span style="color: ${marginCalls > 0 ? 'var(--danger)' : 'inherit'}; font-weight:bold">${marginCalls}</span>` +
+                          ` | 爆倉: <span style="color: ${liquidations > 0 ? 'var(--danger)' : 'inherit'}; font-weight:bold">${liquidations}</span>`;
+    if (isBankrupt) {
+        marginCallsHtml += ` <span style="color: var(--danger); font-weight:bold; background: rgba(239,68,68,0.2); padding: 2px 6px; border-radius: 4px; margin-left: 4px;">⚠️ 已破產</span>`;
+    }
+    document.getElementById('metric-margin-calls').innerHTML = marginCallsHtml;
     
     // Render Chart
     renderChart(dates, strategyEquity, taiexEquity, tsmcEquity);

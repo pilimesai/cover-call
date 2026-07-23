@@ -562,7 +562,8 @@ function runBacktest() {
         
         // 1. Handle Expiration & Settlement (use >= to handle cases where expiry day is a holiday/missing record)
         if (activeOption && (dateStr >= activeOption.expiry_date || i === endIdx)) {
-            const payoff = Math.max(0, currentUnderlyingPrice - activeOption.strike) * multiplier * optionContracts;
+            // 移除計算穿越履約價的虧損 (payoff 設為 0)
+            const payoff = 0;
             cash -= payoff; // Pay option payoff
             
             const cyclePnL = (activeOption.premium * multiplier * optionContracts) - payoff;
@@ -669,6 +670,12 @@ function runBacktest() {
             // Value the actual option we are holding (fixed strike activeOption.strike) using BS model
             const currentPremium = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, r, vol);
             optionLiability = currentPremium * multiplier * optionContracts;
+            
+            // 移除計算穿越履約價的虧損 (當價格高於履約價時，扣除內含價值部分，只保留時間價值)
+            if (currentUnderlyingPrice > activeOption.strike) {
+                const intrinsicValue = (currentUnderlyingPrice - activeOption.strike) * multiplier * optionContracts;
+                optionLiability = Math.max(0, optionLiability - intrinsicValue);
+            }
         }
         
         const dailyEquity = cash + etfValue981 + etfValue991 + futuresPnL - optionLiability;
@@ -824,17 +831,21 @@ function renderChart(labels, strategyData, taiexData, tsmcData) {
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.05)',
                     borderWidth: 2.5,
-                    pointRadius: 0,
+                    pointRadius: strategyReturn.map((_, idx) => idx === strategyReturn.length - 1 ? 6 : 0),
+                    pointBackgroundColor: '#3b82f6',
+                    pointHoverRadius: 8,
                     tension: 0.1,
                     fill: true
                 },
                 {
-                    label: '對比大盤基準 (TAIEX Index)',
+                    label: '對比加權指數基準 (TAIEX Index)',
                     data: taiexReturn,
                     borderColor: '#94a3b8',
                     borderWidth: 1.5,
                     borderDash: [5, 5],
-                    pointRadius: 0,
+                    pointRadius: taiexReturn.map((_, idx) => idx === taiexReturn.length - 1 ? 6 : 0),
+                    pointBackgroundColor: '#94a3b8',
+                    pointHoverRadius: 8,
                     tension: 0.1,
                     fill: false
                 },
@@ -843,7 +854,9 @@ function renderChart(labels, strategyData, taiexData, tsmcData) {
                     data: tsmcReturn,
                     borderColor: '#f59e0b',
                     borderWidth: 1.5,
-                    pointRadius: 0,
+                    pointRadius: tsmcReturn.map((_, idx) => idx === tsmcReturn.length - 1 ? 6 : 0),
+                    pointBackgroundColor: '#f59e0b',
+                    pointHoverRadius: 8,
                     tension: 0.1,
                     fill: false
                 }

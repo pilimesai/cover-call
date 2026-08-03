@@ -127,11 +127,12 @@ const POPULAR_CATALOG = [
 // ─────────────────────────────────────────────
 let rawData = [];
 let chartInstance = null;
+let isAutoWeight = true;
 
 let selectedAssets = [
-    { ...BUILTIN_ASSETS[0], weight: 40 },
-    { ...BUILTIN_ASSETS[1], weight: 40 },
-    { ...BUILTIN_ASSETS[6], weight: 20 },
+    { ...BUILTIN_ASSETS[0], weight: 33 },
+    { ...BUILTIN_ASSETS[1], weight: 33 },
+    { ...BUILTIN_ASSETS[6], weight: 34 },
 ];
 
 const twsePriceCache = {};
@@ -164,6 +165,7 @@ const assetCardsContainer = document.getElementById('asset-cards-container');
 const weightTotalVal = document.getElementById('weight-total-val');
 const weightTotalFill = document.getElementById('weight-total-fill');
 const dataFetchStatus = document.getElementById('data-fetch-status');
+const chkAutoWeight = document.getElementById('chk-auto-weight');
 
 const adviceStrike = document.getElementById('advice-strike');
 const advicePremium = document.getElementById('advice-premium');
@@ -187,6 +189,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         dataStatusBadge.innerHTML = '<span class="dot green"></span> 數據已載入';
         populateDropdowns();
         setupEventListeners();
+        if (chkAutoWeight) chkAutoWeight.checked = isAutoWeight;
+        if (isAutoWeight) autoDistributeWeights();
         renderAssetCards();
         updateWeightTotalBar();
         updateRecommendation();
@@ -218,6 +222,21 @@ function populateDropdowns() {
         if (index === rawData.length - 1) optionEnd.selected = true;
         endSelect.appendChild(optionEnd);
     });
+}
+
+function autoDistributeWeights() {
+    if (!selectedAssets.length) return;
+    const len = selectedAssets.length;
+    if (len === 1) {
+        selectedAssets[0].weight = 100;
+    } else if (len === 2) {
+        selectedAssets[0].weight = 50;
+        selectedAssets[1].weight = 50;
+    } else if (len === 3) {
+        selectedAssets[0].weight = 33;
+        selectedAssets[1].weight = 33;
+        selectedAssets[2].weight = 34;
+    }
 }
 
 function setupEventListeners() {
@@ -283,6 +302,19 @@ function setupEventListeners() {
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#asset-search-section')) hideDropdown();
     });
+
+    if (chkAutoWeight) {
+        chkAutoWeight.addEventListener('change', () => {
+            isAutoWeight = chkAutoWeight.checked;
+            if (isAutoWeight) {
+                autoDistributeWeights();
+            }
+            renderAssetCards();
+            updateWeightTotalBar();
+            updateRecommendation();
+            runBacktest();
+        });
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -451,29 +483,35 @@ async function addAsset(assetDef) {
         showFetchStatus('ℹ️ 此標的已在組合中', 'info'); return;
     }
 
-    const totalUsed = selectedAssets.reduce((s, a) => s + a.weight, 0);
-    const remaining = Math.max(0, 100 - totalUsed);
-    const defaultWeight = remaining > 0 ? Math.min(remaining, 40) : 20;
-    const newAsset = { ...assetDef, weight: defaultWeight };
+    const newAsset = { ...assetDef, weight: 0 };
+    selectedAssets.push(newAsset);
+
+    if (isAutoWeight) {
+        autoDistributeWeights();
+    } else {
+        const totalUsed = selectedAssets.reduce((s, a) => s + a.weight, 0);
+        const remaining = Math.max(0, 100 - totalUsed);
+        newAsset.weight = remaining > 0 ? Math.min(remaining, 40) : 20;
+    }
 
     if (assetDef.source === 'twse') {
-        selectedAssets.push(newAsset);
         renderAssetCards();
         updateWeightTotalBar();
         await fetchTWSEHistory(newAsset);
     } else {
-        selectedAssets.push(newAsset);
+        renderAssetCards();
+        updateWeightTotalBar();
+        updateAutoWeightsList();
+        updateRecommendation();
+        runBacktest();
     }
-
-    renderAssetCards();
-    updateWeightTotalBar();
-    updateAutoWeightsList();
-    updateRecommendation();
-    runBacktest();
 }
 
 function removeAsset(index) {
     selectedAssets.splice(index, 1);
+    if (isAutoWeight) {
+        autoDistributeWeights();
+    }
     renderAssetCards();
     updateWeightTotalBar();
     updateAutoWeightsList();
@@ -587,6 +625,24 @@ function renderAssetCards() {
             ? `<div class="asset-card-margin-note">💰 期貨保證金: ${(asset.marginRate * 100).toFixed(1)}% | 合約乘數: ×${asset.contractMultiplier}</div>`
             : '';
 
+        let sliderRow = '';
+        if (isAutoWeight) {
+            sliderRow = `
+                <div class="asset-card-slider-row">
+                    <span class="asset-card-slider-label">配置權重</span>
+                    <span class="asset-card-weight-val" style="margin-left:auto; font-weight:600; color:var(--primary);">${asset.weight}% (自動分配)</span>
+                </div>
+            `;
+        } else {
+            sliderRow = `
+                <div class="asset-card-slider-row">
+                    <span class="asset-card-slider-label">配置權重</span>
+                    <input type="range" class="asset-card-slider" id="slider-asset-${i}" min="0" max="100" value="${asset.weight}">
+                    <span class="asset-card-weight-val" id="weight-val-asset-${i}">${asset.weight}%</span>
+                </div>
+            `;
+        }
+
         const card = document.createElement('div');
         card.className = 'asset-card';
         card.innerHTML = `
@@ -596,24 +652,22 @@ function renderAssetCards() {
                 <span class="asset-card-name">${asset.name}</span>
                 <button class="asset-card-remove" onclick="removeAsset(${i})" title="移除此標的">✕</button>
             </div>
-            <div class="asset-card-slider-row">
-                <span class="asset-card-slider-label">配置權重</span>
-                <input type="range" class="asset-card-slider" id="slider-asset-${i}" min="0" max="100" value="${asset.weight}">
-                <span class="asset-card-weight-val" id="weight-val-asset-${i}">${asset.weight}%</span>
-            </div>
+            ${sliderRow}
             ${marginNote}${dataNote}
         `;
         assetCardsContainer.appendChild(card);
 
-        const slider = card.querySelector(`#slider-asset-${i}`);
-        const valSpan = card.querySelector(`#weight-val-asset-${i}`);
-        slider.addEventListener('input', () => {
-            selectedAssets[i].weight = parseInt(slider.value);
-            valSpan.textContent = `${selectedAssets[i].weight}%`;
-            updateWeightTotalBar();
-            updateRecommendation();
-        });
-        slider.addEventListener('change', () => { if (!btnRun.disabled) runBacktest(); });
+        if (!isAutoWeight) {
+            const slider = card.querySelector(`#slider-asset-${i}`);
+            const valSpan = card.querySelector(`#weight-val-asset-${i}`);
+            slider.addEventListener('input', () => {
+                selectedAssets[i].weight = parseInt(slider.value);
+                valSpan.textContent = `${selectedAssets[i].weight}%`;
+                updateWeightTotalBar();
+                updateRecommendation();
+            });
+            slider.addEventListener('change', () => { if (!btnRun.disabled) runBacktest(); });
+        }
     });
 
     if (selectedAssets.length < 3) {

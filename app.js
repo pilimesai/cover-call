@@ -88,6 +88,7 @@ const BUILTIN_ASSETS = [
 const POPULAR_CATALOG = [
     // Popular ETFs
     { symbol: '0050',   name: '元大台灣50 ETF (0050)',           type: 'etf',   twseCode: '0050',   exchange: 'tse' },
+    { symbol: '0050F',  name: '元大台灣50 ETF期貨 (0050F)',       type: 'futures', twseCode: '0050',   exchange: 'tse', contractMultiplier: 10000, marginRate: 0.15 },
     { symbol: '0056',   name: '元大高股息 ETF (0056)',            type: 'etf',   twseCode: '0056',   exchange: 'tse' },
     { symbol: '006208', name: '富邦台50 ETF (006208)',            type: 'etf',   twseCode: '006208', exchange: 'tse' },
     { symbol: '00878',  name: '國泰永續高股息 ETF (00878)',       type: 'etf',   twseCode: '00878',  exchange: 'tse' },
@@ -315,8 +316,8 @@ async function handleAssetSearch(query) {
                 name: cat.name,
                 type: cat.type,
                 priceField: null,
-                contractMultiplier: 1,
-                marginRate: cat.type === 'futures' ? 0.115 : 0,
+                contractMultiplier: cat.contractMultiplier !== undefined ? cat.contractMultiplier : 1,
+                marginRate: cat.marginRate !== undefined ? cat.marginRate : (cat.type === 'futures' ? 0.115 : 0),
                 source: 'twse',
                 twseCode: cat.twseCode,
                 exchange: cat.exchange,
@@ -419,8 +420,9 @@ function renderDropdown(items, query = '') {
                 const type = typeMap[badgeEl ? badgeEl.textContent.trim() : '股票'] || 'stock';
                 assetDef = {
                     symbol: sym, name: nameEl ? nameEl.textContent : sym,
-                    type, priceField: null, contractMultiplier: 1,
-                    marginRate: type === 'futures' ? 0.115 : 0,
+                    type, priceField: null,
+                    contractMultiplier: cat && cat.contractMultiplier !== undefined ? cat.contractMultiplier : 1,
+                    marginRate: cat && cat.marginRate !== undefined ? cat.marginRate : (type === 'futures' ? 0.115 : 0),
                     source: 'twse',
                     twseCode: cat ? cat.twseCode : sym,
                     exchange: cat ? cat.exchange : 'tse',

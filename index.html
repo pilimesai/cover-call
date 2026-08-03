@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Covered Call Portfolio Optimizer | 統一 00981A + 復華 00991A + 台積電期貨</title>
+    <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
     <link rel="stylesheet" href="index.css">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,7 @@
                 <span class="logo-icon">📊</span>
                 <div class="logo-text">
                     <h1>台股主動型 ETF 搭配個股期貨之 Covered Call 策略回測系統</h1>
-                    <p class="subtitle">00981A (統一台股增長) + 00991A (復華未來50) + 台積電期貨 (CDF)</p>
+                    <p class="subtitle">自訂多單組合 + Covered Call 選擇權策略 | 支援 ETF、個股、期貨標的</p>
                 </div>
             </div>
             <div class="status-badge" id="data-status-badge">
@@ -135,53 +135,42 @@
 
                 <hr class="divider">
 
-                <!-- Asset Weight Configuration -->
+                <!-- Asset Search & Portfolio Builder -->
                 <div class="panel-subheader">
-                    <h3>📈 現貨與期貨覆蓋資產權重 (Cover Assets)</h3>
-                    <p class="subtitle" style="margin-top:2px;">(手動模式下調整。三者權重加總必須為 100%)</p>
+                    <h3>📋 多單組合標的（最多 3 組）</h3>
+                    <p class="subtitle" style="margin-top:2px;">搜尋台股代碼或名稱，加入 ETF、個股或期貨作為多單組合</p>
                 </div>
 
-                <div class="weight-sliders hidden" id="manual-weights-container">
-                    <div class="slider-group">
-                        <div class="slider-header">
-                            <span>00981A 統一台股增長 (ETF)</span>
-                            <span class="weight-value" id="val-w-981">40%</span>
-                        </div>
-                        <input type="range" id="w-981" min="0" max="100" value="40">
+                <!-- Search Box -->
+                <div class="asset-search-wrapper" id="asset-search-section">
+                    <div class="asset-search-input-row">
+                        <input type="search" id="asset-search-input" placeholder="搜尋標的代碼或名稱（如 0050、2330、台積電）" autocomplete="off">
                     </div>
-
-                    <div class="slider-group">
-                        <div class="slider-header">
-                            <span>00991A 復華台灣未來50 (ETF)</span>
-                            <span class="weight-value" id="val-w-991">40%</span>
-                        </div>
-                        <input type="range" id="w-991" min="0" max="100" value="40">
-                    </div>
-
-                    <div class="slider-group">
-                        <div class="slider-header">
-                            <span>小型台積電期貨 (QFF, 100股等值)</span>
-                            <span class="weight-value" id="val-w-futures">20%</span>
-                        </div>
-                        <input type="range" id="w-futures" min="0" max="100" value="20">
-                        <small class="help-text">小型期貨合約規模為 100 股台積電。此处代表合約價值對應的資產曝險權重</small>
-                    </div>
-
-                    <div id="weight-error-msg" class="error-msg">
-                        ⚠️ 總權重加總必須等於 100%（目前為 100%）！
-                    </div>
+                    <div id="asset-search-dropdown" class="asset-dropdown hidden"></div>
                 </div>
 
-                <div class="auto-weights-info" id="auto-weights-container">
+                <!-- TWSE data fetch status -->
+                <div id="data-fetch-status" class="data-fetch-status hidden"></div>
+
+                <!-- Selected Asset Cards -->
+                <div id="asset-cards-container"></div>
+
+                <!-- Weight Total Bar -->
+                <div class="weight-total-bar" id="weight-total-bar">
+                    <span class="weight-total-label">權重合計</span>
+                    <div class="weight-total-track">
+                        <div class="weight-total-fill" id="weight-total-fill" style="width:100%; background: var(--success);"></div>
+                    </div>
+                    <span class="weight-total-val ok" id="weight-total-val">100%</span>
+                </div>
+
+                <!-- Auto Delta info (shown in delta-neutral mode) -->
+                <div class="auto-weights-info hidden" id="auto-weights-container">
                     <div class="info-card">
                         <p>ℹ️ <strong>自動 Delta 覆蓋對沖模式已啟用 (超越大盤)</strong></p>
-                        <p class="desc">系統將根據每日選擇權 Delta，自動動態調整 00981A、00991A 與小型台積電期貨的部位（目標曝險為 1.0 + Delta），使整體投資組合的淨多頭 Delta 始終維持在 <strong>+1.0</strong>。這能確保您的現貨持股 100% 跟隨大盤成長，並將賣出選擇權所收取的權利金完全轉化為<strong>超額報酬 (Alpha)</strong>，實現穩定超越大盤績效的目標。</p>
-                        <p class="desc" style="margin-top: 5px;"><strong>配置分配基準：</strong></p>
-                        <ul>
-                            <li>00981A (ETF)：分配 40% 的 Delta 避險比重</li>
-                            <li>00991A (ETF)：分配 40% 的 Delta 避險比重</li>
-                            <li>小型台積電期貨 (QFF)：分配 20% 的 Delta 避險比重</li>
-                        </ul>
+                        <p class="desc">系統將根據每日選擇權 Delta，自動動態調整各多單標的的部位（目標曝險為 1.0 + Delta），使整體投資組合的淨多頭 Delta 始終維持在 <strong>+1.0</strong>。這能確保您的持股 100% 跟隨標的成長，並將賣出選擇權所收取的權利金完全轉化為<strong>超額報酬 (Alpha)</strong>。</p>
+                        <p class="desc" style="margin-top: 5px;"><strong>配置分配基準（依各標的設定權重等比例分配）：</strong></p>
+                        <ul id="auto-weights-list"></ul>
                     </div>
                 </div>
 
@@ -253,58 +242,42 @@
                                        <th>預估資金佔用 (TWD)</th>
                                    </tr>
                                </thead>
-                               <tbody>
-                                   <tr>
-                                       <td>00981A 統一台股增長 (現貨)</td>
-                                       <td id="advice-w-981">--</td>
-                                       <td class="bold-val" id="advice-qty-981">-- 股</td>
-                                       <td id="advice-val-981">--</td>
-                                   </tr>
-                                   <tr>
-                                       <td>00991A 復華未來50 (現貨)</td>
-                                       <td id="advice-w-991">--</td>
-                                       <td class="bold-val" id="advice-qty-991">-- 股</td>
-                                       <td id="advice-val-991">--</td>
-                                   </tr>
+                               <tbody id="advice-assets-tbody">
+                                   <!-- dynamically generated by JS -->
+                               </tbody>
+                               <tfoot>
                                    <tr class="cash-row">
                                        <td>衍生性商品保證金 (現金)</td>
                                        <td id="advice-w-cash">--</td>
                                        <td id="advice-margin-ratio" style="font-weight: 600; color: var(--success);">維持率: --%</td>
                                        <td id="advice-val-cash">--</td>
                                    </tr>
-                                   
                                    <tr style="border-top: 2px solid var(--border);">
                                        <td colspan="4" style="text-align: center; color: var(--text-muted); font-size: 0.85em; padding: 6px;">↓ 衍生性商品部位 (共用上述現金作為保證金，不額外佔用本金) ↓</td>
                                    </tr>
-                                    <tr>
-                                        <td>小型台積電期貨 (QFF)</td>
-                                        <td style="color: var(--text-muted);">--</td>
-                                        <td class="bold-val" id="advice-qty-futures">-- 口</td>
-                                        <td style="color: var(--text-muted);">--</td>
-                                    </tr>
-                                    <tr>
-                                        <td>賣出選擇權 (Short Call)</td>
-                                        <td style="color: var(--text-muted);">--</td>
-                                        <td class="bold-val" id="advice-qty-options">-- 口</td>
-                                        <td style="color: var(--text-muted);">--</td>
-                                    </tr>
-                                    <tr style="background: rgba(59,130,246,0.06);">
-                                        <td style="font-weight: 700;">期交所最低維持保證金</td>
-                                        <td colspan="2" style="color: var(--text-muted); font-size: 0.85em;">期貨 + 選擇權最低要求</td>
-                                        <td id="advice-val-total-margin" style="font-weight: 700; color: var(--warning);">-- TWD</td>
-                                    </tr>
-                                    <tr style="background: rgba(16,185,129,0.06);">
-                                        <td style="font-weight: 700;">目標準備保證金</td>
-                                        <td colspan="2" style="color: var(--text-muted); font-size: 0.85em;">最低保證金 × 目標維持率</td>
-                                        <td id="advice-val-target-margin" style="font-weight: 700; color: var(--success);">-- TWD</td>
-                                    </tr>
-                               </tbody>
+                                   <tr>
+                                       <td>賣出選擇權 (Short Call)</td>
+                                       <td style="color: var(--text-muted);">--</td>
+                                       <td class="bold-val" id="advice-qty-options">-- 口</td>
+                                       <td style="color: var(--text-muted);">--</td>
+                                   </tr>
+                                   <tr style="background: rgba(59,130,246,0.06);">
+                                       <td style="font-weight: 700;">期交所最低維持保證金</td>
+                                       <td colspan="2" style="color: var(--text-muted); font-size: 0.85em;">期貨 + 選擇權最低要求</td>
+                                       <td id="advice-val-total-margin" style="font-weight: 700; color: var(--warning);">-- TWD</td>
+                                   </tr>
+                                   <tr style="background: rgba(16,185,129,0.06);">
+                                       <td style="font-weight: 700;">目標準備保證金</td>
+                                       <td colspan="2" style="color: var(--text-muted); font-size: 0.85em;">最低保證金 × 目標維持率</td>
+                                       <td id="advice-val-target-margin" style="font-weight: 700; color: var(--success);">-- TWD</td>
+                                   </tr>
+                               </tfoot>
                             </table>
                         </div>
                         <div class="advice-note">
-                            💡 <strong>計算依據：</strong>基於目前最新市價 (加權指數: <span id="latest-taiex">--</span>, 台積電: <span id="latest-tsmc">--</span> TWD, 00981A: <span id="latest-981">--</span> TWD, 00991A: <span id="latest-991">--</span> TWD)。<br>
-                            * <strong>Delta對沖說明</strong>：自動對沖模式下，現貨與期貨部位大小是為了完全對沖賣出選擇權的曝險。調整「目標維持率」會增減所需的「可用保證金」（現金緩衝），並不影響對沖部位數量。若要放大保證金部位，請調整<strong>「賣出部位口數」</strong>。<br>
-                            * 台積電期貨保證金以合約價值之 15% 估算，買進數量四捨五入至整數股。
+                            💡 <strong>計算依據：</strong>基於目前最新市價 (加權指數: <span id="latest-taiex">--</span>, 台積電: <span id="latest-tsmc">--</span> TWD)。<br>
+                            * <strong>Delta對沖說明</strong>：自動對沖模式下，各標的部位大小是為了完全對沖賣出選擇權的曝險。調整「目標維持率」會增減所需的「可用保證金」（現金緩衝），並不影響對沖部位數量。若要放大保證金部位，請調整<strong>「賣出部位口數」</strong>。<br>
+                            * 期貨保證金以合約價值之 15% 估算，ETF/個股全額計算。
                         </div>
                     </div>
                 </section>
@@ -337,6 +310,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=6"></script>
+    <script src="app.js?v=7"></script>
 </body>
 </html>

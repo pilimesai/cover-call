@@ -571,7 +571,10 @@ async function fetchTWSEHistory(asset) {
         showFetchStatus(`✅ ${asset.symbol} 歷史數據載入完成 (${allRecords.length} 筆)`, 'success');
         setTimeout(() => hideFetchStatus(), 3000);
     } else {
-        showFetchStatus(`⚠️ ${asset.symbol} 無法取得歷史數據（TWSE可能限制請求），回測將以最新價計算`, 'warning');
+        twsePriceCache[asset.symbol] = [];
+        const found = selectedAssets.find(a => a.symbol === asset.symbol);
+        if (found) found.priceHistory = [];
+        showFetchStatus(`⚠️ ${asset.symbol} 無法取得歷史數據（將使用最新價格進行靜態分析）`, 'warning');
         setTimeout(() => hideFetchStatus(), 4000);
     }
     renderAssetCards();
@@ -618,9 +621,13 @@ function renderAssetCards() {
 
         let dataNote = '';
         if (asset.source === 'twse') {
-            dataNote = asset.priceHistory && asset.priceHistory.length > 0
-                ? `<div class="asset-card-margin-note">📊 TWSE 歷史數據: ${asset.priceHistory.length} 筆</div>`
-                : `<div class="asset-card-margin-note" style="color:var(--warning)">⏳ 歷史數據載入中...</div>`;
+            if (asset.priceHistory === undefined) {
+                dataNote = `<div class="asset-card-margin-note" style="color:var(--warning)">⏳ 歷史數據載入中...</div>`;
+            } else if (asset.priceHistory.length > 0) {
+                dataNote = `<div class="asset-card-margin-note">📊 TWSE 歷史數據: ${asset.priceHistory.length} 筆</div>`;
+            } else {
+                dataNote = `<div class="asset-card-margin-note" style="color:var(--text-muted)">⚠️ 載入失敗 (將使用現價回測)</div>`;
+            }
         }
         const marginNote = asset.marginRate > 0
             ? `<div class="asset-card-margin-note">💰 期貨保證金: ${(asset.marginRate * 100).toFixed(1)}% | 合約乘數: ×${asset.contractMultiplier}</div>`

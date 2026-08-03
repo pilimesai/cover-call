@@ -575,6 +575,7 @@ async function fetchTWSEHistory(asset) {
         setTimeout(() => hideFetchStatus(), 4000);
     }
     renderAssetCards();
+    updateRecommendation();
     runBacktest();
 }
 
@@ -947,7 +948,14 @@ function runBacktest() {
             cash = 0; activeOption = null;
             strategyEquity.push(0);
             taiexEquity.push(initialCapital * (price_taiex / initialTaiex));
-            tsmcEquity.push(initialCapital * (price_tsmc / initialTsmc));
+            let portfolioPnLSum = 0;
+            selectedAssets.forEach((asset) => {
+                const startPrice = getAssetPrice(asset, rawData[startIdx]) || 1;
+                const curPrice = getAssetPrice(asset, row) || getAssetPrice(asset, rawData[Math.max(0, i - 1)]) || startPrice;
+                const assetReturn = (curPrice - startPrice) / startPrice;
+                portfolioPnLSum += assetReturn * (asset.weight / 100.0);
+            });
+            tsmcEquity.push(initialCapital * (1.0 + portfolioPnLSum));
             continue;
         }
 
@@ -1048,7 +1056,14 @@ function runBacktest() {
         const dailyEquity = cash + dailyAssetValue - optionLiability;
         strategyEquity.push(dailyEquity);
         taiexEquity.push(initialCapital * (price_taiex / initialTaiex));
-        tsmcEquity.push(initialCapital * (price_tsmc / initialTsmc));
+        let portfolioPnLSum = 0;
+        selectedAssets.forEach((asset) => {
+            const startPrice = getAssetPrice(asset, rawData[startIdx]) || 1;
+            const curPrice = getAssetPrice(asset, row) || getAssetPrice(asset, rawData[Math.max(0, i - 1)]) || startPrice;
+            const assetReturn = (curPrice - startPrice) / startPrice;
+            portfolioPnLSum += assetReturn * (asset.weight / 100.0);
+        });
+        tsmcEquity.push(initialCapital * (1.0 + portfolioPnLSum));
 
         // 4. Margin call
         const optionMargin = activeOption ? (optionLiability + optionContracts * multiplier * currentUnderlyingPrice * 0.115) : 0;
@@ -1144,7 +1159,7 @@ function renderChart(labels, strategyData, taiexData, tsmcData, portfolioLabel =
             datasets: [
                 { label: `📋 ${portfolioLabel} Covered Call 策略`, data: toReturn(strategyData), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)', borderWidth: 2.5, pointRadius: toReturn(strategyData).map((_, i) => i === strategyData.length - 1 ? 6 : 0), pointHoverRadius: 8, tension: 0.1, fill: true },
                 { label: '對比加權指數 (TAIEX)', data: toReturn(taiexData), borderColor: '#94a3b8', borderWidth: 1.5, borderDash: [5, 5], pointRadius: toReturn(taiexData).map((_, i) => i === taiexData.length - 1 ? 6 : 0), pointHoverRadius: 8, tension: 0.1, fill: false },
-                { label: '對比台積電 (TSMC)', data: toReturn(tsmcData), borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: toReturn(tsmcData).map((_, i) => i === tsmcData.length - 1 ? 6 : 0), pointHoverRadius: 8, tension: 0.1, fill: false },
+                { label: '對比單純持有組合 (Buy & Hold)', data: toReturn(tsmcData), borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: toReturn(tsmcData).map((_, i) => i === tsmcData.length - 1 ? 6 : 0), pointHoverRadius: 8, tension: 0.1, fill: false },
             ]
         },
         options: {

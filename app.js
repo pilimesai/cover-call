@@ -36,22 +36,44 @@ const BUILTIN_ASSETS = [
         source: 'builtin',
     },
     {
-        symbol: 'QFF',
-        name: '小型台積電期貨 (QFF)',
+        symbol: 'TX',
+        name: '大台指期貨 (TX)',
         type: 'futures',
-        priceField: 'tsmc',
-        contractMultiplier: 100,
+        priceField: 'taiex',
+        contractMultiplier: 200,      // 1 point = 200 TWD
         marginRate: 0.115,
         betaField_taiex: null,
         betaField_tsmc: null,
         source: 'builtin',
     },
     {
-        symbol: 'TXF',
-        name: '台指期貨 (TX)',
+        symbol: 'MTX',
+        name: '小台指期貨 (MTX)',
         type: 'futures',
         priceField: 'taiex',
-        contractMultiplier: 50,
+        contractMultiplier: 50,       // 1 point = 50 TWD
+        marginRate: 0.115,
+        betaField_taiex: null,
+        betaField_tsmc: null,
+        source: 'builtin',
+    },
+    {
+        symbol: 'CDF',
+        name: '台積電股期 (CDF)',
+        type: 'futures',
+        priceField: 'tsmc',
+        contractMultiplier: 2000,     // 1 contract = 2000 shares
+        marginRate: 0.115,
+        betaField_taiex: null,
+        betaField_tsmc: null,
+        source: 'builtin',
+    },
+    {
+        symbol: 'QFF',
+        name: '小型台積電股期 (QFF)',
+        type: 'futures',
+        priceField: 'tsmc',
+        contractMultiplier: 100,      // 1 contract = 100 shares
         marginRate: 0.115,
         betaField_taiex: null,
         betaField_tsmc: null,
@@ -108,7 +130,7 @@ let chartInstance = null;
 let selectedAssets = [
     { ...BUILTIN_ASSETS[0], weight: 40 },
     { ...BUILTIN_ASSETS[1], weight: 40 },
-    { ...BUILTIN_ASSETS[3], weight: 20 },
+    { ...BUILTIN_ASSETS[6], weight: 20 },
 ];
 
 const twsePriceCache = {};

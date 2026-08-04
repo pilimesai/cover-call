@@ -170,9 +170,7 @@ const chkAutoWeight = document.getElementById('chk-auto-weight');
 const adviceStrike = document.getElementById('advice-strike');
 const advicePremium = document.getElementById('advice-premium');
 const adviceAssetsTbody = document.getElementById('advice-assets-tbody');
-const adviceWCash = document.getElementById('advice-w-cash');
 const adviceMarginRatio = document.getElementById('advice-margin-ratio');
-const adviceValCash = document.getElementById('advice-val-cash');
 const latestTaiexSpan = document.getElementById('latest-taiex');
 const latestTsmcSpan = document.getElementById('latest-tsmc');
 
@@ -854,6 +852,7 @@ function updateRecommendation() {
     // Render advice table
     adviceAssetsTbody.innerHTML = '';
     let totalFuturesMargin = 0;
+    let totalSpotCost = 0;
     assetInfos.forEach(({ asset, value, wFrac }) => {
         const price = getAssetPrice(asset, row) || (asset.priceField === 'tsmc' ? row.tsmc : row.taiex);
         let qtyText, valText;
@@ -863,11 +862,13 @@ function updateRecommendation() {
             const margin = qty * contractVal * asset.marginRate;
             totalFuturesMargin += margin;
             qtyText = `${qty} 口`;
-            valText = `保證金 ${Math.round(margin).toLocaleString()} TWD`;
+            valText = `(計入保證金)`;
         } else {
             const qty = price > 0 ? Math.round(value / price) : 0;
+            const cost = Math.round(qty * price);
+            totalSpotCost += cost;
             qtyText = `${qty.toLocaleString()} 股`;
-            valText = `${Math.round(qty * price).toLocaleString()} TWD`;
+            valText = `${cost.toLocaleString()} TWD`;
         }
         const bc = asset.type === 'futures' ? 'futures' : asset.type === 'etf' ? 'etf' : 'stock';
         const bl = asset.type === 'futures' ? '期貨' : asset.type === 'etf' ? 'ETF' : '股票';
@@ -876,7 +877,7 @@ function updateRecommendation() {
             <td>${asset.symbol} <span class="asset-badge ${bc}" style="font-size:0.63rem">${bl}</span> ${asset.name.substring(0, 10)}</td>
             <td>${(wFrac * 100).toFixed(1)}%</td>
             <td class="bold-val">${qtyText}</td>
-            <td>${valText}</td>`;
+            <td style="color:${asset.type === 'futures' ? 'var(--text-muted)' : 'inherit'}">${valText}</td>`;
         adviceAssetsTbody.appendChild(tr);
     });
 
@@ -885,23 +886,30 @@ function updateRecommendation() {
     const optionMaintMargin = optionContracts * multiplier * (optInfo.premium + S_underlying * 0.115);
     const totalMaintMargin = totalFuturesMargin + optionMaintMargin;
     const targetRatio = parseFloat(targetMarginRatioInput.value) || 130;
+    const targetMarginAmount = Math.round(totalMaintMargin * targetRatio / 100);
 
     adviceWCash.textContent = `${((cashValue / capital) * 100).toFixed(1)}%`;
     adviceValCash.textContent = `${Math.round(cashValue).toLocaleString()} TWD`;
 
     if (totalMaintMargin > 0) {
         const ratio = (cashValue / totalMaintMargin) * 100;
-        adviceMarginRatio.textContent = `維持率: ${ratio.toFixed(0)}%`;
+        adviceMarginRatio.textContent = `${ratio.toFixed(0)}%`;
         adviceMarginRatio.style.color = ratio < 120 ? 'var(--danger)' : ratio < 167 ? 'var(--warning)' : 'var(--success)';
     } else {
-        adviceMarginRatio.textContent = '維持率: 無部位';
+        adviceMarginRatio.textContent = '--%';
         adviceMarginRatio.style.color = 'var(--text-muted)';
     }
 
     const avTM = document.getElementById('advice-val-total-margin');
     const avTgtM = document.getElementById('advice-val-target-margin');
     if (avTM) avTM.textContent = `${Math.round(totalMaintMargin).toLocaleString()} TWD`;
-    if (avTgtM) avTgtM.textContent = `${Math.round(totalMaintMargin * targetRatio / 100).toLocaleString()} TWD`;
+    if (avTgtM) avTgtM.textContent = `${targetMarginAmount.toLocaleString()} TWD`;
+
+    // Clear summary boxes
+    const elSpot = document.getElementById('advice-summary-spot');
+    const elMargin = document.getElementById('advice-summary-margin');
+    if (elSpot) elSpot.textContent = `${totalSpotCost.toLocaleString()} TWD`;
+    if (elMargin) elMargin.textContent = `${targetMarginAmount.toLocaleString()} TWD`;
 
     const aqo = document.getElementById('advice-qty-options');
     if (aqo) aqo.textContent = `${optionContracts} 口`;

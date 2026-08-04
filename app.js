@@ -888,8 +888,7 @@ function updateRecommendation() {
     const targetRatio = parseFloat(targetMarginRatioInput.value) || 130;
     const targetMarginAmount = Math.round(totalMaintMargin * targetRatio / 100);
 
-    adviceWCash.textContent = `${((cashValue / capital) * 100).toFixed(1)}%`;
-    adviceValCash.textContent = `${Math.round(cashValue).toLocaleString()} TWD`;
+
 
     if (totalMaintMargin > 0) {
         const ratio = (cashValue / totalMaintMargin) * 100;

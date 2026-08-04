@@ -89,6 +89,12 @@ def main():
         
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
+        
+        # When Yahoo Finance hasn't finalized today's Close yet, fall back to Open price
+        if "Close" in df.columns and "Open" in df.columns:
+            df["Close"] = df["Close"].combine_first(df["Open"])
+        if "Adj Close" in df.columns and "Open" in df.columns:
+            df["Adj Close"] = df["Adj Close"].combine_first(df["Open"])
             
         if name == "taiex":
             dfs[name] = df["Close"] # Option strikes are based on the standard Price Index

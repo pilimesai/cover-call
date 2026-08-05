@@ -248,6 +248,7 @@
                                        <th>資金配置權重</th>
                                        <th>建議部位大小</th>
                                        <th>預估資金佔用 (TWD)</th>
+                                       <th>Beta (β)</th>
                                    </tr>
                                </thead>
                                <tbody id="advice-assets-tbody">
@@ -282,7 +283,8 @@
 
                         <div class="advice-note">
                             💡 <strong>計算依據：</strong>基於目前最新市價 (加權指數: <span id="latest-taiex">--</span>, 台積電: <span id="latest-tsmc">--</span> TWD)。<br>
-                            * <strong>Delta對沖說明</strong>：自動對沖模式下，各標的部位大小是為了完全對沖賣出選擇權的曝險。調整「目標維持率」會增減所需的「可用保證金」（現金緩衝），並不影響對沖部位數量。若要放大保證金部位，請調整<strong>「賣出部位口數」</strong>。<br>
+                            * <strong>Beta 加權覆蓋說明</strong>：各多單標的的有效市場曝險 = 持股市值 × β（對選擇權標的的滾動 Beta）。Beta &lt; 1 的 ETF 對沖效果較弱，系統已自動增加購買數量以補足覆蓋缺口（覆蓋率 &lt; 100% 表示保護不足）。<br>
+                            * <strong>Delta 對沖說明</strong>：自動對沖模式下，各標的部位大小是為了完全對沖賣出選擇權的曝險。調整「目標維持率」會增減所需的「可用保證金」（現金緩衝），並不影響對沖部位數量。若要放大保證金部位，請調整<strong>「賣出部位口數」</strong>。<br>
                             * 期貨保證金以合約價值之 15% 估算，ETF/個股全額計算。
                         </div>
                     </div>
@@ -316,6 +318,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=9"></script>
 </body>
 </html>

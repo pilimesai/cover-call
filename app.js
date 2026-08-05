@@ -730,6 +730,32 @@ function getAssetPrice(asset, row) {
 }
 
 // ─────────────────────────────────────────────
+// ASSET BETA HELPER
+// ─────────────────────────────────────────────
+/**
+ * Returns the effective beta of an asset relative to the option underlying.
+ * - Futures always track their underlying exactly → beta = 1.0
+ * - TSMC stock vs TSMC options → beta = 1.0
+ * - Builtin ETFs: read rolling beta from the row's betas object
+ * - TWSE assets without beta data → assume 1.0
+ */
+function getAssetBeta(asset, row, optionType) {
+    if (asset.type === 'futures') return 1.0;
+
+    // TSMC stock is the underlying for tsmc options
+    if ((asset.symbol === 'TSMC' || asset.symbol === '2330') && optionType === 'tsmc') return 1.0;
+
+    // Builtin ETFs carry betaField references
+    const betaField = optionType === 'taiex' ? asset.betaField_taiex : asset.betaField_tsmc;
+    if (betaField && row.betas && row.betas[betaField] !== undefined) {
+        return Math.max(0.05, row.betas[betaField]); // floor at 0.05 to avoid division blow-up
+    }
+
+    // TWSE-fetched assets or anything without beta data → assume 1
+    return 1.0;
+}
+
+// ─────────────────────────────────────────────
 // ESTIMATE DELTA
 // ─────────────────────────────────────────────
 function estimateDelta(rule) {
@@ -853,33 +879,58 @@ function updateRecommendation() {
     adviceAssetsTbody.innerHTML = '';
     let totalFuturesMargin = 0;
     let totalSpotCost = 0;
+    let totalEffectiveExposure = 0;
+    const callExposure = optionContracts * multiplier * S_underlying;
     assetInfos.forEach(({ asset, value, wFrac }) => {
         const price = getAssetPrice(asset, row) || (asset.priceField === 'tsmc' ? row.tsmc : row.taiex);
-        let qtyText, valText;
+        const beta = getAssetBeta(asset, row, optionType);
+        let qtyText, valText, betaText;
         if (asset.type === 'futures') {
             const contractVal = price * asset.contractMultiplier;
             const qty = contractVal > 0 ? Math.max(1, Math.round(value / contractVal)) : 0;
             const margin = qty * contractVal * asset.marginRate;
             totalFuturesMargin += margin;
+            totalEffectiveExposure += qty * contractVal;
             qtyText = `${qty} 口`;
             valText = `(計入保證金)`;
+            betaText = `β 1.00`;
         } else {
-            const qty = price > 0 ? Math.round(value / price) : 0;
+            // Beta-adjusted: buy value/(price*beta) units so effective exposure = value
+            const qty = (price > 0 && beta > 0) ? Math.round(value / (price * beta)) : 0;
             const cost = Math.round(qty * price);
             totalSpotCost += cost;
+            totalEffectiveExposure += qty * price * beta;
             qtyText = `${qty.toLocaleString()} 股`;
             valText = `${cost.toLocaleString()} TWD`;
+            betaText = `β ${beta.toFixed(2)}`;
         }
         const bc = asset.type === 'futures' ? 'futures' : asset.type === 'etf' ? 'etf' : 'stock';
         const bl = asset.type === 'futures' ? '期貨' : asset.type === 'etf' ? 'ETF' : '股票';
+        const betaColor = beta < 0.7 ? 'var(--warning)' : beta < 0.9 ? 'var(--accent)' : 'var(--success)';
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${asset.symbol} <span class="asset-badge ${bc}" style="font-size:0.63rem">${bl}</span> ${asset.name.substring(0, 10)}</td>
             <td>${(wFrac * 100).toFixed(1)}%</td>
             <td class="bold-val">${qtyText}</td>
-            <td style="color:${asset.type === 'futures' ? 'var(--text-muted)' : 'inherit'}">${valText}</td>`;
+            <td style="color:${asset.type === 'futures' ? 'var(--text-muted)' : 'inherit'}">${valText}</td>
+            <td style="font-size:0.8rem; color:${betaColor}; font-weight:600;">${betaText}</td>`;
         adviceAssetsTbody.appendChild(tr);
     });
+
+    // Beta-adjusted coverage ratio row
+    const coverageRatio = callExposure > 0 ? (totalEffectiveExposure / callExposure) * 100 : 0;
+    const coverageColor = coverageRatio < 80 ? 'var(--danger)' : coverageRatio < 100 ? 'var(--warning)' : 'var(--success)';
+    const coverageIcon = coverageRatio < 80 ? '🔴' : coverageRatio < 100 ? '⚠️' : '✅';
+    const coverageTr = document.createElement('tr');
+    coverageTr.style.cssText = 'background: rgba(0,0,0,0.15); border-top: 1px solid var(--border);';
+    coverageTr.innerHTML = `
+        <td colspan="4" style="font-size:0.78rem; color:var(--text-muted); padding:5px 8px;">
+            ${coverageIcon} Beta 加權有效覆蓋率：
+            <strong style="color:${coverageColor}; font-size:0.9rem;">${coverageRatio.toFixed(1)}%</strong>
+            <span style="color:var(--text-muted); margin-left:6px;">(多單有效曝險 ${Math.round(totalEffectiveExposure).toLocaleString()} / Call 名義曝險 ${Math.round(callExposure).toLocaleString()} TWD)</span>
+        </td>
+        <td></td>`;
+    adviceAssetsTbody.appendChild(coverageTr);
 
     const spotValue = assetInfos.filter(x => x.asset.type !== 'futures').reduce((s, x) => s + x.value, 0);
     const cashValue = Math.max(0, capital - spotValue);
@@ -1032,7 +1083,10 @@ function runBacktest() {
                     positions[ai].qty = contractVal > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0;
                     positions[ai].entryPrice = price;
                 } else {
-                    positions[ai].qty = Math.floor(allotment / price);
+                    // Beta-adjusted: buy allotment / (price * beta) units so that
+                    // effective market exposure = qty * price * beta = allotment
+                    const beta = getAssetBeta(asset, rawData[i], optionType);
+                    positions[ai].qty = (price > 0 && beta > 0) ? Math.floor(allotment / (price * beta)) : 0;
                     cash -= positions[ai].qty * price;
                     positions[ai].entryPrice = price;
                 }

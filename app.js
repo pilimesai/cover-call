@@ -129,11 +129,193 @@ let rawData = [];
 let chartInstance = null;
 let isAutoWeight = true;
 
-let selectedAssets = [
-    { ...BUILTIN_ASSETS[0], weight: 33 },
-    { ...BUILTIN_ASSETS[1], weight: 33 },
-    { ...BUILTIN_ASSETS[6], weight: 34 },
-];
+let selectedAssets = [];  // Will be set to frugal preset on init
+
+// ─────────────────────────────────────────────
+// PORTFOLIO PRESETS
+// ─────────────────────────────────────────────
+// Helper: find asset in builtin or popular catalog
+function findPresetAsset(symbol) {
+    const builtin = BUILTIN_ASSETS.find(a => a.symbol === symbol);
+    if (builtin) return { ...builtin };
+    const cat = POPULAR_CATALOG.find(a => a.symbol === symbol);
+    if (cat) return {
+        symbol: cat.symbol,
+        name: cat.name,
+        type: cat.type,
+        priceField: null,
+        contractMultiplier: cat.contractMultiplier !== undefined ? cat.contractMultiplier : 1,
+        marginRate: cat.marginRate !== undefined ? cat.marginRate : (cat.type === 'futures' ? 0.115 : 0),
+        betaField_taiex: null,
+        betaField_tsmc: null,
+        source: 'twse',
+        twseCode: cat.twseCode,
+        exchange: cat.exchange,
+    };
+    return null;
+}
+
+const PORTFOLIO_PRESETS = {
+    frugal: {
+        label: '小資組合',
+        symbols: ['0050F', 'QFF', '00981A'],
+    },
+    stable: {
+        label: '穩健組合',
+        symbols: ['00981A', '00991A', 'TSMC'],
+    },
+};
+
+// Custom slot state (3 slots), loaded from localStorage
+let customSlots = [null, null, null];
+const CUSTOM_SLOTS_KEY = 'covercall_custom_portfolios';
+
+function loadCustomSlots() {
+    try {
+        const raw = localStorage.getItem(CUSTOM_SLOTS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length === 3) {
+                customSlots = parsed;
+            }
+        }
+    } catch (e) { console.warn('Failed to load custom slots:', e); }
+}
+
+function saveCustomSlots() {
+    try {
+        localStorage.setItem(CUSTOM_SLOTS_KEY, JSON.stringify(customSlots));
+    } catch (e) { console.warn('Failed to save custom slots:', e); }
+}
+
+/**
+ * Serialize current selectedAssets into a slot-compatible format.
+ * For builtin assets: just store symbol. For TWSE assets: store full definition.
+ */
+function serializeCurrentPortfolio() {
+    return selectedAssets.map(a => ({
+        symbol: a.symbol,
+        name: a.name,
+        type: a.type,
+        source: a.source || 'builtin',
+        priceField: a.priceField || null,
+        contractMultiplier: a.contractMultiplier,
+        marginRate: a.marginRate,
+        betaField_taiex: a.betaField_taiex || null,
+        betaField_tsmc: a.betaField_tsmc || null,
+        twseCode: a.twseCode || null,
+        exchange: a.exchange || null,
+        weight: a.weight,
+    }));
+}
+
+/**
+ * Apply a serialized portfolio from a slot or preset.
+ */
+function applySerializedPortfolio(assets) {
+    selectedAssets = assets.map(saved => {
+        // Try to match a builtin asset by symbol first
+        const builtin = BUILTIN_ASSETS.find(b => b.symbol === saved.symbol);
+        if (builtin) return { ...builtin, weight: saved.weight };
+        // Otherwise restore as a TWSE asset
+        return { ...saved };
+    });
+    if (isAutoWeight) autoDistributeWeights();
+    renderAssetCards();
+    updateWeightTotalBar();
+    updateAutoWeightsList();
+    updateRecommendation();
+    runBacktest();
+}
+
+// Track which preset is active ('frugal' | 'stable' | 'custom' | null)
+let activePreset = 'frugal';
+
+function setActivePreset(preset) {
+    activePreset = preset;
+    ['frugal', 'stable'].forEach(id => {
+        const btn = document.getElementById(`preset-btn-${id}`);
+        if (btn) btn.classList.toggle('active', id === preset);
+    });
+}
+
+function applyPreset(preset) {
+    const def = PORTFOLIO_PRESETS[preset];
+    if (!def) return;
+    const assets = def.symbols.map(sym => findPresetAsset(sym)).filter(Boolean);
+    selectedAssets = assets.map(a => ({ ...a, weight: 0 }));
+    autoDistributeWeights();
+    setActivePreset(preset);
+    renderAssetCards();
+    updateWeightTotalBar();
+    updateAutoWeightsList();
+    updateRecommendation();
+    runBacktest();
+    // Fetch TWSE history for any TWSE-sourced assets in the preset
+    for (const asset of selectedAssets) {
+        if (asset.source === 'twse' && asset.priceHistory === undefined) {
+            fetchTWSEHistory(asset);
+        }
+    }
+}
+
+function saveToCustomSlot(slotIndex) {
+    if (selectedAssets.length === 0) return;
+    customSlots[slotIndex] = {
+        label: selectedAssets.map(a => a.symbol).join(' · '),
+        assets: serializeCurrentPortfolio(),
+    };
+    saveCustomSlots();
+    renderCustomSlots();
+    showFetchStatus(`✅ 已儲存至自選組合 ${slotIndex + 1}`, 'success');
+    setTimeout(() => hideFetchStatus(), 2500);
+}
+
+function loadFromCustomSlot(slotIndex) {
+    const slot = customSlots[slotIndex];
+    if (!slot) return;
+    applySerializedPortfolio(slot.assets);
+    setActivePreset(null);
+    renderCustomSlots();
+}
+
+function clearCustomSlot(slotIndex) {
+    customSlots[slotIndex] = null;
+    saveCustomSlots();
+    renderCustomSlots();
+}
+
+function renderCustomSlots() {
+    const container = document.getElementById('custom-slots-row');
+    if (!container) return;
+    container.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+        const slot = customSlots[i];
+        const card = document.createElement('div');
+        card.className = 'custom-slot-card' + (slot ? ' has-data' : ' empty');
+        if (slot) {
+            card.innerHTML = `
+                <div class="custom-slot-num">自選 ${i + 1}</div>
+                <div class="custom-slot-label" title="${slot.label}">${slot.label}</div>
+                <div class="custom-slot-actions">
+                    <button type="button" class="slot-btn slot-btn--load" onclick="loadFromCustomSlot(${i})" title="載入此組合">▶ 載入</button>
+                    <button type="button" class="slot-btn slot-btn--save" onclick="saveToCustomSlot(${i})" title="覆蓋儲存目前組合">💾</button>
+                    <button type="button" class="slot-btn slot-btn--clear" onclick="clearCustomSlot(${i})" title="清除此組合">✕</button>
+                </div>
+            `;
+        } else {
+            card.innerHTML = `
+                <div class="custom-slot-num">自選 ${i + 1}</div>
+                <div class="custom-slot-empty-hint">空白</div>
+                <div class="custom-slot-actions">
+                    <button type="button" class="slot-btn slot-btn--save" onclick="saveToCustomSlot(${i})" title="儲存目前組合到此槽">💾 儲存</button>
+                </div>
+            `;
+        }
+        container.appendChild(card);
+    }
+}
+
 
 const twsePriceCache = {};
 let searchDebounceTimer = null;
@@ -188,17 +370,20 @@ window.addEventListener('DOMContentLoaded', async () => {
         populateDropdowns();
         setupEventListeners();
         if (chkAutoWeight) chkAutoWeight.checked = isAutoWeight;
-        if (isAutoWeight) autoDistributeWeights();
-        renderAssetCards();
-        updateWeightTotalBar();
-        updateRecommendation();
-        runBacktest();
+
+        // Load custom slots from localStorage
+        loadCustomSlots();
+        renderCustomSlots();
+
+        // Apply default frugal preset (小資組合)
+        applyPreset('frugal');
     } catch (error) {
         console.error("Initialization error:", error);
         dataStatusBadge.innerHTML = '<span class="dot red"></span> 數據載入失敗';
         alert("載入歷史數據時發生錯誤，請確保已執行 generate_data.py！");
     }
 });
+
 
 function populateDropdowns() {
     startSelect.innerHTML = '';
@@ -481,6 +666,9 @@ async function addAsset(assetDef) {
         showFetchStatus('ℹ️ 此標的已在組合中', 'info'); return;
     }
 
+    // Clear preset highlight when user customizes manually
+    setActivePreset(null);
+
     const newAsset = { ...assetDef, weight: 0 };
     selectedAssets.push(newAsset);
 
@@ -506,6 +694,8 @@ async function addAsset(assetDef) {
 }
 
 function removeAsset(index) {
+    // Clear preset highlight when user customizes manually
+    setActivePreset(null);
     selectedAssets.splice(index, 1);
     if (isAutoWeight) {
         autoDistributeWeights();

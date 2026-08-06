@@ -135,6 +135,36 @@
 
                 <hr class="divider">
 
+                <!-- Portfolio Presets & Custom Memory -->
+                <div class="panel-subheader">
+                    <h3>⭐ 快速選組合</h3>
+                </div>
+
+                <!-- Preset Buttons -->
+                <div class="preset-row">
+                    <button type="button" class="preset-btn preset-btn--frugal active" id="preset-btn-frugal" onclick="applyPreset('frugal')" title="0050期貨 + 小台積期貨 + 00981A">
+                        <span class="preset-icon">💰</span>
+                        <span class="preset-label">小資組合</span>
+                        <span class="preset-desc">0050F · QFF · 00981A</span>
+                    </button>
+                    <button type="button" class="preset-btn preset-btn--stable" id="preset-btn-stable" onclick="applyPreset('stable')" title="00981A + 00991A + 台積電">
+                        <span class="preset-icon">🛡️</span>
+                        <span class="preset-label">穩健組合</span>
+                        <span class="preset-desc">00981A · 00991A · 台積電</span>
+                    </button>
+                </div>
+
+                <!-- Custom Portfolio Slots -->
+                <div class="custom-slots-header">
+                    <span class="custom-slots-title">🗂️ 自選記憶組合</span>
+                    <span class="custom-slots-hint">點儲存鍵記錄目前組合 → 下次快速一鍵載入</span>
+                </div>
+                <div class="custom-slots-row" id="custom-slots-row">
+                    <!-- Dynamically rendered by JS -->
+                </div>
+
+                <hr class="divider">
+
                 <!-- Asset Search & Portfolio Builder -->
                 <div class="panel-subheader">
                     <h3>📋 多單組合標的（最多 3 組）</h3>
@@ -318,6 +348,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>

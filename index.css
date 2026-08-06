@@ -1136,6 +1136,16 @@ input[type="range"]::-webkit-slider-thumb:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.custom-slot-strategy {
+    font-size: 0.6rem;
+    color: var(--secondary);
+    opacity: 0.75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0.1px;
     flex: 1;
 }
 

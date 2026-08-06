@@ -189,11 +189,10 @@ function saveCustomSlots() {
 }
 
 /**
- * Serialize current selectedAssets into a slot-compatible format.
- * For builtin assets: just store symbol. For TWSE assets: store full definition.
+ * Serialize current selectedAssets AND all strategy settings into a slot.
  */
 function serializeCurrentPortfolio() {
-    return selectedAssets.map(a => ({
+    const assets = selectedAssets.map(a => ({
         symbol: a.symbol,
         name: a.name,
         type: a.type,
@@ -207,25 +206,74 @@ function serializeCurrentPortfolio() {
         exchange: a.exchange || null,
         weight: a.weight,
     }));
+
+    // Capture all strategy form settings
+    const strategy = {
+        optionType:        optionTypeSelect.value,
+        optionCycle:       optionCycleSelect.value,
+        strikeRule:        strikeRuleSelect.value,
+        customOtmValue:    customOtmValueInput.value,
+        optionContracts:   optionContractsInput.value,
+        portfolioMode:     portfolioModeSelect.value,
+        capitalMode:       capitalModeSelect.value,
+        capital:           capitalInput.value,
+        targetMarginRatio: targetMarginRatioInput.value,
+        isAutoWeight:      isAutoWeight,
+    };
+
+    return { assets, strategy };
 }
 
 /**
- * Apply a serialized portfolio from a slot or preset.
+ * Apply a serialized portfolio (assets + strategy settings) from a slot.
  */
-function applySerializedPortfolio(assets) {
-    selectedAssets = assets.map(saved => {
-        // Try to match a builtin asset by symbol first
-        const builtin = BUILTIN_ASSETS.find(b => b.symbol === saved.symbol);
-        if (builtin) return { ...builtin, weight: saved.weight };
-        // Otherwise restore as a TWSE asset
-        return { ...saved };
+function applySerializedPortfolio(saved) {
+    // Support old format (plain array) for backward compat
+    const assets  = Array.isArray(saved) ? saved : saved.assets;
+    const strategy = Array.isArray(saved) ? null  : saved.strategy;
+
+    selectedAssets = assets.map(a => {
+        const builtin = BUILTIN_ASSETS.find(b => b.symbol === a.symbol);
+        if (builtin) return { ...builtin, weight: a.weight };
+        return { ...a };
     });
+
+    // Restore strategy settings if present
+    if (strategy) {
+        if (strategy.optionType       != null) optionTypeSelect.value       = strategy.optionType;
+        if (strategy.optionCycle      != null) optionCycleSelect.value      = strategy.optionCycle;
+        if (strategy.strikeRule       != null) strikeRuleSelect.value       = strategy.strikeRule;
+        if (strategy.customOtmValue   != null) customOtmValueInput.value    = strategy.customOtmValue;
+        if (strategy.optionContracts  != null) optionContractsInput.value   = strategy.optionContracts;
+        if (strategy.portfolioMode    != null) portfolioModeSelect.value    = strategy.portfolioMode;
+        if (strategy.capitalMode      != null) capitalModeSelect.value      = strategy.capitalMode;
+        if (strategy.capital          != null) capitalInput.value           = strategy.capital;
+        if (strategy.targetMarginRatio != null) targetMarginRatioInput.value = strategy.targetMarginRatio;
+        if (strategy.isAutoWeight     != null) {
+            isAutoWeight = strategy.isAutoWeight;
+            if (chkAutoWeight) chkAutoWeight.checked = isAutoWeight;
+        }
+        // Sync UI state from restored values
+        const isAutoSolve = capitalModeSelect.value === 'auto-solve';
+        capitalInput.disabled = isAutoSolve;
+        targetRatioRow.classList.toggle('hidden', !isAutoSolve);
+        customOtmRow.classList.toggle('hidden', strikeRuleSelect.value !== 'CUSTOM_OTM');
+        autoWeightsContainer.classList.toggle('hidden', portfolioModeSelect.value !== 'delta-neutral');
+    }
+
     if (isAutoWeight) autoDistributeWeights();
     renderAssetCards();
     updateWeightTotalBar();
     updateAutoWeightsList();
     updateRecommendation();
     runBacktest();
+
+    // Fetch TWSE history for any TWSE assets
+    for (const asset of selectedAssets) {
+        if (asset.source === 'twse' && asset.priceHistory === undefined) {
+            fetchTWSEHistory(asset);
+        }
+    }
 }
 
 // Track which preset is active ('frugal' | 'stable' | 'custom' | null)
@@ -261,20 +309,46 @@ function applyPreset(preset) {
 
 function saveToCustomSlot(slotIndex) {
     if (selectedAssets.length === 0) return;
+    const data = serializeCurrentPortfolio();
+    const assetLabel   = data.assets.map(a => a.symbol).join(' · ');
+    const strategyLabel = buildStrategyLabel(data.strategy);
     customSlots[slotIndex] = {
-        label: selectedAssets.map(a => a.symbol).join(' · '),
-        assets: serializeCurrentPortfolio(),
+        label: assetLabel,
+        strategyLabel,
+        data,                     // full serialized object {assets, strategy}
     };
     saveCustomSlots();
     renderCustomSlots();
-    showFetchStatus(`✅ 已儲存至自選組合 ${slotIndex + 1}`, 'success');
+    showFetchStatus(`✅ 已儲存至自選組合 ${slotIndex + 1}（含策略設定）`, 'success');
     setTimeout(() => hideFetchStatus(), 2500);
+}
+
+/** Build a short human-readable strategy summary for display */
+function buildStrategyLabel(s) {
+    if (!s) return '';
+    const typeMap  = { taiex: '台指', tsmc: '台積電' };
+    const cycleMap = { weekly: '周選', monthly: '月選' };
+    const strikeMap = {
+        ATM: 'ATM', OTM_2: 'OTM2%', OTM_5: 'OTM5%', OTM_10: 'OTM10%',
+        CUSTOM_OTM: `OTM${s.customOtmValue}%`,
+        DELTA_3: 'Δ0.30', DELTA_2: 'Δ0.20', DELTA_1: 'Δ0.10',
+    };
+    const modeMap = { 'delta-neutral': 'Auto Δ', manual: '手動' };
+    return [
+        typeMap[s.optionType]  || s.optionType,
+        cycleMap[s.optionCycle] || s.optionCycle,
+        strikeMap[s.strikeRule] || s.strikeRule,
+        `${s.optionContracts}口`,
+        modeMap[s.portfolioMode] || s.portfolioMode,
+    ].join(' · ');
 }
 
 function loadFromCustomSlot(slotIndex) {
     const slot = customSlots[slotIndex];
     if (!slot) return;
-    applySerializedPortfolio(slot.assets);
+    // Support both old format (slot.assets plain array) and new format (slot.data)
+    const payload = slot.data || slot.assets;
+    applySerializedPortfolio(payload);
     setActivePreset(null);
     renderCustomSlots();
 }
@@ -294,11 +368,15 @@ function renderCustomSlots() {
         const card = document.createElement('div');
         card.className = 'custom-slot-card' + (slot ? ' has-data' : ' empty');
         if (slot) {
+            const stratLine = slot.strategyLabel
+                ? `<div class="custom-slot-strategy" title="${slot.strategyLabel}">${slot.strategyLabel}</div>`
+                : '';
             card.innerHTML = `
                 <div class="custom-slot-num">自選 ${i + 1}</div>
                 <div class="custom-slot-label" title="${slot.label}">${slot.label}</div>
+                ${stratLine}
                 <div class="custom-slot-actions">
-                    <button type="button" class="slot-btn slot-btn--load" onclick="loadFromCustomSlot(${i})" title="載入此組合">▶ 載入</button>
+                    <button type="button" class="slot-btn slot-btn--load" onclick="loadFromCustomSlot(${i})" title="載入此組合（含策略設定）">▶ 載入</button>
                     <button type="button" class="slot-btn slot-btn--save" onclick="saveToCustomSlot(${i})" title="覆蓋儲存目前組合">💾</button>
                     <button type="button" class="slot-btn slot-btn--clear" onclick="clearCustomSlot(${i})" title="清除此組合">✕</button>
                 </div>
@@ -308,7 +386,7 @@ function renderCustomSlots() {
                 <div class="custom-slot-num">自選 ${i + 1}</div>
                 <div class="custom-slot-empty-hint">空白</div>
                 <div class="custom-slot-actions">
-                    <button type="button" class="slot-btn slot-btn--save" onclick="saveToCustomSlot(${i})" title="儲存目前組合到此槽">💾 儲存</button>
+                    <button type="button" class="slot-btn slot-btn--save" onclick="saveToCustomSlot(${i})" title="儲存目前組合到此槽（含策略設定）">💾 儲存</button>
                 </div>
             `;
         }

@@ -7,7 +7,7 @@ $action = New-ScheduledTaskAction `
     -Argument "`"$scriptPath`"" `
     -WorkingDirectory $workDir
 
-$trigger = New-ScheduledTaskTrigger -Daily -At "14:00"
+$trigger = New-ScheduledTaskTrigger -Daily -At "15:30"
 
 $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 10) `

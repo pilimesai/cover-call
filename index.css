@@ -1085,7 +1085,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .custom-slots-row {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 0.55rem;
 }
 
@@ -1133,19 +1133,16 @@ input[type="range"]::-webkit-slider-thumb:hover {
     color: #c4cfdf;
     font-weight: 600;
     line-height: 1.35;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    word-break: break-word;
 }
 
 .custom-slot-strategy {
     font-size: 0.6rem;
     color: var(--secondary);
     opacity: 0.75;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     letter-spacing: 0.1px;
+    line-height: 1.35;
+    word-break: break-word;
     flex: 1;
 }
 

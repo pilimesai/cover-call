@@ -133,6 +133,19 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="hedge-mode">🛡️ 下跌避險優化策略 (MA5 &lt; MA21)</label>
+                        <select id="hedge-mode" style="border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.05); font-weight: 600;">
+                            <option value="none">不避險 (原始 Covered Call)</option>
+                            <option value="b5" selected>🔥 [推薦 B5] 買進價外 2% 台指周選 Put (高勝率+低回撤)</option>
+                            <option value="b3">[B3] 買進價平 (ATM) 台指周選 Put (強防護)</option>
+                            <option value="a1">[A1] 降低多單部位至 50%</option>
+                        </select>
+                        <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">當加權指數 5 日線跌破 21 日線時觸發保護機制；站回時自動平倉獲利/回收殘值。</small>
+                    </div>
+                </div>
+
                 <hr class="divider">
 
                 <!-- Portfolio Presets & Custom Memory -->
@@ -269,6 +282,10 @@
                         <div class="advice-row">
                             <span class="advice-label">預估收取權利金：</span>
                             <span class="advice-val" id="advice-premium">---</span>
+                        </div>
+                        <div class="advice-row" id="advice-hedge-row">
+                            <span class="advice-label">🛡️ 均線避險狀態 (MA5 vs MA21)：</span>
+                            <span class="advice-val" id="advice-hedge-status">---</span>
                         </div>
                         <div class="advice-table-wrapper">
                             <table class="advice-table">

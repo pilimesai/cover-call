@@ -214,6 +214,7 @@ function serializeCurrentPortfolio() {
         strikeRule:        strikeRuleSelect.value,
         customOtmValue:    customOtmValueInput.value,
         optionContracts:   optionContractsInput.value,
+        hedgeMode:         hedgeModeSelect ? hedgeModeSelect.value : 'b5',
         portfolioMode:     portfolioModeSelect.value,
         capitalMode:       capitalModeSelect.value,
         capital:           capitalInput.value,
@@ -245,6 +246,7 @@ function applySerializedPortfolio(saved) {
         if (strategy.strikeRule       != null) strikeRuleSelect.value       = strategy.strikeRule;
         if (strategy.customOtmValue   != null) customOtmValueInput.value    = strategy.customOtmValue;
         if (strategy.optionContracts  != null) optionContractsInput.value   = strategy.optionContracts;
+        if (strategy.hedgeMode        != null && hedgeModeSelect) hedgeModeSelect.value = strategy.hedgeMode;
         if (strategy.portfolioMode    != null) portfolioModeSelect.value    = strategy.portfolioMode;
         if (strategy.capitalMode      != null) capitalModeSelect.value      = strategy.capitalMode;
         if (strategy.capital          != null) capitalInput.value           = strategy.capital;
@@ -334,11 +336,13 @@ function buildStrategyLabel(s) {
         DELTA_3: 'Δ0.30', DELTA_2: 'Δ0.20', DELTA_1: 'Δ0.10',
     };
     const modeMap = { 'delta-neutral': 'Auto Δ', manual: '手動' };
+    const hedgeMap = { 'none': '不避險', 'b5': '🛡️B5', 'b3': '🛡️B3', 'a1': '🛡️A1' };
     return [
         typeMap[s.optionType]  || s.optionType,
         cycleMap[s.optionCycle] || s.optionCycle,
         strikeMap[s.strikeRule] || s.strikeRule,
         `${s.optionContracts}口`,
+        hedgeMap[s.hedgeMode] || '🛡️B5',
         modeMap[s.portfolioMode] || s.portfolioMode,
     ].join(' · ');
 }
@@ -410,6 +414,7 @@ const optionTypeSelect = document.getElementById('option-type');
 const optionCycleSelect = document.getElementById('option-cycle');
 const strikeRuleSelect = document.getElementById('strike-rule');
 const optionContractsInput = document.getElementById('option-contracts');
+const hedgeModeSelect = document.getElementById('hedge-mode');
 const customOtmRow = document.getElementById('custom-otm-row');
 const customOtmValueInput = document.getElementById('custom-otm-value');
 const targetRatioRow = document.getElementById('target-ratio-row');
@@ -429,6 +434,7 @@ const chkAutoWeight = document.getElementById('chk-auto-weight');
 
 const adviceStrike = document.getElementById('advice-strike');
 const advicePremium = document.getElementById('advice-premium');
+const adviceHedgeStatus = document.getElementById('advice-hedge-status');
 const adviceAssetsTbody = document.getElementById('advice-assets-tbody');
 const adviceMarginRatio = document.getElementById('advice-margin-ratio');
 const latestTaiexSpan = document.getElementById('latest-taiex');
@@ -546,6 +552,9 @@ function setupEventListeners() {
 
     customOtmValueInput.addEventListener('input', () => updateRecommendation());
     customOtmValueInput.addEventListener('change', () => runBacktest());
+    if (hedgeModeSelect) {
+        hedgeModeSelect.addEventListener('change', () => { updateRecommendation(); runBacktest(); });
+    }
     optionContractsInput.addEventListener('input', () => updateRecommendation());
     optionContractsInput.addEventListener('change', () => runBacktest());
     btnRun.addEventListener('click', () => runBacktest());
@@ -1127,6 +1136,46 @@ function updateRecommendation() {
     adviceStrike.textContent = `${optInfo.strike} (${optionType === 'taiex' ? '台指' : '台積電'}) [${optionCycle === 'weekly' ? '周選' : '月選'}] (賣出 ${optionContracts} 口)`;
     advicePremium.textContent = `${optInfo.premium} 點 (~${Math.round(optInfo.premium * multiplier * optionContracts).toLocaleString()} TWD)`;
 
+    // Check MA5 vs MA21 signal for hedge recommendation
+    const lastIdx = rawData.length - 1;
+    const ma5 = getTaiexMA(rawData, lastIdx, 5);
+    const ma21 = getTaiexMA(rawData, lastIdx, 21);
+    const hedgeMode = hedgeModeSelect ? hedgeModeSelect.value : 'b5';
+    
+    if (adviceHedgeStatus) {
+        if (ma5 !== null && ma21 !== null) {
+            const isBear = ma5 < ma21;
+            const diffPct = ((ma5 - ma21) / ma21 * 100).toFixed(2);
+            if (isBear) {
+                if (hedgeMode === 'b5') {
+                    const putK = Math.round(row.taiex * 0.98 / 100) * 100;
+                    adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>
+                        <div style="margin-top:3px; font-size:0.82rem; color:var(--text); background:rgba(239,68,68,0.1); border-left:3px solid var(--danger); padding:4px 8px; border-radius:3px;">
+                            🛡️ <strong>觸發 B5 避險：</strong>建議買進台指周選 Put，履約價 <strong>${putK}</strong> (價外 2%)，口數 <strong>${optionContracts}</strong> 口對沖多單風險。
+                        </div>`;
+                } else if (hedgeMode === 'b3') {
+                    const putK = Math.round(row.taiex / 100) * 100;
+                    adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>
+                        <div style="margin-top:3px; font-size:0.82rem; color:var(--text); background:rgba(239,68,68,0.1); border-left:3px solid var(--danger); padding:4px 8px; border-radius:3px;">
+                            🛡️ <strong>觸發 B3 避險：</strong>建議買進台指周選 Put，履約價 <strong>${putK}</strong> (價平 ATM)，口數 <strong>${optionContracts}</strong> 口。
+                        </div>`;
+                } else if (hedgeMode === 'a1') {
+                    adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>
+                        <div style="margin-top:3px; font-size:0.82rem; color:var(--text); background:rgba(239,68,68,0.1); border-left:3px solid var(--danger); padding:4px 8px; border-radius:3px;">
+                            🛡️ <strong>觸發 A1 避險：</strong>建議將下方多單配置比例降為 50%，保留 50% 現金。
+                        </div>`;
+                } else {
+                    adviceHedgeStatus.innerHTML = `<span style="color:var(--text-muted);">MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)} (未啟用避險)</span>`;
+                }
+            } else {
+                adviceHedgeStatus.innerHTML = `<span style="color:var(--success); font-weight:600;">✅ 多頭走勢 (MA5 ${Math.round(ma5)} &gt; MA21 ${Math.round(ma21)}，+${diffPct}%)</span>
+                    <span style="font-size:0.8rem; color:var(--text-muted); margin-left:6px;">無需買進 Put，維持正常 Covered Call 多頭配置。</span>`;
+            }
+        } else {
+            adviceHedgeStatus.textContent = '數據計算中...';
+        }
+    }
+
     // Build weight fracs
     let assetInfos = [];
     if (portfolioMode === 'delta-neutral') {
@@ -1256,13 +1305,17 @@ function runBacktest() {
         capitalInput.value = initialCapital;
     }
     const optionContracts = Math.max(1, parseInt(optionContractsInput.value) || 1);
+    const hedgeMode = hedgeModeSelect ? hedgeModeSelect.value : 'b5';
 
     const positions = selectedAssets.map(() => ({ qty: 0, entryPrice: 0 }));
     let cash = initialCapital;
     let activeOption = null;
+    let activePut = null;
+    let currentScaleMultiplier = 1.0;
+    let putNetProfitTotal = 0;
     const strategyEquity = [], taiexEquity = [], tsmcEquity = [], dates = [];
     let marginCalls = 0, liquidations = 0, isBankrupt = false;
-    let optionCyclesCount = 0, optionWinsCount = 0, totalPremiumIncome = 0;
+    let optionCyclesCount = 0, optionWinsCount = 0, totalPremiumIncome = 0, totalCallSettlement = 0;
 
     const initialTaiex = rawData[startIdx].taiex;
     const initialTsmc = rawData[startIdx].tsmc;
@@ -1292,14 +1345,46 @@ function runBacktest() {
             continue;
         }
 
-        // 1. Option expiration
+        // 1. Option expiration / close-out
         if (activeOption && (dateStr >= activeOption.expiry_date || i === endIdx)) {
-            cash -= 0; // payoff = 0 (simplified)
-            const cyclePnL = (activeOption.premium * multiplier * optionContracts);
+            let buyback;
+            if (dateStr >= activeOption.expiry_date) {
+                // Settle at intrinsic value: short call pays (S - K) when ITM
+                buyback = Math.max(0, currentUnderlyingPrice - activeOption.strike) * multiplier * optionContracts;
+            } else {
+                // Backtest end before expiry: buy back at theoretical market value
+                const T = Math.max(0, (new Date(activeOption.expiry_date) - new Date(dateStr)) / (1000 * 60 * 60 * 24)) / 365.0;
+                const vol = optionType === 'taiex' ? row.taiex_vol : row.tsmc_vol;
+                buyback = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, 0.015, vol) * multiplier * optionContracts;
+            }
+            cash -= buyback;
+            totalCallSettlement += buyback;
+            const cyclePnL = activeOption.premium * multiplier * optionContracts - buyback;
             if (cyclePnL > 0) optionWinsCount++;
             optionCyclesCount++;
             activeOption = null;
         }
+
+        // Check MA5 vs MA21 signal for hedging (using i - 1 to prevent look-ahead bias)
+        let isBearSignal = false;
+        if (i > startIdx) {
+            const m5 = getTaiexMA(rawData, i - 1, 5);
+            const m21 = getTaiexMA(rawData, i - 1, 21);
+            if (m5 !== null && m21 !== null && m5 < m21) {
+                isBearSignal = true;
+            }
+        }
+
+        // 1.1 Put expiration / close-out
+        if (activePut && (dateStr >= activePut.expiry_date || i === endIdx)) {
+            const payoff = Math.max(0, activePut.strike - price_taiex) * 50 * activePut.contracts;
+            cash += payoff;
+            putNetProfitTotal += payoff;
+            activePut = null;
+        }
+
+        // Target scale for A1 (reduce spot)
+        let targetScale = (hedgeMode === 'a1' && isBearSignal) ? 0.5 : 1.0;
 
         // 2. Rebalance on roll day
         const isRebalanceDay = (i === startIdx || activeOption === null);
@@ -1341,14 +1426,14 @@ function runBacktest() {
                 let wFrac;
                 if (portfolioMode === 'delta-neutral') {
                     const targetExposure = optionContracts * (1.0 + currentDelta) * multiplier * currentUnderlyingPrice;
-                    wFrac = Math.min((asset.weight / 100.0) * (targetExposure / totalEquity), 0.9);
+                    wFrac = Math.min((asset.weight / 100.0) * (targetExposure / totalEquity), 0.9) * targetScale;
                 } else {
-                    wFrac = asset.weight / 100.0;
+                    wFrac = (asset.weight / 100.0) * targetScale;
                 }
                 const allotment = totalEquity * wFrac;
                 if (asset.type === 'futures') {
                     const contractVal = price * asset.contractMultiplier;
-                    positions[ai].qty = contractVal > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0;
+                    positions[ai].qty = contractVal > 0 ? (targetScale > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0) : 0;
                     positions[ai].entryPrice = price;
                 } else {
                     // Beta-adjusted: buy allotment / (price * beta) units so that
@@ -1359,6 +1444,82 @@ function runBacktest() {
                     positions[ai].entryPrice = price;
                 }
             });
+            currentScaleMultiplier = targetScale;
+        } else if (hedgeMode === 'a1' && targetScale !== currentScaleMultiplier && i < endIdx) {
+            // Mid-cycle adjustment for A1 scale changes
+            selectedAssets.forEach((asset, ai) => {
+                const pos = positions[ai];
+                const price = getAssetPrice(asset, row);
+                if (pos.qty > 0 && price !== null) {
+                    if (asset.type === 'futures') cash += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
+                    else cash += pos.qty * price;
+                }
+                pos.qty = 0; pos.entryPrice = 0;
+            });
+            const totalEquity = cash;
+            let currentDelta = 0.20;
+            if (activeOption) {
+                currentDelta = estimateDelta(strikeRule);
+            }
+            selectedAssets.forEach((asset, ai) => {
+                const price = getAssetPrice(asset, row);
+                if (!price) return;
+                let wFrac;
+                if (portfolioMode === 'delta-neutral') {
+                    const targetExposure = optionContracts * (1.0 + currentDelta) * multiplier * currentUnderlyingPrice;
+                    wFrac = Math.min((asset.weight / 100.0) * (targetExposure / totalEquity), 0.9) * targetScale;
+                } else {
+                    wFrac = (asset.weight / 100.0) * targetScale;
+                }
+                const allotment = totalEquity * wFrac;
+                if (asset.type === 'futures') {
+                    const contractVal = price * asset.contractMultiplier;
+                    positions[ai].qty = contractVal > 0 ? (targetScale > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0) : 0;
+                    positions[ai].entryPrice = price;
+                } else {
+                    const beta = getAssetBeta(asset, rawData[i], optionType);
+                    positions[ai].qty = (price > 0 && beta > 0) ? Math.floor(allotment / (price * beta)) : 0;
+                    cash -= positions[ai].qty * price;
+                    positions[ai].entryPrice = price;
+                }
+            });
+            currentScaleMultiplier = targetScale;
+        }
+
+        // 2.1 Put Hedging Overlay (B5 / B3)
+        if ((hedgeMode === 'b5' || hedgeMode === 'b3') && i < endIdx) {
+            if (isBearSignal && !activePut) {
+                // Enter Put hedge
+                const putKRate = (hedgeMode === 'b5') ? 0.98 : 1.0;
+                const putStrike = Math.round(price_taiex * putKRate / 100) * 100;
+                const putExpiryDate = getNextWeeklyExpiryDate(dateStr);
+                const T_put = Math.max((new Date(putExpiryDate) - new Date(dateStr)) / (1000 * 60 * 60 * 24), 0.1) / 365.0;
+                const vol_taiex = row.taiex_vol || 0.20;
+                const putEstPremium = Math.max(blackScholesPut(price_taiex, putStrike, T_put, 0.015, vol_taiex), 0.5);
+                
+                // Hedge notional matches optionContracts
+                const putQty = optionContracts;
+                const putCost = putEstPremium * 50 * putQty;
+                cash -= putCost;
+                putNetProfitTotal -= putCost;
+                activePut = {
+                    strike: putStrike,
+                    premium: putEstPremium,
+                    expiry_date: putExpiryDate,
+                    contracts: putQty
+                };
+            } else if (!isBearSignal && activePut) {
+                // Close Put hedge early if market regains MA21
+                const todayDate = new Date(dateStr);
+                const expDate = new Date(activePut.expiry_date);
+                const T_put = Math.max(0, (expDate - todayDate) / (1000 * 60 * 60 * 24)) / 365.0;
+                const vol_taiex = row.taiex_vol || 0.20;
+                const putCurVal = blackScholesPut(price_taiex, activePut.strike, T_put, 0.015, vol_taiex);
+                const closeVal = putCurVal * 50 * activePut.contracts;
+                cash += closeVal;
+                putNetProfitTotal += closeVal;
+                activePut = null;
+            }
         }
 
         // 3. Daily MTM
@@ -1382,14 +1543,21 @@ function runBacktest() {
             const T = Math.max(0, (expiryDate - todayDate) / (1000 * 60 * 60 * 24)) / 365.0;
             const vol = optionType === 'taiex' ? row.taiex_vol : row.tsmc_vol;
             const currentPremium = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, 0.015, vol);
+            // Short call liability = full market value (intrinsic + time value)
             optionLiability = currentPremium * multiplier * optionContracts;
-            if (currentUnderlyingPrice > activeOption.strike) {
-                const intrinsic = (currentUnderlyingPrice - activeOption.strike) * multiplier * optionContracts;
-                optionLiability = Math.max(0, optionLiability - intrinsic);
-            }
         }
 
-        const dailyEquity = cash + dailyAssetValue - optionLiability;
+        let putAssetValue = 0;
+        if (activePut) {
+            const todayDate = new Date(dateStr);
+            const expDate = new Date(activePut.expiry_date);
+            const T_put = Math.max(0, (expDate - todayDate) / (1000 * 60 * 60 * 24)) / 365.0;
+            const vol_taiex = row.taiex_vol || 0.20;
+            const putCurVal = blackScholesPut(price_taiex, activePut.strike, T_put, 0.015, vol_taiex);
+            putAssetValue = putCurVal * 50 * activePut.contracts;
+        }
+
+        const dailyEquity = cash + dailyAssetValue - optionLiability + putAssetValue;
         strategyEquity.push(dailyEquity);
         taiexEquity.push(initialCapital * (price_taiex / initialTaiex));
         let portfolioPnLSum = 0;
@@ -1462,7 +1630,11 @@ function runBacktest() {
 
     const winRate = optionCyclesCount > 0 ? (optionWinsCount / optionCyclesCount) * 100 : 0;
     document.getElementById('metric-total-premium').textContent = `TWD ${Math.round(totalPremiumIncome).toLocaleString()}`;
-    document.getElementById('metric-premium-yield').textContent = `選擇權勝率: ${winRate.toFixed(0)}% (共轉倉 ${optionCyclesCount} 次)`;
+    let winRateText = `選擇權勝率: ${winRate.toFixed(0)}% (共轉倉 ${optionCyclesCount} 次) | Call 履約賠付: TWD ${Math.round(totalCallSettlement).toLocaleString()}`;
+    if (hedgeMode === 'b5' || hedgeMode === 'b3') {
+        winRateText += ` | Put 淨損益: TWD ${Math.round(putNetProfitTotal).toLocaleString()}`;
+    }
+    document.getElementById('metric-premium-yield').textContent = winRateText;
     document.getElementById('metric-sharpe').textContent = sharpeVal.toFixed(2);
 
     const mddSpan = document.getElementById('metric-mdd');
@@ -1475,7 +1647,9 @@ function runBacktest() {
     document.getElementById('metric-margin-calls').innerHTML = mcHtml;
 
     const portfolioLabel = selectedAssets.map(a => `${a.symbol}(${a.weight}%)`).join(' + ');
-    renderChart(dates, strategyEquity, taiexEquity, tsmcEquity, portfolioLabel);
+    const hedgeTitleMap = { 'none': '', 'b5': ' + [B5]周選Put 2%避險', 'b3': ' + [B3]周選ATM Put避險', 'a1': ' + [A1]降多單50%' };
+    const fullStrategyLabel = portfolioLabel + (hedgeTitleMap[hedgeMode] || '');
+    renderChart(dates, strategyEquity, taiexEquity, tsmcEquity, fullStrategyLabel);
 }
 
 // ─────────────────────────────────────────────
@@ -1529,6 +1703,20 @@ function blackScholesCall(S, K, T, r, sigma) {
     if (sigma <= 0) return Math.max(0, S - K * Math.exp(-r * T));
     const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
     return S * normCdf(d1) - K * Math.exp(-r * T) * normCdf(d1 - sigma * Math.sqrt(T));
+}
+
+function blackScholesPut(S, K, T, r, sigma) {
+    if (T <= 0) return Math.max(0, K - S);
+    return blackScholesCall(S, K, T, r, sigma) - S + K * Math.exp(-r * T);
+}
+
+function getTaiexMA(dataArray, endIndex, period) {
+    if (endIndex < period - 1) return null;
+    let sum = 0;
+    for (let k = endIndex - period + 1; k <= endIndex; k++) {
+        sum += dataArray[k].taiex;
+    }
+    return sum / period;
 }
 
 function getNextWeeklyExpiryDate(dateStr) {

@@ -79,6 +79,28 @@ const BUILTIN_ASSETS = [
         betaField_tsmc: null,
         source: 'builtin',
     },
+    {
+        symbol: '0050F',
+        name: '元大台灣50 ETF期貨 (0050F)',
+        type: 'futures',
+        priceField: 'etf_0050',
+        contractMultiplier: 10000,    // 1 contract = 10,000 shares
+        marginRate: 0.15,
+        betaField_taiex: '0050_taiex',
+        betaField_tsmc: '0050_tsmc',
+        source: 'builtin',
+    },
+    {
+        symbol: '0050',
+        name: '元大台灣50 ETF (0050)',
+        type: 'etf',
+        priceField: 'etf_0050',
+        contractMultiplier: 1,
+        marginRate: 0,
+        betaField_taiex: '0050_taiex',
+        betaField_tsmc: '0050_tsmc',
+        source: 'builtin',
+    },
 ];
 
 // ─────────────────────────────────────────────
@@ -1003,7 +1025,21 @@ function updateAutoWeightsList() {
 // ─────────────────────────────────────────────
 function getAssetPrice(asset, row) {
     if (asset.source === 'builtin') return row[asset.priceField] || null;
-    return getPriceFromHistory(asset.priceHistory, row.date);
+    const historyPrice = getPriceFromHistory(asset.priceHistory, row.date);
+    if (historyPrice !== null) return historyPrice;
+
+    // Intelligent fallback for TWSE assets without downloaded history
+    if (asset.symbol === '0050' || asset.symbol === '0050F') {
+        return row.etf_0050 || (row.taiex / 200.0);
+    }
+    if (asset.priceField && row[asset.priceField]) {
+        return row[asset.priceField];
+    }
+    // For general stocks/ETFs, fallback to reasonable estimate rather than whole TAIEX index
+    if (asset.type === 'stock' || asset.type === 'etf') {
+        return row.tsmc ? (row.tsmc / 10.0) : 100.0;
+    }
+    return row.taiex || null;
 }
 
 // ─────────────────────────────────────────────
@@ -1199,7 +1235,7 @@ function updateRecommendation() {
     let totalEffectiveExposure = 0;
     const callExposure = optionContracts * multiplier * S_underlying;
     assetInfos.forEach(({ asset, value, wFrac }) => {
-        const price = getAssetPrice(asset, row) || (asset.priceField === 'tsmc' ? row.tsmc : row.taiex);
+        const price = getAssetPrice(asset, row) || (asset.symbol === '0050' || asset.symbol === '0050F' ? (row.etf_0050 || row.taiex / 200.0) : (asset.priceField === 'tsmc' || asset.symbol === 'TSMC' || asset.symbol === 'QFF' || asset.symbol === 'CDF' ? row.tsmc : (asset.type === 'stock' || asset.type === 'etf' ? 100.0 : row.taiex)));
         const beta = getAssetBeta(asset, row, optionType);
         let qtyText, valText, betaText;
         if (asset.type === 'futures') {

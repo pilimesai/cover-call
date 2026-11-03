@@ -73,6 +73,7 @@ def main():
     tickers = {
         "taiex": "^TWII",
         "tsmc": "2330.TW",
+        "etf_0050": "0050.TW",
         "etf_981": "00981A.TW",
         "etf_991": "00991A.TW"
     }
@@ -105,6 +106,7 @@ def main():
     df_aligned = df_aligned.dropna(subset=["taiex", "tsmc"])
     df_aligned = df_aligned.sort_index()
     
+    df_aligned["etf_0050"] = df_aligned["etf_0050"].ffill()
     df_aligned["etf_981"] = df_aligned["etf_981"].ffill()
     df_aligned["etf_991"] = df_aligned["etf_991"].ffill()
     
@@ -126,13 +128,17 @@ def main():
         beta = cov / var
         return beta.bfill()
     
+    df_aligned["beta_0050_taiex"] = calculate_rolling_beta(returns["etf_0050"], returns["taiex"], rolling_window)
     df_aligned["beta_981_taiex"] = calculate_rolling_beta(returns["etf_981"], returns["taiex"], rolling_window)
     df_aligned["beta_991_taiex"] = calculate_rolling_beta(returns["etf_991"], returns["taiex"], rolling_window)
+    df_aligned["beta_0050_tsmc"] = calculate_rolling_beta(returns["etf_0050"], returns["tsmc"], rolling_window)
     df_aligned["beta_981_tsmc"] = calculate_rolling_beta(returns["etf_981"], returns["tsmc"], rolling_window)
     df_aligned["beta_991_tsmc"] = calculate_rolling_beta(returns["etf_991"], returns["tsmc"], rolling_window)
     
+    df_aligned["beta_0050_taiex"] = df_aligned["beta_0050_taiex"].fillna(1.0)
     df_aligned["beta_981_taiex"] = df_aligned["beta_981_taiex"].fillna(1.0)
     df_aligned["beta_991_taiex"] = df_aligned["beta_991_taiex"].fillna(1.0)
+    df_aligned["beta_0050_tsmc"] = df_aligned["beta_0050_tsmc"].fillna(1.0)
     df_aligned["beta_981_tsmc"] = df_aligned["beta_981_tsmc"].fillna(1.0)
     df_aligned["beta_991_tsmc"] = df_aligned["beta_991_tsmc"].fillna(1.0)
     
@@ -227,6 +233,7 @@ def main():
             "date": date_str,
             "taiex": S_taiex,
             "tsmc": S_tsmc,
+            "etf_0050": None if pd.isna(row["etf_0050"]) else float(row["etf_0050"]),
             "etf_981": None if pd.isna(row["etf_981"]) else float(row["etf_981"]),
             "etf_991": None if pd.isna(row["etf_991"]) else float(row["etf_991"]),
             "taiex_vol": vol_taiex,
@@ -236,8 +243,10 @@ def main():
             "days_to_expiry_monthly": days_to_expiry_monthly,
             "days_to_expiry_weekly": days_to_expiry_weekly,
             "betas": {
+                "0050_taiex": float(row["beta_0050_taiex"]),
                 "981_taiex": float(row["beta_981_taiex"]),
                 "991_taiex": float(row["beta_991_taiex"]),
+                "0050_tsmc": float(row["beta_0050_tsmc"]),
                 "981_tsmc": float(row["beta_981_tsmc"]),
                 "991_tsmc": float(row["beta_991_tsmc"])
             },

@@ -461,6 +461,12 @@ const adviceAssetsTbody = document.getElementById('advice-assets-tbody');
 const adviceMarginRatio = document.getElementById('advice-margin-ratio');
 const latestTaiexSpan = document.getElementById('latest-taiex');
 const latestTsmcSpan = document.getElementById('latest-tsmc');
+const instTableRowsSelect = document.getElementById('inst-table-rows');
+const instTableTbody = document.getElementById('inst-table-tbody');
+const kpiForeignBpAmt = document.getElementById('kpi-foreign-bp-amt');
+const kpiForeignSp = document.getElementById('kpi-foreign-sp');
+const kpiForeignSpBpDiff = document.getElementById('kpi-foreign-sp-bp-diff');
+const kpiForeignBcAmt = document.getElementById('kpi-foreign-bc-amt');
 
 // ─────────────────────────────────────────────
 // INITIALIZE
@@ -483,6 +489,9 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         // Apply default frugal preset (小資組合)
         applyPreset('frugal');
+
+        // Render Institutional Options Table & KPIs
+        renderInstitutionalOptionsTable();
     } catch (error) {
         console.error("Initialization error:", error);
         dataStatusBadge.innerHTML = '<span class="dot red"></span> 數據載入失敗';
@@ -580,6 +589,9 @@ function setupEventListeners() {
     optionContractsInput.addEventListener('input', () => updateRecommendation());
     optionContractsInput.addEventListener('change', () => runBacktest());
     btnRun.addEventListener('click', () => runBacktest());
+    if (instTableRowsSelect) {
+        instTableRowsSelect.addEventListener('change', () => renderInstitutionalOptionsTable());
+    }
 
     assetSearchInput.addEventListener('input', () => {
         clearTimeout(searchDebounceTimer);
@@ -1791,4 +1803,138 @@ function getCustomOtmOption(row, optionType, optionCycle, customOtmPct) {
     let d1 = 0;
     if (vol > 0 && T > 0) d1 = (Math.log(S / K_rounded) + (r + 0.5 * vol * vol) * T) / (vol * Math.sqrt(T));
     return { strike: K_rounded, premium: Math.round(premium * 100) / 100, delta: normCdf(d1) };
+}
+
+
+// ─────────────────────────────────────────────
+// INSTITUTIONAL OPTIONS FLOW TABLE (TAIFEX)
+// ─────────────────────────────────────────────
+function renderInstitutionalOptionsTable() {
+    if (!instTableTbody || !rawData || rawData.length === 0) return;
+
+    // Filter valid records that contain institutional_options
+    const validRecords = rawData.filter(r => r.institutional_options);
+    if (validRecords.length === 0) {
+        instTableTbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1.5rem; color:var(--text-muted);">尚無三大法人選擇權數據</td></tr>';
+        return;
+    }
+
+    // Update KPI Cards using the latest available record
+    const latestRec = validRecords[validRecords.length - 1];
+    const prevRec = validRecords.length > 1 ? validRecords[validRecords.length - 2] : null;
+    const lInst = latestRec.institutional_options;
+
+    if (kpiForeignBpAmt) {
+        const bpYi = (lInst.foreign_bp_amt / 100000).toFixed(2);
+        kpiForeignBpAmt.textContent = `${Number(bpYi).toLocaleString()} 億`;
+    }
+    if (kpiForeignSp) {
+        const spCnt = (lInst.foreign_sp_cnt || 0).toLocaleString();
+        const spYi = ((lInst.foreign_sp_amt || 0) / 100000).toFixed(2);
+        kpiForeignSp.textContent = `${spCnt} 口 / ${Number(spYi).toLocaleString()} 億`;
+    }
+    if (kpiForeignSpBpDiff) {
+        const diffWan = Math.round(lInst.foreign_sp_bp_diff / 10);
+        const prefix = diffWan > 0 ? '+' : '';
+        kpiForeignSpBpDiff.textContent = `${prefix}${diffWan.toLocaleString()} 萬`;
+        kpiForeignSpBpDiff.style.color = diffWan < -50000 ? 'var(--danger)' : (diffWan > 0 ? 'var(--success)' : 'var(--warning)');
+    }
+    if (kpiForeignBcAmt) {
+        const bcYi = ((lInst.foreign_bc_amt || 0) / 100000).toFixed(2);
+        kpiForeignBcAmt.textContent = `${Number(bcYi).toLocaleString()} 億`;
+    }
+
+    // Select row limit
+    let limit = 60;
+    if (instTableRowsSelect) {
+        const val = instTableRowsSelect.value;
+        if (val === '30') limit = 30;
+        else if (val === '60') limit = 60;
+        else if (val === '120') limit = 120;
+        else if (val === 'all') limit = validRecords.length;
+    }
+
+    // Slice and reverse to show most recent first
+    const displayRecords = validRecords.slice(-limit).reverse();
+
+    let rowsHtml = '';
+    displayRecords.forEach(rec => {
+        const d = rec.date;
+        const taiex = Math.round(rec.taiex).toLocaleString();
+        const inst = rec.institutional_options;
+
+        // Find previous record to calculate index change
+        const origIdx = rawData.findIndex(r => r.date === d);
+        let changeText = '--';
+        let changeStyle = 'color:var(--text-muted);';
+        if (origIdx > 0) {
+            const diff = Math.round(rec.taiex - rawData[origIdx - 1].taiex);
+            const diffSign = diff > 0 ? `+${diff}` : `${diff}`;
+            changeStyle = diff > 0 ? 'color:var(--danger);' : (diff < 0 ? 'color:var(--success);' : 'color:var(--text-muted);');
+            changeText = diffSign;
+        }
+
+        // 1. Foreign BP 金額 (千元) -> 暴增標記
+        const bpAmt = inst.foreign_bp_amt || 0;
+        let bpBg = 'transparent';
+        let bpColor = 'inherit';
+        let bpWeight = 'normal';
+        if (bpAmt >= 3000000) {
+            bpBg = 'rgba(239, 68, 68, 0.45)'; // 30億以上極度避險
+            bpColor = '#fff';
+            bpWeight = '700';
+        } else if (bpAmt >= 1500000) {
+            bpBg = 'rgba(239, 68, 68, 0.25)'; // 15億以上顯著避險
+            bpColor = '#fca5a5';
+            bpWeight = '600';
+        } else if (bpAmt >= 800000) {
+            bpBg = 'rgba(239, 68, 68, 0.12)';
+        }
+
+        // 2. Foreign SP 口數與金額
+        const spCnt = (inst.foreign_sp_cnt || 0).toLocaleString();
+        const spAmt = (inst.foreign_sp_amt || 0).toLocaleString();
+        let spBg = (inst.foreign_sp_cnt >= 20000) ? 'rgba(59, 130, 246, 0.18)' : 'transparent';
+
+        // 3. (SP增幅 - BP增幅)
+        const diff = inst.foreign_sp_bp_diff || 0;
+        const diffStr = diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString();
+        let diffBg = 'transparent';
+        let diffColor = 'inherit';
+        if (diff <= -500000) {
+            diffBg = 'rgba(239, 68, 68, 0.35)'; // 單日避險大增5億以上
+            diffColor = '#fff';
+        } else if (diff < 0) {
+            diffColor = 'var(--danger)';
+        } else if (diff >= 300000) {
+            diffBg = 'rgba(16, 185, 129, 0.2)'; // 偏多回補3億以上
+            diffColor = 'var(--success)';
+        } else if (diff > 0) {
+            diffColor = 'var(--success)';
+        }
+
+        // 4. Other institutional fields
+        const bcAmt = (inst.foreign_bc_amt || 0).toLocaleString();
+        const scAmt = (inst.foreign_sc_amt || 0).toLocaleString();
+        const d_bp = (inst.dealer_bp_amt || 0).toLocaleString();
+        const d_sp = (inst.dealer_sp_amt || 0).toLocaleString();
+
+        rowsHtml += `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition:background 0.15s;">
+                <td style="text-align:center; padding:7px 8px; font-weight:500; font-family:monospace;">${d}</td>
+                <td style="padding:7px 8px; font-weight:600;">${taiex}</td>
+                <td style="padding:7px 8px; font-weight:600; ${changeStyle}">${changeText}</td>
+                <td style="padding:7px 8px; background:${bpBg}; color:${bpColor}; font-weight:${bpWeight};">${bpAmt.toLocaleString()}</td>
+                <td style="padding:7px 8px; background:${spBg}; font-weight:500;">${spCnt}</td>
+                <td style="padding:7px 8px; background:${spBg}; font-weight:500;">${spAmt}</td>
+                <td style="padding:7px 8px; background:${diffBg}; color:${diffColor}; font-weight:600;">${diffStr}</td>
+                <td style="padding:7px 8px; color:rgba(255,255,255,0.8);">${bcAmt}</td>
+                <td style="padding:7px 8px; color:rgba(255,255,255,0.8);">${scAmt}</td>
+                <td style="padding:7px 8px; color:var(--text-muted);">${d_bp}</td>
+                <td style="padding:7px 8px; color:var(--text-muted);">${d_sp}</td>
+            </tr>
+        `;
+    });
+
+    instTableTbody.innerHTML = rowsHtml;
 }

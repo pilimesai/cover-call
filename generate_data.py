@@ -5,6 +5,85 @@ import json
 import datetime
 import math
 import os
+import requests
+import csv
+import io
+
+def fetch_taifex_institutional_options(start_date, end_date):
+    """
+    Fetch TAIFEX options institutional open interest data (外資 / 自營商 Buy/Sell Call/Put).
+    """
+    print(f"Fetching TAIFEX options institutional open interest ({start_date} ~ {end_date})...")
+    url = "https://www.taifex.com.tw/cht/3/callsAndPutsDateDown"
+    cur = start_date
+    records = {}
+
+    while cur <= end_date:
+        nxt = min(cur + datetime.timedelta(days=60), end_date)
+        s_str = cur.strftime("%Y/%m/%d")
+        e_str = nxt.strftime("%Y/%m/%d")
+        try:
+            resp = requests.post(url, data={"queryStartDate": s_str, "queryEndDate": e_str}, timeout=15)
+            # If TAIFEX returned an error (e.g. date range extends into today before post-market settlement)
+            if resp.status_code == 200 and len(resp.content) < 1000 and cur < nxt:
+                # Fall back to querying day-by-day for this chunk
+                single = cur
+                while single <= nxt:
+                    s_single = single.strftime("%Y/%m/%d")
+                    try:
+                        resp_s = requests.post(url, data={"queryStartDate": s_single, "queryEndDate": s_single}, timeout=10)
+                        if resp_s.status_code == 200 and len(resp_s.content) > 1000:
+                            f_s = io.StringIO(resp_s.content.decode("cp950", errors="ignore"))
+                            reader_s = csv.reader(f_s)
+                            next(reader_s, None)
+                            for r in reader_s:
+                                if len(r) > 13 and "臺指選擇權" in r[1]:
+                                    d = r[0].replace("/", "-")
+                                    cp = r[2].strip().lower()
+                                    inst = r[3].strip()
+                                    if d not in records: records[d] = {}
+                                    b_cnt, b_amt = int(r[10].replace(",", "")), int(r[11].replace(",", ""))
+                                    s_cnt, s_amt = int(r[12].replace(",", "")), int(r[13].replace(",", ""))
+                                    prefix = "foreign" if "外資" in inst else ("dealer" if "自營" in inst else "trust")
+                                    tag = f"{prefix}_{cp}"
+                                    records[d][f"{tag}_b_cnt"] = b_cnt
+                                    records[d][f"{tag}_b_amt"] = b_amt
+                                    records[d][f"{tag}_s_cnt"] = s_cnt
+                                    records[d][f"{tag}_s_amt"] = s_amt
+                    except Exception:
+                        pass
+                    single += datetime.timedelta(days=1)
+            elif resp.status_code == 200 and len(resp.content) >= 1000:
+                f = io.StringIO(resp.content.decode("cp950", errors="ignore"))
+                reader = csv.reader(f)
+                header = next(reader, None)
+                for r in reader:
+                    if len(r) > 13 and "臺指選擇權" in r[1]:
+                        d = r[0].replace("/", "-")
+                        cp = r[2].strip().lower() # call or put
+                        inst = r[3].strip()
+                        if d not in records:
+                            records[d] = {}
+                        try:
+                            b_cnt = int(r[10].replace(",", ""))
+                            b_amt = int(r[11].replace(",", ""))
+                            s_cnt = int(r[12].replace(",", ""))
+                            s_amt = int(r[13].replace(",", ""))
+                        except ValueError:
+                            continue
+                        
+                        prefix = "foreign" if "外資" in inst else ("dealer" if "自營" in inst else "trust")
+                        tag = f"{prefix}_{cp}"
+                        records[d][f"{tag}_b_cnt"] = b_cnt
+                        records[d][f"{tag}_b_amt"] = b_amt
+                        records[d][f"{tag}_s_cnt"] = s_cnt
+                        records[d][f"{tag}_s_amt"] = s_amt
+        except Exception as e:
+            print(f"Warning: TAIFEX fetch error for {s_str} ~ {e_str}: {e}")
+        cur = nxt + datetime.timedelta(days=1)
+    
+    print(f"Successfully fetched TAIFEX records for {len(records)} dates.")
+    return records
 
 # Helper functions for Normal distribution
 def norm_cdf(x):
@@ -254,6 +333,67 @@ def main():
         }
         output_records.append(record)
         
+    # Fetch TAIFEX institutional options data
+    try:
+        start_d = datetime.date(2025, 5, 1)
+        end_d = datetime.date.today()
+        taifex_records = fetch_taifex_institutional_options(start_d, end_d)
+        
+        # Sort output_records by date and calculate daily deltas
+        output_records.sort(key=lambda x: x["date"])
+        prev_taifex = None
+        for r in output_records:
+            d_str = r["date"]
+            t_data = taifex_records.get(d_str, {})
+            # If current day data exists
+            if t_data:
+                f_bp_amt = t_data.get("foreign_put_b_amt", 0)
+                f_sp_cnt = t_data.get("foreign_put_s_cnt", 0)
+                f_sp_amt = t_data.get("foreign_put_s_amt", 0)
+                
+                f_bc_cnt = t_data.get("foreign_call_b_cnt", 0)
+                f_bc_amt = t_data.get("foreign_call_b_amt", 0)
+                f_sc_cnt = t_data.get("foreign_call_s_cnt", 0)
+                f_sc_amt = t_data.get("foreign_call_s_amt", 0)
+                
+                d_bp_amt = t_data.get("dealer_put_b_amt", 0)
+                d_sp_amt = t_data.get("dealer_put_s_amt", 0)
+                d_bc_amt = t_data.get("dealer_call_b_amt", 0)
+                d_sc_amt = t_data.get("dealer_call_s_amt", 0)
+                
+                if prev_taifex:
+                    sp_diff = f_sp_amt - prev_taifex.get("foreign_put_s_amt", 0)
+                    bp_diff = f_bp_amt - prev_taifex.get("foreign_put_b_amt", 0)
+                    foreign_sp_bp_diff = sp_diff - bp_diff
+                    
+                    bc_diff = f_bc_amt - prev_taifex.get("foreign_call_b_amt", 0)
+                    sc_diff = f_sc_amt - prev_taifex.get("foreign_call_s_amt", 0)
+                    foreign_bc_sc_diff = bc_diff - sc_diff
+                else:
+                    foreign_sp_bp_diff = 0
+                    foreign_bc_sc_diff = 0
+                
+                r["institutional_options"] = {
+                    "foreign_bp_amt": f_bp_amt,
+                    "foreign_sp_cnt": f_sp_cnt,
+                    "foreign_sp_amt": f_sp_amt,
+                    "foreign_sp_bp_diff": foreign_sp_bp_diff,
+                    "foreign_bc_cnt": f_bc_cnt,
+                    "foreign_bc_amt": f_bc_amt,
+                    "foreign_sc_cnt": f_sc_cnt,
+                    "foreign_sc_amt": f_sc_amt,
+                    "foreign_bc_sc_diff": foreign_bc_sc_diff,
+                    "dealer_bp_amt": d_bp_amt,
+                    "dealer_sp_amt": d_sp_amt,
+                    "dealer_bc_amt": d_bc_amt,
+                    "dealer_sc_amt": d_sc_amt
+                }
+                prev_taifex = t_data
+            else:
+                r["institutional_options"] = None
+    except Exception as e:
+        print(f"Warning: Failed to process TAIFEX options data: {e}")
+
     os.makedirs("data", exist_ok=True)
     with open("data/data.json", "w", encoding="utf-8") as f:
         json.dump(output_records, f, indent=2, ensure_ascii=False)

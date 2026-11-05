@@ -467,6 +467,9 @@ const kpiForeignBpAmt = document.getElementById('kpi-foreign-bp-amt');
 const kpiForeignSp = document.getElementById('kpi-foreign-sp');
 const kpiForeignSpBpDiff = document.getElementById('kpi-foreign-sp-bp-diff');
 const kpiForeignBcAmt = document.getElementById('kpi-foreign-bc-amt');
+const btnRefreshData = document.getElementById('btn-refresh-data');
+const btnTableRefresh = document.getElementById('btn-table-refresh');
+const refreshIcon = document.getElementById('refresh-icon');
 
 // ─────────────────────────────────────────────
 // INITIALIZE
@@ -591,6 +594,12 @@ function setupEventListeners() {
     btnRun.addEventListener('click', () => runBacktest());
     if (instTableRowsSelect) {
         instTableRowsSelect.addEventListener('change', () => renderInstitutionalOptionsTable());
+    }
+    if (btnRefreshData) {
+        btnRefreshData.addEventListener('click', handleRefreshData);
+    }
+    if (btnTableRefresh) {
+        btnTableRefresh.addEventListener('click', handleRefreshData);
     }
 
     assetSearchInput.addEventListener('input', () => {
@@ -1937,4 +1946,64 @@ function renderInstitutionalOptionsTable() {
     });
 
     instTableTbody.innerHTML = rowsHtml;
+}
+
+
+// ─────────────────────────────────────────────
+// REFRESH DATA & INSTITUTIONAL OPTIONS PIPELINE
+// ─────────────────────────────────────────────
+let isRefreshing = false;
+async function handleRefreshData() {
+    if (isRefreshing) return;
+    isRefreshing = true;
+
+    // UI Feedback: spinning animation & status
+    if (refreshIcon) refreshIcon.classList.add('spin-animation');
+    if (btnRefreshData) btnRefreshData.disabled = true;
+    if (btnTableRefresh) {
+        btnTableRefresh.disabled = true;
+        btnTableRefresh.innerHTML = '<span class="spin-animation">⏳</span> 更新中...';
+    }
+    dataStatusBadge.innerHTML = '<span class="dot yellow"></span> 正在載入最新數據...';
+
+    showFetchStatus('<span class="spin">⟳</span> 正在從伺服器/GitHub重新獲取最新行情與外資期權金流...');
+
+    try {
+        // Fetch data.json with timestamp bust
+        const timestamp = Date.now();
+        const response = await fetch('./data/data.json?v=' + timestamp);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        
+        const newData = await response.json();
+        if (!Array.isArray(newData) || newData.length === 0) throw new Error('資料格式錯誤');
+
+        const prevCount = rawData.length;
+        rawData = newData;
+        
+        // Re-populate dropdowns
+        populateDropdowns();
+        
+        // Re-render components
+        updateRecommendation();
+        runBacktest();
+        renderInstitutionalOptionsTable();
+
+        const latestRec = rawData[rawData.length - 1];
+        dataStatusBadge.innerHTML = `<span class="dot green"></span> 已更新 (${latestRec.date})`;
+        showFetchStatus(`✅ 數據已成功同步！最新交易日：<strong>${latestRec.date}</strong>（共 ${rawData.length} 筆歷史紀錄）`, 'success');
+        setTimeout(() => hideFetchStatus(), 4000);
+    } catch (err) {
+        console.error('Refresh error:', err);
+        dataStatusBadge.innerHTML = '<span class="dot red"></span> 更新失敗';
+        showFetchStatus(`⚠️ 數據同步失敗: ${err.message}，請稍後重試。`, 'warning');
+        setTimeout(() => hideFetchStatus(), 5000);
+    } finally {
+        isRefreshing = false;
+        if (refreshIcon) refreshIcon.classList.remove('spin-animation');
+        if (btnRefreshData) btnRefreshData.disabled = false;
+        if (btnTableRefresh) {
+            btnTableRefresh.disabled = false;
+            btnTableRefresh.innerHTML = '<span>🔄</span> 立即更新籌碼';
+        }
+    }
 }

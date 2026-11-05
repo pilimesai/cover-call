@@ -22,8 +22,13 @@
                     <p class="subtitle">自訂多單組合 + Covered Call 選擇權策略 | 支援 ETF、個股、期貨標的</p>
                 </div>
             </div>
-            <div class="status-badge" id="data-status-badge">
-                <span class="dot green"></span> 數據載入中...
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button type="button" class="btn-refresh" id="btn-refresh-data" title="重新下載並載入最新行情與外資籌碼數據">
+                    <span class="refresh-icon" id="refresh-icon">🔄</span> 更新最新籌碼
+                </button>
+                <div class="status-badge" id="data-status-badge">
+                    <span class="dot green"></span> 數據載入中...
+                </div>
             </div>
         </div>
     </header>
@@ -368,14 +373,19 @@
                             資料來源：臺灣期貨交易所 (TAIFEX) 每日三大法人選擇權契約未平倉餘額（千元）
                         </p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:0.75rem; color:var(--text-muted);">顯示筆數：</span>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <button type="button" class="btn-refresh-table" id="btn-table-refresh" style="background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.4); color:var(--primary); padding:5px 12px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.2s;">
+                            <span>🔄</span> 立即更新籌碼
+                        </button>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:0.75rem; color:var(--text-muted);">顯示筆數：</span>
                         <select id="inst-table-rows" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border); padding:4px 8px; border-radius:4px; font-size:0.8rem;">
                             <option value="30">最近 30 天</option>
                             <option value="60" selected>最近 60 天</option>
                             <option value="120">最近 120 天</option>
                             <option value="all">全部歷史</option>
                         </select>
+                        </div>
                     </div>
                 </div>
 

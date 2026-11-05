@@ -1215,3 +1215,46 @@ input[type="range"]::-webkit-slider-thumb:hover {
     border-color: var(--danger);
     color: #fff;
 }
+
+/* Refresh Button Styling */
+.btn-refresh {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: var(--text-main);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-refresh:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(6, 182, 212, 0.35) 100%);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.btn-refresh:active {
+    transform: translateY(0);
+}
+
+.btn-refresh:disabled, .btn-refresh-table:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.spin-animation {
+    display: inline-block;
+    animation: spin 1s infinite linear;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

@@ -12,80 +12,88 @@ import io
 def fetch_taifex_institutional_options(start_date, end_date):
     """
     Fetch TAIFEX options institutional open interest data (外資 / 自營商 Buy/Sell Call/Put).
+    Primary: FinMind REST API (works across all cloud runners & GitHub Actions).
+    Fallback: TAIFEX official CSV download.
     """
-    print(f"Fetching TAIFEX options institutional open interest ({start_date} ~ {end_date})...")
-    url = "https://www.taifex.com.tw/cht/3/callsAndPutsDateDown"
-    cur = start_date
     records = {}
-
-    while cur <= end_date:
-        nxt = min(cur + datetime.timedelta(days=60), end_date)
-        s_str = cur.strftime("%Y/%m/%d")
-        e_str = nxt.strftime("%Y/%m/%d")
-        try:
-            resp = requests.post(url, data={"queryStartDate": s_str, "queryEndDate": e_str}, timeout=15)
-            # If TAIFEX returned an error (e.g. date range extends into today before post-market settlement)
-            if resp.status_code == 200 and len(resp.content) < 1000 and cur < nxt:
-                # Fall back to querying day-by-day for this chunk
-                single = cur
-                while single <= nxt:
-                    s_single = single.strftime("%Y/%m/%d")
-                    try:
-                        resp_s = requests.post(url, data={"queryStartDate": s_single, "queryEndDate": s_single}, timeout=10)
-                        if resp_s.status_code == 200 and len(resp_s.content) > 1000:
-                            f_s = io.StringIO(resp_s.content.decode("cp950", errors="ignore"))
-                            reader_s = csv.reader(f_s)
-                            next(reader_s, None)
-                            for r in reader_s:
-                                if len(r) > 13 and "臺指選擇權" in r[1]:
-                                    d = r[0].replace("/", "-")
-                                    cp = r[2].strip().lower()
-                                    inst = r[3].strip()
-                                    if d not in records: records[d] = {}
-                                    b_cnt, b_amt = int(r[10].replace(",", "")), int(r[11].replace(",", ""))
-                                    s_cnt, s_amt = int(r[12].replace(",", "")), int(r[13].replace(",", ""))
-                                    prefix = "foreign" if "外資" in inst else ("dealer" if "自營" in inst else "trust")
-                                    tag = f"{prefix}_{cp}"
-                                    records[d][f"{tag}_b_cnt"] = b_cnt
-                                    records[d][f"{tag}_b_amt"] = b_amt
-                                    records[d][f"{tag}_s_cnt"] = s_cnt
-                                    records[d][f"{tag}_s_amt"] = s_amt
-                    except Exception:
-                        pass
-                    single += datetime.timedelta(days=1)
-            elif resp.status_code == 200 and len(resp.content) >= 1000:
-                f = io.StringIO(resp.content.decode("cp950", errors="ignore"))
-                reader = csv.reader(f)
-                header = next(reader, None)
-                for r in reader:
-                    if len(r) > 13 and "臺指選擇權" in r[1]:
-                        d = r[0].replace("/", "-")
-                        cp = r[2].strip().lower() # call or put
-                        inst = r[3].strip()
-                        if d not in records:
-                            records[d] = {}
-                        try:
-                            b_cnt = int(r[10].replace(",", ""))
-                            b_amt = int(r[11].replace(",", ""))
-                            s_cnt = int(r[12].replace(",", ""))
-                            s_amt = int(r[13].replace(",", ""))
-                        except ValueError:
-                            continue
-                        
-                        prefix = "foreign" if "外資" in inst else ("dealer" if "自營" in inst else "trust")
-                        tag = f"{prefix}_{cp}"
-                        records[d][f"{tag}_b_cnt"] = b_cnt
-                        records[d][f"{tag}_b_amt"] = b_amt
-                        records[d][f"{tag}_s_cnt"] = s_cnt
-                        records[d][f"{tag}_s_amt"] = s_amt
-        except Exception as e:
-            print(f"Warning: TAIFEX fetch error for {s_str} ~ {e_str}: {e}")
-        cur = nxt + datetime.timedelta(days=1)
     
-    print(f"Successfully fetched TAIFEX records for {len(records)} dates.")
+    # 1. Primary: FinMind API
+    try:
+        s_str = start_date.strftime("%Y-%m-%d")
+        e_str = end_date.strftime("%Y-%m-%d")
+        print(f"Fetching institutional options via FinMind ({s_str} ~ {e_str})...")
+        url = f"https://api.finmindtrade.com/api/v4/data?dataset=TaiwanOptionInstitutionalInvestors&data_id=TXO&start_date={s_str}&end_date={e_str}"
+        resp = requests.get(url, timeout=20)
+        if resp.status_code == 200:
+            data = resp.json().get("data", [])
+            for row in data:
+                d = row.get("date")
+                if not d: continue
+                if d not in records: records[d] = {}
+                inst = row.get("institutional_investors", "")
+                cp = row.get("call_put", "")
+                
+                is_foreign = "\u5916\u8cc7" in inst or "foreign" in inst.lower()
+                is_dealer = "\u81ea\u71df" in inst or "dealer" in inst.lower()
+                is_trust = "\u6295\u4fe1" in inst or "trust" in inst.lower()
+                is_call = "\u8cb7" in cp or "call" in cp.lower()
+                is_put = "\u8ce3" in cp or "put" in cp.lower()
+                
+                prefix = "foreign" if is_foreign else ("dealer" if is_dealer else ("trust" if is_trust else "other"))
+                cp_tag = "call" if is_call else ("put" if is_put else "unknown")
+                if prefix == "other" or cp_tag == "unknown": continue
+                
+                records[d][f"{prefix}_{cp_tag}_b_cnt"] = int(row.get("long_open_interest_balance_volume", 0))
+                records[d][f"{prefix}_{cp_tag}_b_amt"] = int(row.get("long_open_interest_balance_amount", 0))
+                records[d][f"{prefix}_{cp_tag}_s_cnt"] = int(row.get("short_open_interest_balance_volume", 0))
+                records[d][f"{prefix}_{cp_tag}_s_amt"] = int(row.get("short_open_interest_balance_amount", 0))
+            print(f"Successfully fetched {len(records)} dates from FinMind.")
+    except Exception as e:
+        print(f"Notice: FinMind fetch error: {e}")
+
+    # 2. Fallback to TAIFEX official CSV if FinMind returned 0 records
+    if len(records) == 0:
+        print(f"Falling back to TAIFEX official CSV download ({start_date} ~ {end_date})...")
+        url = "https://www.taifex.com.tw/cht/3/callsAndPutsDateDown"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Referer": "https://www.taifex.com.tw/cht/3/callsAndPutsDate"
+        }
+        cur = start_date
+        while cur <= end_date:
+            nxt = min(cur + datetime.timedelta(days=60), end_date)
+            s_str = cur.strftime("%Y/%m/%d")
+            e_str = nxt.strftime("%Y/%m/%d")
+            try:
+                resp = requests.post(url, data={"queryStartDate": s_str, "queryEndDate": e_str}, headers=headers, timeout=15)
+                if resp.status_code == 200 and len(resp.content) >= 1000:
+                    f = io.StringIO(resp.content.decode("cp950", errors="ignore"))
+                    reader = csv.reader(f)
+                    next(reader, None)
+                    for r in reader:
+                        if len(r) > 13 and "\u81fa\u6307\u9078\u64c7\u6b0a" in r[1]:
+                            d = r[0].replace("/", "-")
+                            cp = r[2].strip().lower() # call or put
+                            inst = r[3].strip()
+                            if d not in records: records[d] = {}
+                            try:
+                                b_cnt, b_amt = int(r[10].replace(",", "")), int(r[11].replace(",", ""))
+                                s_cnt, s_amt = int(r[12].replace(",", "")), int(r[13].replace(",", ""))
+                            except ValueError:
+                                continue
+                            prefix = "foreign" if "\u5916\u8cc7" in inst else ("dealer" if "\u81ea\u71df" in inst else "trust")
+                            tag = f"{prefix}_{cp}"
+                            records[d][f"{tag}_b_cnt"] = b_cnt
+                            records[d][f"{tag}_b_amt"] = b_amt
+                            records[d][f"{tag}_s_cnt"] = s_cnt
+                            records[d][f"{tag}_s_amt"] = s_amt
+            except Exception as e:
+                print(f"Warning: TAIFEX CSV fetch error for {s_str} ~ {e_str}: {e}")
+            cur = nxt + datetime.timedelta(days=1)
+        print(f"TAIFEX CSV fetched records for {len(records)} dates.")
+
     return records
 
-# Helper functions for Normal distribution
 def norm_cdf(x):
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
 
@@ -146,6 +154,19 @@ def get_weekly_expiration(current_date):
     return current_date + datetime.timedelta(days=days_ahead)
 
 def main():
+    # Load existing data.json to preserve historical data
+    existing_inst_map = {}
+    if os.path.exists("data/data.json"):
+        try:
+            with open("data/data.json", "r", encoding="utf-8") as f:
+                old_records = json.load(f)
+                for item in old_records:
+                    if item.get("institutional_options"):
+                        existing_inst_map[item["date"]] = item["institutional_options"]
+            print(f"Loaded {len(existing_inst_map)} existing institutional_options records for preservation.")
+        except Exception as e:
+            print(f"Notice: Could not load existing data.json: {e}")
+
     print("Starting data generation pipeline...")
     
     # 1. Fetching historical data
@@ -345,7 +366,7 @@ def main():
         for r in output_records:
             d_str = r["date"]
             t_data = taifex_records.get(d_str, {})
-            # If current day data exists
+            # If fresh data was fetched for this date
             if t_data:
                 f_bp_amt = t_data.get("foreign_put_b_amt", 0)
                 f_sp_cnt = t_data.get("foreign_put_s_cnt", 0)
@@ -389,6 +410,18 @@ def main():
                     "dealer_sc_amt": d_sc_amt
                 }
                 prev_taifex = t_data
+            elif d_str in existing_inst_map:
+                # PRESERVE existing valid institutional_options! Never overwrite with None!
+                r["institutional_options"] = existing_inst_map[d_str]
+                prev_taifex = {
+                    "foreign_put_b_amt": existing_inst_map[d_str].get("foreign_bp_amt", 0),
+                    "foreign_put_s_cnt": existing_inst_map[d_str].get("foreign_sp_cnt", 0),
+                    "foreign_put_s_amt": existing_inst_map[d_str].get("foreign_sp_amt", 0),
+                    "foreign_call_b_cnt": existing_inst_map[d_str].get("foreign_bc_cnt", 0),
+                    "foreign_call_b_amt": existing_inst_map[d_str].get("foreign_bc_amt", 0),
+                    "foreign_call_s_cnt": existing_inst_map[d_str].get("foreign_sc_cnt", 0),
+                    "foreign_call_s_amt": existing_inst_map[d_str].get("foreign_sc_amt", 0)
+                }
             else:
                 r["institutional_options"] = None
     except Exception as e:

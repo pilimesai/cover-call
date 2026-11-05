@@ -477,8 +477,15 @@ const refreshIcon = document.getElementById('refresh-icon');
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log("Loading database...");
-        const response = await fetch('./data/data.json?v=' + Date.now());
-        if (!response.ok) throw new Error(`Failed to load data.json: ${response.statusText}`);
+        let response;
+        try {
+            response = await fetch('./data/data.json?v=' + Date.now());
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        } catch (localErr) {
+            console.warn("Local fetch failed, trying GitHub raw fallback...", localErr);
+            response = await fetch('https://raw.githubusercontent.com/pilimesai/cover-call/main/data/data.json?v=' + Date.now());
+            if (!response.ok) throw new Error(`遠端數據載入失敗: ${response.statusText}`);
+        }
         rawData = await response.json();
         console.log(`Database loaded successfully. Records: ${rawData.length}`);
         dataStatusBadge.innerHTML = '<span class="dot green"></span> 數據已載入';
@@ -1969,10 +1976,17 @@ async function handleRefreshData() {
     showFetchStatus('<span class="spin">⟳</span> 正在從伺服器/GitHub重新獲取最新行情與外資期權金流...');
 
     try {
-        // Fetch data.json with timestamp bust
+        // Fetch data.json with timestamp bust and remote fallback
         const timestamp = Date.now();
-        const response = await fetch('./data/data.json?v=' + timestamp);
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        let response;
+        try {
+            response = await fetch('./data/data.json?v=' + timestamp);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        } catch (localErr) {
+            console.warn("Local refresh failed, trying GitHub raw fallback...", localErr);
+            response = await fetch('https://raw.githubusercontent.com/pilimesai/cover-call/main/data/data.json?v=' + timestamp);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         const newData = await response.json();
         if (!Array.isArray(newData) || newData.length === 0) throw new Error('資料格式錯誤');

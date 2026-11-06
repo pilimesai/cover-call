@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
-    <link rel="stylesheet" href="index.css?v=20">
+    <link rel="stylesheet" href="index.css?v=21">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -135,6 +135,19 @@
                         <label for="custom-otm-value">自定義 OTM 比例 (%)</label>
                         <input type="number" id="custom-otm-value" value="7.0" min="0.0" max="50.0" step="0.5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
                         <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">請輸入自定義的價外（OTM）百分比，例如 7.5 代表履約價設為大盤現價的 +7.5%</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="roll-defense-mode">⚡ 選擇權停利與防穿價轉倉機制</label>
+                        <select id="roll-defense-mode" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05); font-weight: 600;">
+                            <option value="smart_both" selected>🔥 [實戰推薦] 85% 提前停利釋放保證金 + 觸價向上轉倉 (Roll Up)</option>
+                            <option value="take_profit">僅啟用 85% 提前停利 (跌市提前平倉釋放 20 萬保證金)</option>
+                            <option value="roll_up">僅啟用防穿價向上轉倉 (大漲觸碰履約價時自動拉高履約價)</option>
+                            <option value="hold_expiry">傳統抱到結算日 (不提前停利 / 不中途轉倉)</option>
+                        </select>
+                        <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">已內建計入真實交易成本（手續費、期交稅、期貨每月換月轉倉滑價、選擇權價差損耗，且現貨買進後長抱不每週洗盤）。</small>
                     </div>
                 </div>
 
@@ -440,6 +453,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=20"></script>
+    <script src="app.js?v=21"></script>
 </body>
 </html>

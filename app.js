@@ -237,6 +237,7 @@ function serializeCurrentPortfolio() {
         customOtmValue:    customOtmValueInput.value,
         optionContracts:   optionContractsInput.value,
         hedgeMode:         hedgeModeSelect ? hedgeModeSelect.value : 'b5',
+        rollDefenseMode:   rollDefenseModeSelect ? rollDefenseModeSelect.value : 'smart_both',
         portfolioMode:     portfolioModeSelect.value,
         capitalMode:       capitalModeSelect.value,
         capital:           capitalInput.value,
@@ -269,6 +270,7 @@ function applySerializedPortfolio(saved) {
         if (strategy.customOtmValue   != null) customOtmValueInput.value    = strategy.customOtmValue;
         if (strategy.optionContracts  != null) optionContractsInput.value   = strategy.optionContracts;
         if (strategy.hedgeMode        != null && hedgeModeSelect) hedgeModeSelect.value = strategy.hedgeMode;
+        if (strategy.rollDefenseMode  != null && rollDefenseModeSelect) rollDefenseModeSelect.value = strategy.rollDefenseMode;
         if (strategy.portfolioMode    != null) portfolioModeSelect.value    = strategy.portfolioMode;
         if (strategy.capitalMode      != null) capitalModeSelect.value      = strategy.capitalMode;
         if (strategy.capital          != null) capitalInput.value           = strategy.capital;
@@ -437,6 +439,7 @@ const optionCycleSelect = document.getElementById('option-cycle');
 const strikeRuleSelect = document.getElementById('strike-rule');
 const optionContractsInput = document.getElementById('option-contracts');
 const hedgeModeSelect = document.getElementById('hedge-mode');
+const rollDefenseModeSelect = document.getElementById('roll-defense-mode');
 const customOtmRow = document.getElementById('custom-otm-row');
 const customOtmValueInput = document.getElementById('custom-otm-value');
 const targetRatioRow = document.getElementById('target-ratio-row');
@@ -595,6 +598,9 @@ function setupEventListeners() {
     customOtmValueInput.addEventListener('change', () => runBacktest());
     if (hedgeModeSelect) {
         hedgeModeSelect.addEventListener('change', () => { updateRecommendation(); runBacktest(); });
+    }
+    if (rollDefenseModeSelect) {
+        rollDefenseModeSelect.addEventListener('change', () => { updateRecommendation(); runBacktest(); });
     }
     optionContractsInput.addEventListener('input', () => updateRecommendation());
     optionContractsInput.addEventListener('change', () => runBacktest());
@@ -1347,7 +1353,7 @@ function updateRecommendation() {
 }
 
 // ─────────────────────────────────────────────
-// BACKTEST CORE
+// BACKTEST CORE (WITH REALISTIC FRICTION, MONTHLY FUTURES ROLLOVER & SMART OPTION DEFENSE)
 // ─────────────────────────────────────────────
 function runBacktest() {
     if (rawData.length === 0) return;
@@ -1370,20 +1376,47 @@ function runBacktest() {
     }
     const optionContracts = Math.max(1, parseInt(optionContractsInput.value) || 1);
     const hedgeMode = hedgeModeSelect ? hedgeModeSelect.value : 'b5';
+    const rollDefenseMode = rollDefenseModeSelect ? rollDefenseModeSelect.value : 'smart_both';
 
     const positions = selectedAssets.map(() => ({ qty: 0, entryPrice: 0 }));
     let cash = initialCapital;
     let activeOption = null;
+    let optionCooldownUntil = null;
     let activePut = null;
     let currentScaleMultiplier = 1.0;
     let putNetProfitTotal = 0;
+    let totalFrictionCost = 0;
+    let earlyTakeProfitCount = 0, rollUpCount = 0, futuresMonthlyRollCount = 0;
     const strategyEquity = [], taiexEquity = [], tsmcEquity = [], dates = [];
     let marginCalls = 0, liquidations = 0, isBankrupt = false;
     let optionCyclesCount = 0, optionWinsCount = 0, totalPremiumIncome = 0, totalCallSettlement = 0;
 
     const initialTaiex = rawData[startIdx].taiex;
-    const initialTsmc = rawData[startIdx].tsmc;
     const multiplier = optionType === 'taiex' ? 50 : 2000;
+    let nextMonthlyFuturesExpiry = getNextMonthlyExpiryDate(rawData[startIdx].date);
+
+    // Friction Helpers (手續費、稅、期貨換月滑價、選擇權價差損耗)
+    const calcSpotFriction = (tradeVal, isSell, isEtf) => {
+        if (tradeVal <= 0) return 0;
+        const comm = Math.max(20, tradeVal * 0.001425 * 0.6); // 6折手續費
+        const tax = isSell ? tradeVal * (isEtf ? 0.001 : 0.003) : 0; // ETF證交稅0.1%, 股票0.3%
+        return comm + tax;
+    };
+    const calcFuturesFriction = (notionalVal, qty, isRollover = false) => {
+        if (qty <= 0 || notionalVal <= 0) return 0;
+        const legs = isRollover ? 2 : 1; // 換月轉倉需平倉近月+建倉遠月(雙邊)
+        const comm = qty * 40 * legs;
+        const tax = notionalVal * 0.00002 * legs; // 期交稅十萬分之2
+        const slippage = notionalVal * (isRollover ? 0.00035 : 0.00015); // 換月逆價差與買賣價差滑價
+        return comm + tax + slippage;
+    };
+    const calcOptionFriction = (premiumPts, mult, contracts, includeSlip = true) => {
+        if (contracts <= 0) return 0;
+        const comm = contracts * 25;
+        const tax = Math.max(0, premiumPts) * mult * contracts * 0.001; // 選擇權期交稅千分之1
+        const slip = includeSlip ? (0.5 * mult * contracts) : 0; // 買賣價差滑價約0.5點
+        return comm + tax + slip;
+    };
 
     for (let i = startIdx; i <= endIdx; i++) {
         const row = rawData[i];
@@ -1409,24 +1442,89 @@ function runBacktest() {
             continue;
         }
 
-        // 1. Option expiration / close-out
+        // 1. Normal Option Expiration / End-of-Backtest Settlement
         if (activeOption && (dateStr >= activeOption.expiry_date || i === endIdx)) {
-            let buyback;
+            let buybackPts = 0;
             if (dateStr >= activeOption.expiry_date) {
-                // Settle at intrinsic value: short call pays (S - K) when ITM
-                buyback = Math.max(0, currentUnderlyingPrice - activeOption.strike) * multiplier * optionContracts;
+                buybackPts = Math.max(0, currentUnderlyingPrice - activeOption.strike);
             } else {
-                // Backtest end before expiry: buy back at theoretical market value
                 const T = Math.max(0, (new Date(activeOption.expiry_date) - new Date(dateStr)) / (1000 * 60 * 60 * 24)) / 365.0;
                 const vol = optionType === 'taiex' ? row.taiex_vol : row.tsmc_vol;
-                buyback = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, 0.015, vol) * multiplier * optionContracts;
+                buybackPts = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, 0.015, vol);
             }
-            cash -= buyback;
+            const buyback = buybackPts * multiplier * optionContracts;
+            const settleFee = buybackPts > 0 ? calcOptionFriction(buybackPts, multiplier, optionContracts, i !== endIdx) : 0;
+            cash -= (buyback + settleFee);
             totalCallSettlement += buyback;
-            const cyclePnL = activeOption.premium * multiplier * optionContracts - buyback;
+            totalFrictionCost += settleFee;
+            const cyclePnL = activeOption.premium * multiplier * optionContracts - buyback - settleFee;
             if (cyclePnL > 0) optionWinsCount++;
             optionCyclesCount++;
             activeOption = null;
+            optionCooldownUntil = null;
+        }
+
+        // 1.05 Mid-Cycle Smart Option Management (85% Early Take-Profit & Defensive Roll Up)
+        if (activeOption && dateStr < activeOption.expiry_date && i < endIdx) {
+            const remDays = Math.max(0.1, (new Date(activeOption.expiry_date) - new Date(dateStr)) / (1000 * 60 * 60 * 24));
+            const T = remDays / 365.0;
+            const vol = optionType === 'taiex' ? row.taiex_vol : row.tsmc_vol;
+            const curCallPts = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, 0.015, vol);
+
+            // (A) 85% Early Take-Profit (獲利達 85% 或殘值 <= 6 點提前買回，釋放 20 萬選擇權保證金)
+            const canTakeProfit = (rollDefenseMode === 'smart_both' || rollDefenseMode === 'take_profit');
+            if (canTakeProfit && (curCallPts <= activeOption.premium * 0.15 || curCallPts <= 6.0)) {
+                const buyback = curCallPts * multiplier * optionContracts;
+                const closeFee = calcOptionFriction(curCallPts, multiplier, optionContracts, true);
+                cash -= (buyback + closeFee);
+                totalCallSettlement += buyback;
+                totalFrictionCost += closeFee;
+                optionWinsCount++;
+                optionCyclesCount++;
+                earlyTakeProfitCount++;
+                optionCooldownUntil = activeOption.expiry_date; // 等原定結算日再賣下一期，跌市期間完全釋放保證金
+                activeOption = null;
+            }
+            // (B) Defensive Roll Up & Out (大盤急漲觸碰履約價時，提前平倉並向上轉倉拉高天花板)
+            else if ((rollDefenseMode === 'smart_both' || rollDefenseMode === 'roll_up') && !activeOption.hasRolledUp) {
+                if (currentUnderlyingPrice >= activeOption.strike * 0.998) {
+                    const buyback = curCallPts * multiplier * optionContracts;
+                    const closeFee = calcOptionFriction(curCallPts, multiplier, optionContracts, true);
+                    cash -= (buyback + closeFee);
+                    totalCallSettlement += buyback;
+                    totalFrictionCost += closeFee;
+                    if (activeOption.premium * multiplier * optionContracts - buyback - closeFee > 0) optionWinsCount++;
+                    optionCyclesCount++;
+                    rollUpCount++;
+
+                    // Roll to higher strike (and next cycle expiry if <= 2 days left)
+                    let newExpiry = activeOption.expiry_date;
+                    if (remDays <= 2.5) {
+                        newExpiry = optionCycle === 'weekly' ? getNextWeeklyExpiryDate(activeOption.expiry_date) : getNextMonthlyExpiryDate(activeOption.expiry_date);
+                    }
+                    let newOptInfo;
+                    if (strikeRule === 'CUSTOM_OTM') {
+                        const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
+                        newOptInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
+                    } else {
+                        newOptInfo = row.options[optionType][optionCycle][strikeRule];
+                    }
+                    const minStep = optionType === 'taiex' ? 300 : 20;
+                    const newStrike = Math.max(newOptInfo.strike, activeOption.strike + minStep);
+                    const newT = Math.max(1.0, (new Date(newExpiry) - new Date(dateStr)) / (1000 * 60 * 60 * 24)) / 365.0;
+                    const newPrem = Math.max(blackScholesCall(currentUnderlyingPrice, newStrike, newT, 0.015, vol), optionCycle === 'weekly' ? 8.0 : 15.0);
+                    const openFee = calcOptionFriction(newPrem, multiplier, optionContracts, true);
+                    cash += (newPrem * multiplier * optionContracts - openFee);
+                    totalPremiumIncome += newPrem * multiplier * optionContracts;
+                    totalFrictionCost += openFee;
+                    activeOption = {
+                        strike: newStrike,
+                        premium: newPrem,
+                        expiry_date: newExpiry,
+                        hasRolledUp: true
+                    };
+                }
+            }
         }
 
         // Check MA5 vs MA21 signal for hedging (using i - 1 to prevent look-ahead bias)
@@ -1441,110 +1539,127 @@ function runBacktest() {
 
         // 1.1 Put expiration / close-out
         if (activePut && (dateStr >= activePut.expiry_date || i === endIdx)) {
-            const payoff = Math.max(0, activePut.strike - price_taiex) * 50 * activePut.contracts;
-            cash += payoff;
-            putNetProfitTotal += payoff;
+            const payoffPts = Math.max(0, activePut.strike - price_taiex);
+            const payoff = payoffPts * 50 * activePut.contracts;
+            const putSettleFee = payoffPts > 0 ? calcOptionFriction(payoffPts, 50, activePut.contracts, false) : 0;
+            cash += (payoff - putSettleFee);
+            putNetProfitTotal += (payoff - putSettleFee);
+            totalFrictionCost += putSettleFee;
             activePut = null;
+        }
+
+        // 1.2 Monthly Futures Rollover (每月第三個週三結算換月，扣除雙邊轉倉滑價與期交稅)
+        if (i > startIdx && dateStr >= nextMonthlyFuturesExpiry && i < endIdx) {
+            let anyFuturesRolled = false;
+            selectedAssets.forEach((asset, ai) => {
+                const pos = positions[ai];
+                const price = getAssetPrice(asset, row);
+                if (asset.type === 'futures' && pos.qty > 0 && price) {
+                    cash += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
+                    pos.entryPrice = price;
+                    const rollFee = calcFuturesFriction(pos.qty * asset.contractMultiplier * price, pos.qty, true);
+                    cash -= rollFee;
+                    totalFrictionCost += rollFee;
+                    anyFuturesRolled = true;
+                }
+            });
+            if (anyFuturesRolled) futuresMonthlyRollCount++;
+            nextMonthlyFuturesExpiry = getNextMonthlyExpiryDate(dateStr);
         }
 
         // Target scale for A1 (reduce spot)
         let targetScale = (hedgeMode === 'a1' && isBearSignal) ? 0.5 : 1.0;
 
-        // 2. Rebalance on roll day
-        const isRebalanceDay = (i === startIdx || activeOption === null);
-        if (isRebalanceDay && i < endIdx) {
-            // Liquidate all
-            selectedAssets.forEach((asset, ai) => {
-                const pos = positions[ai];
-                const price = getAssetPrice(asset, row);
-                if (pos.qty > 0 && price !== null) {
-                    if (asset.type === 'futures') cash += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
-                    else cash += pos.qty * price;
-                }
-                pos.qty = 0; pos.entryPrice = 0;
-            });
+        // 2. Open New Short Call on Scheduled Roll Day
+        const canOpenNewOption = (activeOption === null && (!optionCooldownUntil || dateStr >= optionCooldownUntil) && i < endIdx);
+        let currentDelta = 0.20;
+        if (strikeRule === 'CUSTOM_OTM') {
+            const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
+            currentDelta = getCustomOtmOption(row, optionType, optionCycle, customOtmPct).delta;
+        } else {
+            currentDelta = estimateDelta(strikeRule);
+        }
 
-            const totalEquity = cash;
-
-            // Sell option
-            let optInfo, currentDelta = 0.20;
+        if (canOpenNewOption) {
+            let optInfo;
             if (strikeRule === 'CUSTOM_OTM') {
                 const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
                 optInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
-                currentDelta = optInfo.delta;
             } else {
                 optInfo = row.options[optionType][optionCycle][strikeRule];
-                currentDelta = estimateDelta(strikeRule);
             }
+            const openFee = calcOptionFriction(optInfo.premium, multiplier, optionContracts, true);
             activeOption = {
-                strike: optInfo.strike, premium: optInfo.premium,
-                expiry_date: optionCycle === 'weekly' ? getNextWeeklyExpiryDate(dateStr) : getNextMonthlyExpiryDate(dateStr)
+                strike: optInfo.strike,
+                premium: optInfo.premium,
+                expiry_date: optionCycle === 'weekly' ? getNextWeeklyExpiryDate(dateStr) : getNextMonthlyExpiryDate(dateStr),
+                hasRolledUp: false
             };
-            cash += activeOption.premium * multiplier * optionContracts;
+            optionCooldownUntil = null;
+            cash += (activeOption.premium * multiplier * optionContracts - openFee);
             totalPremiumIncome += activeOption.premium * multiplier * optionContracts;
+            totalFrictionCost += openFee;
+        }
 
-            // Allocate assets
-            selectedAssets.forEach((asset, ai) => {
-                const price = getAssetPrice(asset, row);
-                if (!price) return;
-                let wFrac;
-                if (portfolioMode === 'delta-neutral') {
-                    const targetExposure = optionContracts * (1.0 + currentDelta) * multiplier * currentUnderlyingPrice;
-                    wFrac = Math.min((asset.weight / 100.0) * (targetExposure / totalEquity), 0.9) * targetScale;
-                } else {
-                    wFrac = (asset.weight / 100.0) * targetScale;
-                }
-                const allotment = totalEquity * wFrac;
-                if (asset.type === 'futures') {
-                    const contractVal = price * asset.contractMultiplier;
-                    positions[ai].qty = contractVal > 0 ? (targetScale > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0) : 0;
-                    positions[ai].entryPrice = price;
-                } else {
-                    // Beta-adjusted: buy allotment / (price * beta) units so that
-                    // effective market exposure = qty * price * beta = allotment
-                    const beta = getAssetBeta(asset, rawData[i], optionType);
-                    positions[ai].qty = (price > 0 && beta > 0) ? Math.floor(allotment / (price * beta)) : 0;
-                    cash -= positions[ai].qty * price;
-                    positions[ai].entryPrice = price;
-                }
-            });
-            currentScaleMultiplier = targetScale;
-        } else if (hedgeMode === 'a1' && targetScale !== currentScaleMultiplier && i < endIdx) {
-            // Mid-cycle adjustment for A1 scale changes
+        // 2.05 Allocate / Adjust Underlying Positions (僅在初始建倉或 A1 避險比例切換時調整，現貨買進後長抱不每週洗盤)
+        const needPositionAdjust = (i === startIdx || targetScale !== currentScaleMultiplier);
+        if (needPositionAdjust && i < endIdx) {
+            // Calculate current total equity before resizing
+            let curAssetVal = 0;
             selectedAssets.forEach((asset, ai) => {
                 const pos = positions[ai];
                 const price = getAssetPrice(asset, row);
                 if (pos.qty > 0 && price !== null) {
-                    if (asset.type === 'futures') cash += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
-                    else cash += pos.qty * price;
+                    if (asset.type === 'futures') curAssetVal += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
+                    else curAssetVal += pos.qty * price;
                 }
-                pos.qty = 0; pos.entryPrice = 0;
             });
-            const totalEquity = cash;
-            let currentDelta = 0.20;
-            if (activeOption) {
-                currentDelta = estimateDelta(strikeRule);
-            }
+            const totalEquity = cash + curAssetVal;
+
             selectedAssets.forEach((asset, ai) => {
+                const pos = positions[ai];
                 const price = getAssetPrice(asset, row);
                 if (!price) return;
                 let wFrac;
                 if (portfolioMode === 'delta-neutral') {
                     const targetExposure = optionContracts * (1.0 + currentDelta) * multiplier * currentUnderlyingPrice;
-                    wFrac = Math.min((asset.weight / 100.0) * (targetExposure / totalEquity), 0.9) * targetScale;
+                    wFrac = Math.min((asset.weight / 100.0) * (targetExposure / Math.max(totalEquity, 1)), 0.9) * targetScale;
                 } else {
                     wFrac = (asset.weight / 100.0) * targetScale;
                 }
                 const allotment = totalEquity * wFrac;
                 if (asset.type === 'futures') {
+                    // Settle existing PnL first
+                    if (pos.qty > 0) {
+                        cash += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
+                    }
                     const contractVal = price * asset.contractMultiplier;
-                    positions[ai].qty = contractVal > 0 ? (targetScale > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0) : 0;
-                    positions[ai].entryPrice = price;
+                    const newQty = contractVal > 0 ? (targetScale > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0) : 0;
+                    const diffQty = Math.abs(newQty - pos.qty);
+                    if (diffQty > 0) {
+                        const fFee = calcFuturesFriction(diffQty * contractVal, diffQty, false);
+                        cash -= fFee;
+                        totalFrictionCost += fFee;
+                    }
+                    pos.qty = newQty;
+                    pos.entryPrice = price;
                 } else {
                     const beta = getAssetBeta(asset, rawData[i], optionType);
-                    positions[ai].qty = (price > 0 && beta > 0) ? Math.floor(allotment / (price * beta)) : 0;
-                    cash -= positions[ai].qty * price;
-                    positions[ai].entryPrice = price;
+                    const newQty = (price > 0 && beta > 0) ? Math.floor(allotment / (price * beta)) : 0;
+                    const diffShares = newQty - pos.qty;
+                    if (diffShares > 0) {
+                        const buyVal = diffShares * price;
+                        const sFee = calcSpotFriction(buyVal, false, asset.type === 'etf');
+                        cash -= (buyVal + sFee);
+                        totalFrictionCost += sFee;
+                    } else if (diffShares < 0) {
+                        const sellVal = Math.abs(diffShares) * price;
+                        const sFee = calcSpotFriction(sellVal, true, asset.type === 'etf');
+                        cash += (sellVal - sFee);
+                        totalFrictionCost += sFee;
+                    }
+                    pos.qty = newQty;
+                    pos.entryPrice = price;
                 }
             });
             currentScaleMultiplier = targetScale;
@@ -1553,19 +1668,19 @@ function runBacktest() {
         // 2.1 Put Hedging Overlay (B5 / B3)
         if ((hedgeMode === 'b5' || hedgeMode === 'b3') && i < endIdx) {
             if (isBearSignal && !activePut) {
-                // Enter Put hedge
                 const putKRate = (hedgeMode === 'b5') ? 0.98 : 1.0;
                 const putStrike = Math.round(price_taiex * putKRate / 100) * 100;
                 const putExpiryDate = getNextWeeklyExpiryDate(dateStr);
                 const T_put = Math.max((new Date(putExpiryDate) - new Date(dateStr)) / (1000 * 60 * 60 * 24), 0.1) / 365.0;
                 const vol_taiex = row.taiex_vol || 0.20;
                 const putEstPremium = Math.max(blackScholesPut(price_taiex, putStrike, T_put, 0.015, vol_taiex), 0.5);
-                
-                // Hedge notional matches optionContracts
+
                 const putQty = optionContracts;
                 const putCost = putEstPremium * 50 * putQty;
-                cash -= putCost;
-                putNetProfitTotal -= putCost;
+                const putFee = calcOptionFriction(putEstPremium, 50, putQty, true);
+                cash -= (putCost + putFee);
+                putNetProfitTotal -= (putCost + putFee);
+                totalFrictionCost += putFee;
                 activePut = {
                     strike: putStrike,
                     premium: putEstPremium,
@@ -1573,15 +1688,16 @@ function runBacktest() {
                     contracts: putQty
                 };
             } else if (!isBearSignal && activePut) {
-                // Close Put hedge early if market regains MA21
                 const todayDate = new Date(dateStr);
                 const expDate = new Date(activePut.expiry_date);
                 const T_put = Math.max(0, (expDate - todayDate) / (1000 * 60 * 60 * 24)) / 365.0;
                 const vol_taiex = row.taiex_vol || 0.20;
                 const putCurVal = blackScholesPut(price_taiex, activePut.strike, T_put, 0.015, vol_taiex);
                 const closeVal = putCurVal * 50 * activePut.contracts;
-                cash += closeVal;
-                putNetProfitTotal += closeVal;
+                const putCloseFee = calcOptionFriction(putCurVal, 50, activePut.contracts, true);
+                cash += (closeVal - putCloseFee);
+                putNetProfitTotal += (closeVal - putCloseFee);
+                totalFrictionCost += putCloseFee;
                 activePut = null;
             }
         }
@@ -1607,7 +1723,6 @@ function runBacktest() {
             const T = Math.max(0, (expiryDate - todayDate) / (1000 * 60 * 60 * 24)) / 365.0;
             const vol = optionType === 'taiex' ? row.taiex_vol : row.tsmc_vol;
             const currentPremium = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, 0.015, vol);
-            // Short call liability = full market value (intrinsic + time value)
             optionLiability = currentPremium * multiplier * optionContracts;
         }
 
@@ -1633,7 +1748,7 @@ function runBacktest() {
         });
         tsmcEquity.push(initialCapital * (1.0 + portfolioPnLSum));
 
-        // 4. Margin call
+        // 4. Margin call check (Option margin is 0 when activeOption is closed early via 85% take-profit!)
         const optionMargin = activeOption ? (optionLiability + optionContracts * multiplier * currentUnderlyingPrice * 0.115) : 0;
         const totalReqMargin = totalFuturesMarginReq + optionMargin;
         const freeCash = cash + (dailyAssetValue - selectedAssets.reduce((s, a, ai) => {
@@ -1641,7 +1756,7 @@ function runBacktest() {
             return s;
         }, 0));
 
-        if (freeCash < totalReqMargin) {
+        if (totalReqMargin > 0 && freeCash < totalReqMargin) {
             marginCalls++;
             if (freeCash < 0.25 * totalReqMargin && (positions.some(p => p.qty > 0) || activeOption)) {
                 liquidations++;
@@ -1690,11 +1805,15 @@ function runBacktest() {
     const returnSpan = document.getElementById('metric-total-return');
     returnSpan.textContent = `${totalReturnVal >= 0 ? '+' : ''}${(totalReturnVal * 100).toFixed(2)}%`;
     returnSpan.className = `metric-value ${totalReturnVal >= 0 ? 'positive' : 'negative'}`;
-    document.getElementById('metric-total-pnl').textContent = `TWD ${Math.round(finalEquity - initialCapital).toLocaleString()} | 大盤對比: ${taiexReturnVal >= 0 ? '+' : ''}${(taiexReturnVal * 100).toFixed(2)}%`;
+    document.getElementById('metric-total-pnl').textContent = `淨損益: TWD ${Math.round(finalEquity - initialCapital).toLocaleString()} (已扣轉倉與摩擦成本 ${Math.round(totalFrictionCost).toLocaleString()}) | 大盤: ${taiexReturnVal >= 0 ? '+' : ''}${(taiexReturnVal * 100).toFixed(2)}%`;
 
     const winRate = optionCyclesCount > 0 ? (optionWinsCount / optionCyclesCount) * 100 : 0;
     document.getElementById('metric-total-premium').textContent = `TWD ${Math.round(totalPremiumIncome).toLocaleString()}`;
-    let winRateText = `選擇權勝率: ${winRate.toFixed(0)}% (共轉倉 ${optionCyclesCount} 次) | Call 履約賠付: TWD ${Math.round(totalCallSettlement).toLocaleString()}`;
+    let winRateText = `勝率: ${winRate.toFixed(0)}% (轉倉 ${optionCyclesCount} 次`;
+    if (earlyTakeProfitCount > 0 || rollUpCount > 0) {
+        winRateText += ` · 提前停利 ${earlyTakeProfitCount} 次 · 觸價上移 ${rollUpCount} 次`;
+    }
+    winRateText += `) | Call 買回/賠付: TWD ${Math.round(totalCallSettlement).toLocaleString()}`;
     if (hedgeMode === 'b5' || hedgeMode === 'b3') {
         winRateText += ` | Put 淨損益: TWD ${Math.round(putNetProfitTotal).toLocaleString()}`;
     }

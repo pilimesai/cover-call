@@ -2,9 +2,10 @@ name: Update Historical Data
 
 on:
   schedule:
-    # Run every day at 10:00 UTC (18:00 Taiwan time)
-    # The Taiwan market closes at 13:30, so 18:00 is safe to ensure Yahoo Finance is updated.
-    - cron: '0 10 * * 1-5'
+    # Run at 16:25, 18:25, 20:25 Taiwan time (08:25, 10:25, 12:25 UTC) Mon-Fri
+    # Taiwan market closes at 13:30, TAIFEX publishes post-market settlement at ~15:00.
+    # Non-zero minutes avoid GitHub Actions congestion at top of the hour.
+    - cron: '25 8,10,12 * * 1-5'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:

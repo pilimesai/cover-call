@@ -1802,22 +1802,44 @@ function runBacktest() {
     const annVol = Math.sqrt(dailyReturns.reduce((s, v) => s + Math.pow(v - meanRet, 2), 0) / Math.max(dailyReturns.length, 1)) * Math.sqrt(252);
     const sharpeVal = annVol > 0 ? (annRet - 0.015) / annVol : 0;
 
+    const fmtSigned = (n) => `${n >= 0 ? '+' : '-'}${Math.abs(Math.round(n)).toLocaleString()}`;
+    const totalNetPnL = Math.round(finalEquity - initialCapital);
+    const callGrossVal = Math.round(totalPremiumIncome);
+    const callSettleVal = Math.round(totalCallSettlement);
+    const callNetVal = callGrossVal - callSettleVal;
+    const putNetVal = Math.round(putNetProfitTotal);
+    const frictionVal = Math.round(totalFrictionCost);
+    const longAssetGrossPnL = totalNetPnL - callNetVal - putNetVal + frictionVal;
+    const optionsTotalNetPnL = callNetVal + putNetVal;
+
     const returnSpan = document.getElementById('metric-total-return');
     returnSpan.textContent = `${totalReturnVal >= 0 ? '+' : ''}${(totalReturnVal * 100).toFixed(2)}%`;
     returnSpan.className = `metric-value ${totalReturnVal >= 0 ? 'positive' : 'negative'}`;
-    document.getElementById('metric-total-pnl').textContent = `淨損益: TWD ${Math.round(finalEquity - initialCapital).toLocaleString()} (已扣轉倉與摩擦成本 ${Math.round(totalFrictionCost).toLocaleString()}) | 大盤: ${taiexReturnVal >= 0 ? '+' : ''}${(taiexReturnVal * 100).toFixed(2)}%`;
+
+    let totalPnlHtml = `<div style="margin-top:2px; line-height:1.55;">` +
+        `<div><strong>總淨損益：</strong><strong style="color:${totalNetPnL >= 0 ? 'var(--success)' : 'var(--danger)'}">${fmtSigned(totalNetPnL)} TWD</strong> &nbsp;|&nbsp; 大盤同期: ${taiexReturnVal >= 0 ? '+' : ''}${(taiexReturnVal * 100).toFixed(2)}%</div>` +
+        `<div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">` +
+        `明細 ＝ 多單 <span style="color:${longAssetGrossPnL >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">${fmtSigned(longAssetGrossPnL)}</span>` +
+        ` ＋ Call淨損益 <span style="color:${callNetVal >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">${fmtSigned(callNetVal)}</span>`;
+    if (hedgeMode === 'b5' || hedgeMode === 'b3') {
+        totalPnlHtml += ` ＋ Put避險 <span style="color:${putNetVal >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">${fmtSigned(putNetVal)}</span>`;
+    }
+    totalPnlHtml += ` － 轉倉/手續費 <span style="color:var(--warning); font-weight:600;">-${frictionVal.toLocaleString()}</span></div></div>`;
+    document.getElementById('metric-total-pnl').innerHTML = totalPnlHtml;
 
     const winRate = optionCyclesCount > 0 ? (optionWinsCount / optionCyclesCount) * 100 : 0;
-    document.getElementById('metric-total-premium').textContent = `TWD ${Math.round(totalPremiumIncome).toLocaleString()}`;
-    let winRateText = `勝率: ${winRate.toFixed(0)}% (轉倉 ${optionCyclesCount} 次`;
-    if (earlyTakeProfitCount > 0 || rollUpCount > 0) {
-        winRateText += ` · 提前停利 ${earlyTakeProfitCount} 次 · 觸價上移 ${rollUpCount} 次`;
-    }
-    winRateText += `) | Call 買回/賠付: TWD ${Math.round(totalCallSettlement).toLocaleString()}`;
+    document.getElementById('metric-total-premium').textContent = `+TWD ${callGrossVal.toLocaleString()}`;
+    let winRateHtml = `<div style="margin-top:2px; line-height:1.55;">` +
+        `<div style="font-size:0.75rem;">` +
+        `Call毛收 <span style="color:var(--success); font-weight:600;">+${callGrossVal.toLocaleString()}</span>` +
+        ` － 買回/賠付 <span style="color:var(--danger); font-weight:600;">-${callSettleVal.toLocaleString()}</span>`;
     if (hedgeMode === 'b5' || hedgeMode === 'b3') {
-        winRateText += ` | Put 淨損益: TWD ${Math.round(putNetProfitTotal).toLocaleString()}`;
+        winRateHtml += ` ${putNetVal >= 0 ? '＋' : '－'} Put淨損益 <span style="color:${putNetVal >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">${fmtSigned(putNetVal)}</span>`;
     }
-    document.getElementById('metric-premium-yield').textContent = winRateText;
+    winRateHtml += ` ＝ <strong>期權淨賺 <span style="color:${optionsTotalNetPnL >= 0 ? 'var(--success)' : 'var(--danger)'};">${fmtSigned(optionsTotalNetPnL)}</span></strong></div>` +
+        `<div style="font-size:0.73rem; color:var(--text-muted); margin-top:2px;">` +
+        `勝率: ${winRate.toFixed(0)}% (轉倉 ${optionCyclesCount} 次 · 提前停利 ${earlyTakeProfitCount} 次 · 觸價上移 ${rollUpCount} 次)</div></div>`;
+    document.getElementById('metric-premium-yield').innerHTML = winRateHtml;
     document.getElementById('metric-sharpe').textContent = sharpeVal.toFixed(2);
 
     const mddSpan = document.getElementById('metric-mdd');

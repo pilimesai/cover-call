@@ -1471,9 +1471,9 @@ function runBacktest() {
             const vol = optionType === 'taiex' ? row.taiex_vol : row.tsmc_vol;
             const curCallPts = blackScholesCall(currentUnderlyingPrice, activeOption.strike, T, 0.015, vol);
 
-            // (A) 85% Early Take-Profit (獲利達 85% 或殘值 <= 6 點提前買回，釋放 20 萬選擇權保證金)
+            // (A) 85% Early Take-Profit (當初始權利金 >= 15 點且殘值跌破 15% 即獲利達 85% 時提前買回，釋放保證金；小點數遠價外則直接放到結算歸零免手續費)
             const canTakeProfit = (rollDefenseMode === 'smart_both' || rollDefenseMode === 'take_profit');
-            if (canTakeProfit && (curCallPts <= activeOption.premium * 0.15 || curCallPts <= 6.0)) {
+            if (canTakeProfit && activeOption.premium >= 15.0 && curCallPts <= activeOption.premium * 0.15) {
                 const buyback = curCallPts * multiplier * optionContracts;
                 const closeFee = calcOptionFriction(curCallPts, multiplier, optionContracts, true);
                 cash -= (buyback + closeFee);

@@ -1,5 +1,6 @@
 /* CSS Reset & Variables */
 :root {
+    color-scheme: dark;
     --bg-darker: #0b0f19;
     --bg-dark: #121826;
     --bg-panel: #1e293b;
@@ -28,6 +29,11 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html {
+    color-scheme: dark;
+    background-color: #0b0f19;
 }
 
 body {
@@ -1260,31 +1266,45 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 /* Custom Dark Scrollbar Styling */
+*::-webkit-scrollbar,
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
+    background-color: #0b0f19;
 }
 
+*::-webkit-scrollbar-track,
 ::-webkit-scrollbar-track {
-    background: rgba(15, 23, 42, 0.75);
+    background-color: #0b0f19 !important;
     border-radius: 6px;
 }
 
+*::-webkit-scrollbar-track-piece,
+::-webkit-scrollbar-track-piece {
+    background-color: #0b0f19 !important;
+}
+
+*::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background-color: #334155 !important;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 2px solid #0b0f19;
 }
 
+*::-webkit-scrollbar-thumb:hover,
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
+    background-color: #3b82f6 !important;
 }
 
+*::-webkit-scrollbar-button,
+::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0;
+    height: 0;
+    background-color: #0b0f19 !important;
+}
+
+*::-webkit-scrollbar-corner,
 ::-webkit-scrollbar-corner {
-    background: rgba(15, 23, 42, 0.75);
-}
-
-.inst-table-container {
-    scrollbar-width: thin;
-    scrollbar-color: #334155 rgba(15, 23, 42, 0.75);
+    background-color: #0b0f19 !important;
 }

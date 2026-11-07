@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
-    <link rel="stylesheet" href="index.css?v=25">
+    <link rel="stylesheet" href="index.css?v=26">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,8 +60,8 @@
                 <div class="form-row" id="target-ratio-row">
                     <div class="input-group">
                         <label for="target-margin-ratio">目標初始維持率 (%)</label>
-                        <input type="number" id="target-margin-ratio" value="130" min="100" max="500" step="5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
-                        <small class="help-text" style="color: var(--warning); display: block; margin-top: 4px;">⚠️ 自動計算資金時的目標期貨帳戶保證金維持率。調高維持率會增加所需初始資金（作為現金保證金緩衝以防追繳），但不會增加對沖部位（ETF/期貨口數）。若要放大部位，請增加「賣出部位口數」。</small>
+                        <input type="number" id="target-margin-ratio" value="200" min="100" max="500" step="5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <small class="help-text" style="color: var(--warning); display: block; margin-top: 4px;">⚠️ 預設提升至 200% 安全水位。系統內建「維持率安全鎖」，若組合中同時含現股/ETF 與期貨，會自動控制現股比例以保留足夠期貨保證金緩衝。</small>
                     </div>
                 </div>
 
@@ -115,8 +115,8 @@
                         <select id="strike-rule">
                             <option value="ATM">ATM (等價平值)</option>
                             <option value="OTM_2">OTM 2%</option>
-                            <option value="OTM_5">OTM 5%</option>
-                            <option value="OTM_10" selected>OTM 10%</option>
+                            <option value="OTM_5" selected>OTM 5% (收租甜點區)</option>
+                            <option value="OTM_10">OTM 10%</option>
                             <option value="CUSTOM_OTM">自定義 OTM %</option>
                             <option value="DELTA_3">Delta 0.30</option>
                             <option value="DELTA_2">Delta 0.20</option>
@@ -133,7 +133,7 @@
                 <div class="form-row hidden" id="custom-otm-row">
                     <div class="input-group">
                         <label for="custom-otm-value">自定義 OTM 比例 (%)</label>
-                        <input type="number" id="custom-otm-value" value="7.0" min="0.0" max="50.0" step="0.5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <input type="number" id="custom-otm-value" value="4.5" min="0.0" max="50.0" step="0.5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
                         <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">請輸入自定義的價外（OTM）百分比，例如 7.5 代表履約價設為大盤現價的 +7.5%</small>
                     </div>
                 </div>
@@ -217,7 +217,7 @@
                     <span style="font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.5px;">多單部位權重分配</span>
                     <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; color: var(--primary); font-weight: 500;">
                         <input type="checkbox" id="chk-auto-weight" checked style="accent-color: var(--primary);">
-                        自動平均分配 (等權重)
+                        智慧權重分配 (期現貨最佳化)
                     </label>
                 </div>
 
@@ -452,6 +452,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=25"></script>
+    <script src="app.js?v=26"></script>
 </body>
 </html>

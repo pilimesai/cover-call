@@ -540,7 +540,37 @@ function autoDistributeWeights() {
     const len = selectedAssets.length;
     if (len === 1) {
         selectedAssets[0].weight = 100;
-    } else if (len === 2) {
+        return;
+    }
+    const futuresIdx = [];
+    const spotIdx = [];
+    selectedAssets.forEach((a, idx) => {
+        if (a.type === 'futures') futuresIdx.push(idx);
+        else spotIdx.push(idx);
+    });
+
+    // 智慧期現貨配比：若同時包含「期貨」與「現股/ETF」，自動將高現金消耗的現股控制在 20%~25%，
+    // 讓 75%~80% 曝險由高資金效率的期貨承擔，將現金留在期貨專戶保護維持率
+    if (futuresIdx.length > 0 && spotIdx.length > 0) {
+        if (len === 2) {
+            selectedAssets[futuresIdx[0]].weight = 75;
+            selectedAssets[spotIdx[0]].weight = 25;
+        } else if (len === 3) {
+            if (futuresIdx.length === 2 && spotIdx.length === 1) {
+                selectedAssets[futuresIdx[0]].weight = 40;
+                selectedAssets[futuresIdx[1]].weight = 40;
+                selectedAssets[spotIdx[0]].weight = 20;
+            } else {
+                selectedAssets[futuresIdx[0]].weight = 60;
+                selectedAssets[spotIdx[0]].weight = 20;
+                selectedAssets[spotIdx[1]].weight = 20;
+            }
+        }
+        return;
+    }
+
+    // 純現股或純期貨組合：等權重分配
+    if (len === 2) {
         selectedAssets[0].weight = 50;
         selectedAssets[1].weight = 50;
     } else if (len === 3) {
@@ -1129,7 +1159,7 @@ function solveRequiredCapital(row, optionType, optionCycle, strikeRule, portfoli
     const multiplier = optionType === 'taiex' ? 50 : 2000;
     const S_underlying = optionType === 'taiex' ? row.taiex : row.tsmc;
     const optionContracts = Math.max(1, parseInt(optionContractsInput.value) || 1);
-    const targetRatio = parseFloat(targetMarginRatioInput.value) || 130;
+    const targetRatio = parseFloat(targetMarginRatioInput.value) || 200;
     const ratioMultiplier = targetRatio / 100.0;
 
     let optInfo, delta = 0.20;
@@ -1142,30 +1172,45 @@ function solveRequiredCapital(row, optionType, optionCycle, strikeRule, portfoli
         delta = estimateDelta(strikeRule);
     }
 
+    const optionMaintMargin = optionContracts * multiplier * (optInfo.premium + S_underlying * 0.115);
+
     if (portfolioMode === 'delta-neutral') {
         const targetExposure = optionContracts * (1.0 + delta) * multiplier * S_underlying;
-        let totalAssetValue = 0, totalFuturesMargin = 0;
+        let totalSpotCost = 0, totalFuturesMargin = 0;
         for (const asset of selectedAssets) {
             const wFrac = asset.weight / 100.0;
             const assetExposure = targetExposure * wFrac;
-            if (asset.type === 'futures') totalFuturesMargin += assetExposure * asset.marginRate;
-            else totalAssetValue += assetExposure;
+            const price = getAssetPrice(asset, row) || (asset.symbol === '0050' || asset.symbol === '0050F' ? (row.etf_0050 || row.taiex / 200.0) : (asset.priceField === 'tsmc' || asset.symbol === 'TSMC' || asset.symbol === 'QFF' || asset.symbol === 'CDF' ? row.tsmc : (asset.type === 'stock' || asset.type === 'etf' ? 100.0 : row.taiex)));
+            const beta = getAssetBeta(asset, row, optionType);
+            if (asset.type === 'futures') {
+                const contractVal = price * asset.contractMultiplier;
+                const qty = contractVal > 0 ? Math.max(1, Math.round(assetExposure / contractVal)) : 0;
+                totalFuturesMargin += qty * contractVal * asset.marginRate;
+            } else {
+                // 現股實際花費現金 = 目標曝險 / Beta
+                const qty = (price > 0 && beta > 0) ? Math.round(assetExposure / (price * beta)) : 0;
+                totalSpotCost += Math.round(qty * price);
+            }
         }
-        const optionMaintMargin = optionContracts * multiplier * (optInfo.premium + S_underlying * 0.115);
         const requiredCashBuffer = ratioMultiplier * (totalFuturesMargin + optionMaintMargin);
-        return Math.round((totalAssetValue + requiredCashBuffer) / 10000) * 10000;
+        return Math.ceil((totalSpotCost + requiredCashBuffer) / 10000) * 10000;
     } else {
-        const wCashFrac = Math.max(0, 1.0 - selectedAssets.filter(a => a.type !== 'futures').reduce((s, a) => s + a.weight / 100.0, 0));
-        const wFuturesFrac = selectedAssets.filter(a => a.type === 'futures').reduce((s, a) => s + a.weight / 100.0, 0);
-        const optionMaintMargin = optionContracts * multiplier * (optInfo.premium + S_underlying * 0.115);
-        const denom = wCashFrac - ratioMultiplier * wFuturesFrac * 0.115;
-        const capital = denom > 0 ? (ratioMultiplier * optionMaintMargin) / denom : optionContracts * multiplier * S_underlying;
-        return Math.round(capital / 10000) * 10000;
+        let spotCostFactor = 0, futuresMarginFactor = 0;
+        for (const asset of selectedAssets) {
+            const wFrac = asset.weight / 100.0;
+            const beta = getAssetBeta(asset, row, optionType);
+            if (asset.type === 'futures') futuresMarginFactor += wFrac * asset.marginRate;
+            else spotCostFactor += (beta > 0 ? wFrac / beta : wFrac);
+        }
+        const wCashFrac = Math.max(0.05, 1.0 - spotCostFactor);
+        const denom = wCashFrac - ratioMultiplier * futuresMarginFactor;
+        const capital = denom > 0.05 ? (ratioMultiplier * optionMaintMargin) / denom : optionContracts * multiplier * S_underlying;
+        return Math.ceil(capital / 10000) * 10000;
     }
 }
 
 // ─────────────────────────────────────────────
-// UPDATE RECOMMENDATION
+// UPDATE RECOMMENDATION (WITH MARGIN SAFETY GUARD & EFFICIENCY DIAGNOSTICS)
 // ─────────────────────────────────────────────
 function updateRecommendation() {
     if (rawData.length === 0) return;
@@ -1204,7 +1249,16 @@ function updateRecommendation() {
     }
 
     adviceStrike.textContent = `${optInfo.strike} (${optionType === 'taiex' ? '台指' : '台積電'}) [${optionCycle === 'weekly' ? '周選' : '月選'}] (賣出 ${optionContracts} 口)`;
-    advicePremium.textContent = `${optInfo.premium} 點 (~${Math.round(optInfo.premium * multiplier * optionContracts).toLocaleString()} TWD)`;
+    const totalPremTwd = Math.round(optInfo.premium * multiplier * optionContracts);
+    let premHtml = `<strong>${optInfo.premium} 點</strong> (~${totalPremTwd.toLocaleString()} TWD)`;
+    if (optInfo.premium < 15) {
+        const sweetOpt = row.options[optionType][optionCycle]['OTM_5'] || getCustomOtmOption(row, optionType, optionCycle, 4.5);
+        const sweetTwd = Math.round(sweetOpt.premium * multiplier * optionContracts);
+        premHtml += `<div style="margin-top:4px; font-size:0.78rem; color:var(--warning); background:rgba(245,158,11,0.1); border-left:3px solid var(--warning); padding:4px 8px; border-radius:3px;">
+            💡 <strong>收租效率優化建議：</strong>目前單口僅 <strong>${optInfo.premium} 點</strong>，保證金報酬率偏低。建議改選 <strong>OTM 5% (履約價 ${sweetOpt.strike})</strong>，可收 <strong>${sweetOpt.premium} 點 (~${sweetTwd.toLocaleString()} TWD)</strong>，收租效率提升約 ${Math.max(2, Math.round(sweetOpt.premium / Math.max(optInfo.premium, 0.5)))} 倍！
+        </div>`;
+    }
+    advicePremium.innerHTML = premHtml;
 
     // Check MA5 vs MA21 signal for hedge recommendation
     const lastIdx = rawData.length - 1;
@@ -1246,50 +1300,81 @@ function updateRecommendation() {
         }
     }
 
-    // Build weight fracs
-    let assetInfos = [];
-    if (portfolioMode === 'delta-neutral') {
-        const targetExposure = optionContracts * (1.0 + delta) * multiplier * S_underlying;
-        assetInfos = selectedAssets.map(asset => {
-            const wFrac = asset.weight / 100.0;
-            const value = targetExposure * wFrac;
-            return { asset, value, wFrac: value / capital };
-        });
-    } else {
-        assetInfos = selectedAssets.map(asset => {
-            const wFrac = asset.weight / 100.0;
-            return { asset, value: capital * wFrac, wFrac };
-        });
-    }
+    // Build target allocations
+    const targetExposure = portfolioMode === 'delta-neutral'
+        ? optionContracts * (1.0 + delta) * multiplier * S_underlying
+        : capital;
+
+    const rawEntries = selectedAssets.map(asset => {
+        const wFrac = asset.weight / 100.0;
+        const value = targetExposure * wFrac;
+        const price = getAssetPrice(asset, row) || (asset.symbol === '0050' || asset.symbol === '0050F' ? (row.etf_0050 || row.taiex / 200.0) : (asset.priceField === 'tsmc' || asset.symbol === 'TSMC' || asset.symbol === 'QFF' || asset.symbol === 'CDF' ? row.tsmc : (asset.type === 'stock' || asset.type === 'etf' ? 100.0 : row.taiex)));
+        const beta = getAssetBeta(asset, row, optionType);
+        return { asset, value, weightPct: asset.weight, price, beta };
+    });
+
+    // 1. 先計算期貨部位與所需維持保證金
+    let totalFuturesMargin = 0;
+    rawEntries.forEach(entry => {
+        if (entry.asset.type === 'futures') {
+            const contractVal = entry.price * entry.asset.contractMultiplier;
+            const qty = contractVal > 0 ? Math.max(1, Math.round(entry.value / contractVal)) : 0;
+            entry.qty = qty;
+            entry.margin = qty * contractVal * entry.asset.marginRate;
+            entry.effectiveExposure = qty * contractVal;
+            totalFuturesMargin += entry.margin;
+        }
+    });
+
+    const optionMaintMargin = optionContracts * multiplier * (optInfo.premium + S_underlying * 0.115);
+    const totalMaintMargin = totalFuturesMargin + optionMaintMargin;
+    const targetRatio = parseFloat(targetMarginRatioInput.value) || 200;
+
+    // 2. 計算現股/ETF 部位，並啟動「維持率安全鎖 (Margin Safety Guard)」
+    // 確保買完現股後，留在期貨帳戶的現金至少能維持 180% (或目標維持率) 以上的安全水位
+    let rawSpotCostSum = 0;
+    rawEntries.forEach(entry => {
+        if (entry.asset.type !== 'futures') {
+            const rawQty = (entry.price > 0 && entry.beta > 0) ? Math.round(entry.value / (entry.price * entry.beta)) : 0;
+            entry.rawQty = rawQty;
+            entry.rawCost = Math.round(rawQty * entry.price);
+            rawSpotCostSum += entry.rawCost;
+        }
+    });
+
+    const minSafeRatio = capitalMode === 'auto-solve' ? (targetRatio / 100.0) : 1.80;
+    const minMarginCashRequired = totalMaintMargin > 0 ? (totalMaintMargin * minSafeRatio) : 0;
+    const maxSpotBudget = totalMaintMargin > 0 ? Math.max(0, capital - minMarginCashRequired) : capital;
+    const spotScale = (totalMaintMargin > 0 && rawSpotCostSum > maxSpotBudget && rawSpotCostSum > 0)
+        ? (maxSpotBudget / rawSpotCostSum)
+        : 1.0;
 
     // Render advice table
     adviceAssetsTbody.innerHTML = '';
-    let totalFuturesMargin = 0;
     let totalSpotCost = 0;
     let totalEffectiveExposure = 0;
     const callExposure = optionContracts * multiplier * S_underlying;
-    assetInfos.forEach(({ asset, value, wFrac }) => {
-        const price = getAssetPrice(asset, row) || (asset.symbol === '0050' || asset.symbol === '0050F' ? (row.etf_0050 || row.taiex / 200.0) : (asset.priceField === 'tsmc' || asset.symbol === 'TSMC' || asset.symbol === 'QFF' || asset.symbol === 'CDF' ? row.tsmc : (asset.type === 'stock' || asset.type === 'etf' ? 100.0 : row.taiex)));
-        const beta = getAssetBeta(asset, row, optionType);
-        let qtyText, valText, betaText;
+
+    rawEntries.forEach(entry => {
+        const { asset, weightPct, price, beta } = entry;
+        let qtyText, valText, betaText, weightText;
         if (asset.type === 'futures') {
-            const contractVal = price * asset.contractMultiplier;
-            const qty = contractVal > 0 ? Math.max(1, Math.round(value / contractVal)) : 0;
-            const margin = qty * contractVal * asset.marginRate;
-            totalFuturesMargin += margin;
-            totalEffectiveExposure += qty * contractVal;
-            qtyText = `${qty} 口`;
-            valText = `(計入保證金)`;
+            totalEffectiveExposure += entry.effectiveExposure;
+            qtyText = `${entry.qty} 口`;
+            valText = `保證金 ${Math.round(entry.margin).toLocaleString()}`;
             betaText = `β 1.00`;
+            weightText = `${weightPct.toFixed(0)}%`;
         } else {
-            // Beta-adjusted: buy value/(price*beta) units so effective exposure = value
-            const qty = (price > 0 && beta > 0) ? Math.round(value / (price * beta)) : 0;
-            const cost = Math.round(qty * price);
+            const finalQty = Math.round(entry.rawQty * spotScale);
+            const cost = Math.round(finalQty * price);
             totalSpotCost += cost;
-            totalEffectiveExposure += qty * price * beta;
-            qtyText = `${qty.toLocaleString()} 股`;
+            totalEffectiveExposure += finalQty * price * beta;
+            qtyText = `${finalQty.toLocaleString()} 股`;
             valText = `${cost.toLocaleString()} TWD`;
             betaText = `β ${beta.toFixed(2)}`;
+            weightText = spotScale < 0.98
+                ? `${weightPct.toFixed(0)}% <span title="為保護期貨維持率 ≥ 180%，已自動限縮現股資金佔用" style="color:var(--warning); font-size:0.7rem;">(🛡️保維持率)</span>`
+                : `${weightPct.toFixed(0)}%`;
         }
         const bc = asset.type === 'futures' ? 'futures' : asset.type === 'etf' ? 'etf' : 'stock';
         const bl = asset.type === 'futures' ? '期貨' : asset.type === 'etf' ? 'ETF' : '股票';
@@ -1297,7 +1382,7 @@ function updateRecommendation() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${asset.symbol} <span class="asset-badge ${bc}" style="font-size:0.63rem">${bl}</span> ${asset.name.substring(0, 10)}</td>
-            <td>${(wFrac * 100).toFixed(1)}%</td>
+            <td>${weightText}</td>
             <td class="bold-val">${qtyText}</td>
             <td style="color:${asset.type === 'futures' ? 'var(--text-muted)' : 'inherit'}">${valText}</td>
             <td style="font-size:0.8rem; color:${betaColor}; font-weight:600;">${betaText}</td>`;
@@ -1319,19 +1404,14 @@ function updateRecommendation() {
         <td></td>`;
     adviceAssetsTbody.appendChild(coverageTr);
 
-    const spotValue = assetInfos.filter(x => x.asset.type !== 'futures').reduce((s, x) => s + x.value, 0);
-    const cashValue = Math.max(0, capital - spotValue);
-    const optionMaintMargin = optionContracts * multiplier * (optInfo.premium + S_underlying * 0.115);
-    const totalMaintMargin = totalFuturesMargin + optionMaintMargin;
-    const targetRatio = parseFloat(targetMarginRatioInput.value) || 130;
+    // 修正：扣除實際花費的現股成本 (totalSpotCost)，而非未除 Beta 的名義曝險
+    const cashValue = Math.max(0, capital - totalSpotCost);
     const targetMarginAmount = Math.round(totalMaintMargin * targetRatio / 100);
-
-
 
     if (totalMaintMargin > 0) {
         const ratio = (cashValue / totalMaintMargin) * 100;
         adviceMarginRatio.textContent = `${ratio.toFixed(0)}%`;
-        adviceMarginRatio.style.color = ratio < 120 ? 'var(--danger)' : ratio < 167 ? 'var(--warning)' : 'var(--success)';
+        adviceMarginRatio.style.color = ratio < 130 ? 'var(--danger)' : ratio < 175 ? 'var(--warning)' : 'var(--success)';
     } else {
         adviceMarginRatio.textContent = '--%';
         adviceMarginRatio.style.color = 'var(--text-muted)';
@@ -1346,7 +1426,7 @@ function updateRecommendation() {
     const elSpot = document.getElementById('advice-summary-spot');
     const elMargin = document.getElementById('advice-summary-margin');
     if (elSpot) elSpot.textContent = `${totalSpotCost.toLocaleString()} TWD`;
-    if (elMargin) elMargin.textContent = `${targetMarginAmount.toLocaleString()} TWD`;
+    if (elMargin) elMargin.textContent = `${Math.max(targetMarginAmount, Math.round(cashValue)).toLocaleString()} TWD`;
 
     const aqo = document.getElementById('advice-qty-options');
     if (aqo) aqo.textContent = `${optionContracts} 口`;
@@ -1616,51 +1696,75 @@ function runBacktest() {
             });
             const totalEquity = cash + curAssetVal;
 
+            // (A) 先配置期貨部位並計算所需期貨維持保證金
+            let curFuturesMarginReq = 0;
+            const targetExposure = optionContracts * (1.0 + currentDelta) * multiplier * currentUnderlyingPrice;
             selectedAssets.forEach((asset, ai) => {
+                if (asset.type !== 'futures') return;
                 const pos = positions[ai];
                 const price = getAssetPrice(asset, row);
                 if (!price) return;
-                let wFrac;
-                if (portfolioMode === 'delta-neutral') {
-                    const targetExposure = optionContracts * (1.0 + currentDelta) * multiplier * currentUnderlyingPrice;
-                    wFrac = Math.min((asset.weight / 100.0) * (targetExposure / Math.max(totalEquity, 1)), 0.9) * targetScale;
-                } else {
-                    wFrac = (asset.weight / 100.0) * targetScale;
+                const allotment = (portfolioMode === 'delta-neutral' ? targetExposure : totalEquity) * (asset.weight / 100.0) * targetScale;
+                if (pos.qty > 0) {
+                    cash += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
                 }
-                const allotment = totalEquity * wFrac;
-                if (asset.type === 'futures') {
-                    // Settle existing PnL first
-                    if (pos.qty > 0) {
-                        cash += pos.qty * asset.contractMultiplier * (price - pos.entryPrice);
-                    }
-                    const contractVal = price * asset.contractMultiplier;
-                    const newQty = contractVal > 0 ? (targetScale > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0) : 0;
-                    const diffQty = Math.abs(newQty - pos.qty);
-                    if (diffQty > 0) {
-                        const fFee = calcFuturesFriction(diffQty * contractVal, diffQty, false);
-                        cash -= fFee;
-                        totalFrictionCost += fFee;
-                    }
-                    pos.qty = newQty;
-                    pos.entryPrice = price;
-                } else {
-                    const beta = getAssetBeta(asset, rawData[i], optionType);
-                    const newQty = (price > 0 && beta > 0) ? Math.floor(allotment / (price * beta)) : 0;
-                    const diffShares = newQty - pos.qty;
-                    if (diffShares > 0) {
-                        const buyVal = diffShares * price;
-                        const sFee = calcSpotFriction(buyVal, false, asset.type === 'etf');
-                        cash -= (buyVal + sFee);
-                        totalFrictionCost += sFee;
-                    } else if (diffShares < 0) {
-                        const sellVal = Math.abs(diffShares) * price;
-                        const sFee = calcSpotFriction(sellVal, true, asset.type === 'etf');
-                        cash += (sellVal - sFee);
-                        totalFrictionCost += sFee;
-                    }
-                    pos.qty = newQty;
-                    pos.entryPrice = price;
+                const contractVal = price * asset.contractMultiplier;
+                const newQty = contractVal > 0 ? (targetScale > 0 ? Math.max(1, Math.round(allotment / contractVal)) : 0) : 0;
+                const diffQty = Math.abs(newQty - pos.qty);
+                if (diffQty > 0) {
+                    const fFee = calcFuturesFriction(diffQty * contractVal, diffQty, false);
+                    cash -= fFee;
+                    totalFrictionCost += fFee;
                 }
+                pos.qty = newQty;
+                pos.entryPrice = price;
+                curFuturesMarginReq += newQty * contractVal * asset.marginRate;
+            });
+
+            // (B) 配置現股/ETF 部位，啟動「維持率安全鎖」(保留至少 180% 期貨+選擇權保證金現金)
+            const estOptionMargin = optionContracts * multiplier * currentUnderlyingPrice * 0.12;
+            const totalReqMargin = curFuturesMarginReq + estOptionMargin;
+            const maxSpotCashBudget = totalReqMargin > 0 ? Math.max(0, totalEquity - totalReqMargin * 1.80) : totalEquity * 0.95;
+
+            const desiredSpotQtys = [];
+            let rawSpotCostTotal = 0;
+            selectedAssets.forEach((asset, ai) => {
+                if (asset.type === 'futures') return;
+                const price = getAssetPrice(asset, row);
+                if (!price) { desiredSpotQtys[ai] = 0; return; }
+                const allotment = (portfolioMode === 'delta-neutral'
+                    ? Math.min(targetExposure * (asset.weight / 100.0), totalEquity * 0.9)
+                    : totalEquity * (asset.weight / 100.0)) * targetScale;
+                const beta = getAssetBeta(asset, rawData[i], optionType);
+                const rawQty = (price > 0 && beta > 0) ? Math.floor(allotment / (price * beta)) : 0;
+                desiredSpotQtys[ai] = rawQty;
+                rawSpotCostTotal += rawQty * price;
+            });
+
+            const btSpotScale = (totalReqMargin > 0 && rawSpotCostTotal > maxSpotCashBudget && rawSpotCostTotal > 0)
+                ? (maxSpotCashBudget / rawSpotCostTotal)
+                : 1.0;
+
+            selectedAssets.forEach((asset, ai) => {
+                if (asset.type === 'futures') return;
+                const pos = positions[ai];
+                const price = getAssetPrice(asset, row);
+                if (!price) return;
+                const newQty = Math.floor((desiredSpotQtys[ai] || 0) * btSpotScale);
+                const diffShares = newQty - pos.qty;
+                if (diffShares > 0) {
+                    const buyVal = diffShares * price;
+                    const sFee = calcSpotFriction(buyVal, false, asset.type === 'etf');
+                    cash -= (buyVal + sFee);
+                    totalFrictionCost += sFee;
+                } else if (diffShares < 0) {
+                    const sellVal = Math.abs(diffShares) * price;
+                    const sFee = calcSpotFriction(sellVal, true, asset.type === 'etf');
+                    cash += (sellVal - sFee);
+                    totalFrictionCost += sFee;
+                }
+                pos.qty = newQty;
+                pos.entryPrice = price;
             });
             currentScaleMultiplier = targetScale;
         }

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
-    <link rel="stylesheet" href="index.css?v=21">
+    <link rel="stylesheet" href="index.css?v=22">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -386,15 +386,14 @@
                             資料來源：臺灣期貨交易所 (TAIFEX) 每日三大法人選擇權契約未平倉餘額（千元）
                         </p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                            <span style="font-size:0.75rem; color:var(--text-muted);">顯示筆數：</span>
-                        <select id="inst-table-rows" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border); padding:4px 8px; border-radius:4px; font-size:0.8rem;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        <span style="font-size:0.82rem; color:var(--text-muted); white-space:nowrap;">顯示筆數：</span>
+                        <select id="inst-table-rows" style="width:auto; min-width:115px; background:rgba(15, 23, 42, 0.75); color:var(--text-main); border:1px solid var(--border); padding:5px 10px; border-radius:6px; font-size:0.82rem; cursor:pointer;">
                             <option value="30">最近 30 天</option>
                             <option value="60" selected>最近 60 天</option>
                             <option value="120">最近 120 天</option>
                             <option value="all">全部歷史</option>
                         </select>
-                        </div>
                     </div>
                 </div>
 
@@ -423,7 +422,7 @@
                 </div>
 
                 <!-- Sheet Table Container -->
-                <div class="inst-table-container" style="overflow-x:auto; border:1px solid var(--border); border-radius:8px; max-height:550px; background:var(--bg-card);">
+                <div class="inst-table-container" style="overflow:auto; border:1px solid var(--border); border-radius:8px; max-height:520px; background:rgba(15, 23, 42, 0.55);">
                     <table class="inst-table" style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:right;">
                         <thead style="position:sticky; top:0; z-index:2; background:#1e293b; color:#cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                             <tr style="border-bottom:1px solid #334155;">
@@ -453,6 +452,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=21"></script>
+    <script src="app.js?v=22"></script>
 </body>
 </html>

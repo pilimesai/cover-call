@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
-    <link rel="stylesheet" href="index.css?v=26">
+    <link rel="stylesheet" href="index.css?v=27">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -141,7 +141,7 @@
                 <div class="form-row">
                     <div class="input-group">
                         <label for="roll-defense-mode">⚡ 選擇權停利與防穿價轉倉機制</label>
-                        <select id="roll-defense-mode" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05); font-weight: 600;">
+                        <select id="roll-defense-mode" style="border-color: rgba(16, 185, 129, 0.4); background-color: #0d1f1c; color: #f8fafc; font-weight: 600;">
                             <option value="smart_both" selected>🔥 [實戰推薦] 85% 提前停利釋放保證金 + 觸價向上轉倉 (Roll Up)</option>
                             <option value="take_profit">僅啟用 85% 提前停利 (跌市提前平倉釋放 20 萬保證金)</option>
                             <option value="roll_up">僅啟用防穿價向上轉倉 (大漲觸碰履約價時自動拉高履約價)</option>
@@ -154,7 +154,7 @@
                 <div class="form-row">
                     <div class="input-group">
                         <label for="hedge-mode">🛡️ 下跌避險優化策略 (MA5 &lt; MA21)</label>
-                        <select id="hedge-mode" style="border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.05); font-weight: 600;">
+                        <select id="hedge-mode" style="border-color: rgba(59, 130, 246, 0.4); background-color: #0f1b2e; color: #f8fafc; font-weight: 600;">
                             <option value="none">不避險 (原始 Covered Call)</option>
                             <option value="b5" selected>🔥 [推薦 B5] 買進價外 2% 台指周選 Put (高勝率+低回撤)</option>
                             <option value="b3">[B3] 買進價平 (ATM) 台指周選 Put (強防護)</option>
@@ -388,7 +388,7 @@
                     </div>
                     <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
                         <span style="font-size:0.82rem; color:var(--text-muted); white-space:nowrap;">顯示筆數：</span>
-                        <select id="inst-table-rows" style="width:auto; min-width:115px; background:rgba(15, 23, 42, 0.75); color:var(--text-main); border:1px solid var(--border); padding:5px 10px; border-radius:6px; font-size:0.82rem; cursor:pointer;">
+                        <select id="inst-table-rows" style="width:auto; min-width:115px; background-color:#0f172a; color:var(--text-main); border:1px solid var(--border); padding:5px 10px; border-radius:6px; font-size:0.82rem; cursor:pointer;">
                             <option value="30">最近 30 天</option>
                             <option value="60" selected>最近 60 天</option>
                             <option value="120">最近 120 天</option>
@@ -452,6 +452,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=26"></script>
+    <script src="app.js?v=27"></script>
 </body>
 </html>

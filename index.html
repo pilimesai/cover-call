@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
-    <link rel="stylesheet" href="index.css?v=27">
+    <link rel="stylesheet" href="index.css?v=28">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -147,7 +147,7 @@
                             <option value="roll_up">僅啟用防穿價向上轉倉 (大漲觸碰履約價時自動拉高履約價)</option>
                             <option value="hold_expiry">傳統抱到結算日 (不提前停利 / 不中途轉倉)</option>
                         </select>
-                        <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">已內建計入真實交易成本（手續費、期交稅、期貨每月換月轉倉滑價、選擇權價差損耗，且現貨買進後長抱不每週洗盤）。</small>
+                        <div id="roll-defense-desc" class="help-text" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px; background: rgba(16, 185, 129, 0.06); border-left: 3px solid var(--success); padding: 8px 10px; border-radius: 4px; line-height: 1.55;">已內建計入真實交易成本（手續費、期交稅、期貨每月換月轉倉滑價、選擇權價差損耗，且現貨買進後長抱不每週洗盤）。</div>
                     </div>
                 </div>
 
@@ -160,7 +160,7 @@
                             <option value="b3">[B3] 買進價平 (ATM) 台指周選 Put (強防護)</option>
                             <option value="a1">[A1] 降低多單部位至 50%</option>
                         </select>
-                        <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">當加權指數 5 日線跌破 21 日線時觸發保護機制；站回時自動平倉獲利/回收殘值。</small>
+                        <div id="hedge-mode-desc" class="help-text" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px; background: rgba(59, 130, 246, 0.06); border-left: 3px solid var(--primary); padding: 8px 10px; border-radius: 4px; line-height: 1.55;">當加權指數 5 日線跌破 21 日線時觸發保護機制；站回時自動平倉獲利/回收殘值。</div>
                     </div>
                 </div>
 
@@ -300,6 +300,10 @@
                         <div class="advice-row">
                             <span class="advice-label">預估收取權利金：</span>
                             <span class="advice-val" id="advice-premium">---</span>
+                        </div>
+                        <div class="advice-row" id="advice-roll-row">
+                            <span class="advice-label">⚡ 停利 / 轉倉實戰掛單：</span>
+                            <span class="advice-val" id="advice-roll-sop">---</span>
                         </div>
                         <div class="advice-row" id="advice-hedge-row">
                             <span class="advice-label">🛡️ 均線避險狀態 (MA5 vs MA21)：</span>
@@ -452,6 +456,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=27"></script>
+    <script src="app.js?v=28"></script>
 </body>
 </html>

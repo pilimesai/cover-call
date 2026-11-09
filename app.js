@@ -494,7 +494,14 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
         rawData = await response.json();
         console.log(`Database loaded successfully. Records: ${rawData.length}`);
-        dataStatusBadge.innerHTML = '<span class="dot green"></span> 數據已載入';
+        // 自動檢查 FinMind 是否有比靜態 data.json 更新的當日籌碼與行情
+        try {
+            await syncLiveFinMindData();
+        } catch (liveErr) {
+            console.warn("Live FinMind auto-sync skipped:", liveErr);
+        }
+        const initLatest = rawData[rawData.length - 1];
+        dataStatusBadge.innerHTML = `<span class="dot green"></span> 數據已載入 (${initLatest ? initLatest.date : ''})`;
         populateDropdowns();
         setupEventListeners();
         if (chkAutoWeight) chkAutoWeight.checked = isAutoWeight;
@@ -2319,6 +2326,224 @@ function renderInstitutionalOptionsTable() {
 
 
 // ─────────────────────────────────────────────
+// LIVE FINMIND BROWSER SYNC (即時抓取期交所最新三大法人選擇權籌碼與收盤行情)
+// ─────────────────────────────────────────────
+function normPpf(p) {
+    let low = -8.0, high = 8.0;
+    for (let i = 0; i < 45; i++) {
+        const mid = (low + high) / 2.0;
+        if (normCdf(mid) < p) low = mid;
+        else high = mid;
+    }
+    return (low + high) / 2.0;
+}
+
+function strikeForDeltaJS(S, delta, T, r, sigma) {
+    if (T <= 0 || sigma <= 0) return S;
+    const d1 = normPpf(delta);
+    return S * Math.exp((r + 0.5 * sigma * sigma) * T - d1 * sigma * Math.sqrt(T));
+}
+
+function buildOptionsChainForRecord(S_taiex, vol_taiex, S_tsmc, vol_tsmc, T_w, T_m) {
+    const r = 0.015;
+    const options_data = {
+        taiex: { weekly: {}, monthly: {} },
+        tsmc: { weekly: {}, monthly: {} }
+    };
+    for (const [term, T_term] of [['weekly', T_w], ['monthly', T_m]]) {
+        const taiex_strikes = {
+            ATM: S_taiex,
+            OTM_2: S_taiex * 1.02,
+            OTM_5: S_taiex * 1.05,
+            OTM_10: S_taiex * 1.10,
+            DELTA_3: strikeForDeltaJS(S_taiex, 0.3, T_term, r, vol_taiex),
+            DELTA_2: strikeForDeltaJS(S_taiex, 0.2, T_term, r, vol_taiex),
+            DELTA_1: strikeForDeltaJS(S_taiex, 0.1, T_term, r, vol_taiex),
+        };
+        for (const [name, K] of Object.entries(taiex_strikes)) {
+            const K_rounded = Math.round(K / 100) * 100;
+            const min_floor = term === 'weekly' ? 0.5 : 1.0;
+            const premium = Math.max(blackScholesCall(S_taiex, K_rounded, T_term, r, vol_taiex), min_floor);
+            options_data.taiex[term][name] = { strike: K_rounded, premium: Math.round(premium * 100) / 100 };
+        }
+        const tsmc_strikes = {
+            ATM: S_tsmc,
+            OTM_2: S_tsmc * 1.02,
+            OTM_5: S_tsmc * 1.05,
+            OTM_10: S_tsmc * 1.10,
+            DELTA_3: strikeForDeltaJS(S_tsmc, 0.3, T_term, r, vol_tsmc),
+            DELTA_2: strikeForDeltaJS(S_tsmc, 0.2, T_term, r, vol_tsmc),
+            DELTA_1: strikeForDeltaJS(S_tsmc, 0.1, T_term, r, vol_tsmc),
+        };
+        for (const [name, K] of Object.entries(tsmc_strikes)) {
+            const K_rounded = Math.round(K / 10) * 10;
+            const min_floor = term === 'weekly' ? 0.5 : 1.0;
+            const premium = Math.max(blackScholesCall(S_tsmc, K_rounded, T_term, r, vol_tsmc), min_floor);
+            options_data.tsmc[term][name] = { strike: K_rounded, premium: Math.round(premium * 100) / 100 };
+        }
+    }
+    return options_data;
+}
+
+async function syncLiveFinMindData() {
+    if (!rawData || rawData.length === 0) return { addedDays: 0, updatedChips: 0 };
+    const lastRec = rawData[rawData.length - 1];
+    const startObj = new Date(lastRec.date);
+    startObj.setDate(startObj.getDate() - 10);
+    const startStr = startObj.toISOString().split('T')[0];
+
+    const fetchJson = async (url) => {
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return resp.json();
+    };
+
+    const baseUrl = 'https://api.finmindtrade.com/api/v4/data';
+    const [optRes, taiexRes, tsmcRes, etf50Res, etf981Res, etf991Res] = await Promise.all([
+        fetchJson(`${baseUrl}?dataset=TaiwanOptionInstitutionalInvestors&data_id=TXO&start_date=${startStr}`),
+        fetchJson(`${baseUrl}?dataset=TaiwanStockPrice&data_id=TAIEX&start_date=${startStr}`).catch(() => ({ data: [] })),
+        fetchJson(`${baseUrl}?dataset=TaiwanStockPrice&data_id=2330&start_date=${startStr}`).catch(() => ({ data: [] })),
+        fetchJson(`${baseUrl}?dataset=TaiwanStockPrice&data_id=0050&start_date=${startStr}`).catch(() => ({ data: [] })),
+        fetchJson(`${baseUrl}?dataset=TaiwanStockPrice&data_id=00981A&start_date=${startStr}`).catch(() => ({ data: [] })),
+        fetchJson(`${baseUrl}?dataset=TaiwanStockPrice&data_id=00991A&start_date=${startStr}`).catch(() => ({ data: [] })),
+    ]);
+
+    // 1. Parse institutional options by date
+    const instByDate = {};
+    for (const row of (optRes.data || [])) {
+        const d = row.date;
+        if (!d) continue;
+        if (!instByDate[d]) instByDate[d] = {};
+        const inst = row.institutional_investors || '';
+        const cp = row.call_put || '';
+        const isForeign = inst.includes('外資') || inst.toLowerCase().includes('foreign');
+        const isDealer = inst.includes('自營') || inst.toLowerCase().includes('dealer');
+        const isTrust = inst.includes('投信') || inst.toLowerCase().includes('trust');
+        const isCall = cp.includes('買') || cp.toLowerCase().includes('call');
+        const isPut = cp.includes('賣') || cp.toLowerCase().includes('put');
+        const prefix = isForeign ? 'foreign' : (isDealer ? 'dealer' : (isTrust ? 'trust' : 'other'));
+        const cpTag = isCall ? 'call' : (isPut ? 'put' : 'unknown');
+        if (prefix === 'other' || cpTag === 'unknown') continue;
+        instByDate[d][`${prefix}_${cpTag}_b_cnt`] = parseInt(row.long_open_interest_balance_volume || 0, 10);
+        instByDate[d][`${prefix}_${cpTag}_b_amt`] = parseInt(row.long_open_interest_balance_amount || 0, 10);
+        instByDate[d][`${prefix}_${cpTag}_s_cnt`] = parseInt(row.short_open_interest_balance_volume || 0, 10);
+        instByDate[d][`${prefix}_${cpTag}_s_amt`] = parseInt(row.short_open_interest_balance_amount || 0, 10);
+    }
+
+    // 2. Parse daily close prices by date
+    const toPriceMap = (arr) => {
+        const m = {};
+        for (const r of (arr || [])) {
+            if (r.date && r.close > 0) m[r.date] = Number(r.close);
+        }
+        return m;
+    };
+    const taiexMap = toPriceMap(taiexRes.data);
+    const tsmcMap = toPriceMap(tsmcRes.data);
+    const etf50Map = toPriceMap(etf50Res.data);
+    const etf981Map = toPriceMap(etf981Res.data);
+    const etf991Map = toPriceMap(etf991Res.data);
+
+    // 3. Append any new trading dates that exist in FinMind but not yet in rawData
+    const existingDates = new Set(rawData.map(r => r.date));
+    const candidateDates = new Set([...Object.keys(taiexMap), ...Object.keys(instByDate)]);
+    const newDates = [...candidateDates].filter(d => d > lastRec.date && !existingDates.has(d)).sort();
+
+    let addedDays = 0;
+    for (const dStr of newDates) {
+        const prev = rawData[rawData.length - 1];
+        const S_taiex = taiexMap[dStr] || prev.taiex;
+        const S_tsmc = tsmcMap[dStr] || prev.tsmc;
+        if (!taiexMap[dStr] && !instByDate[dStr]) continue;
+
+        const expiry_weekly = getNextWeeklyExpiryDate(dStr);
+        const expiry_monthly = getNextMonthlyExpiryDate(dStr);
+        const curDate = new Date(dStr);
+        const days_w = Math.max(1, Math.round((new Date(expiry_weekly) - curDate) / 86400000));
+        const days_m = Math.max(1, Math.round((new Date(expiry_monthly) - curDate) / 86400000));
+
+        // Compute 20-day annualized volatility
+        const recent = rawData.slice(-20);
+        const calcVol = (getter, latestVal, fallback) => {
+            const vals = [...recent.map(getter), latestVal];
+            if (vals.length < 5) return fallback;
+            const rets = [];
+            for (let i = 1; i < vals.length; i++) {
+                if (vals[i - 1] > 0) rets.push((vals[i] - vals[i - 1]) / vals[i - 1]);
+            }
+            const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+            const variance = rets.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, rets.length - 1);
+            return Math.sqrt(variance) * Math.sqrt(252);
+        };
+        const vol_taiex = calcVol(r => r.taiex, S_taiex, prev.taiex_vol);
+        const vol_tsmc = calcVol(r => r.tsmc, S_tsmc, prev.tsmc_vol);
+
+        const newRecord = {
+            date: dStr,
+            taiex: S_taiex,
+            tsmc: S_tsmc,
+            etf_0050: etf50Map[dStr] ?? prev.etf_0050,
+            etf_981: etf981Map[dStr] ?? prev.etf_981,
+            etf_991: etf991Map[dStr] ?? prev.etf_991,
+            taiex_vol: vol_taiex,
+            tsmc_vol: vol_tsmc,
+            expiry_date_monthly: expiry_monthly,
+            expiry_date_weekly: expiry_weekly,
+            days_to_expiry_monthly: days_m,
+            days_to_expiry_weekly: days_w,
+            betas: { ...prev.betas },
+            options: buildOptionsChainForRecord(S_taiex, vol_taiex, S_tsmc, vol_tsmc, days_w / 365.0, days_m / 365.0),
+            institutional_options: null
+        };
+        rawData.push(newRecord);
+        addedDays++;
+    }
+
+    // 4. Backfill / refresh institutional_options across recent records
+    let updatedChips = 0;
+    for (let i = 0; i < rawData.length; i++) {
+        const rec = rawData[i];
+        const tData = instByDate[rec.date];
+        if (!tData || Object.keys(tData).length === 0) continue;
+
+        const prevInst = i > 0 && rawData[i - 1].institutional_options ? rawData[i - 1].institutional_options : null;
+        const f_bp_amt = tData.foreign_put_b_amt ?? 0;
+        const f_sp_cnt = tData.foreign_put_s_cnt ?? 0;
+        const f_sp_amt = tData.foreign_put_s_amt ?? 0;
+        const f_bc_cnt = tData.foreign_call_b_cnt ?? 0;
+        const f_bc_amt = tData.foreign_call_b_amt ?? 0;
+        const f_sc_cnt = tData.foreign_call_s_cnt ?? 0;
+        const f_sc_amt = tData.foreign_call_s_amt ?? 0;
+
+        const foreign_sp_bp_diff = prevInst
+            ? (f_sp_amt - (prevInst.foreign_sp_amt || 0)) - (f_bp_amt - (prevInst.foreign_bp_amt || 0))
+            : 0;
+        const foreign_bc_sc_diff = prevInst
+            ? (f_bc_amt - (prevInst.foreign_bc_amt || 0)) - (f_sc_amt - (prevInst.foreign_sc_amt || 0))
+            : 0;
+
+        rec.institutional_options = {
+            foreign_bp_amt: f_bp_amt,
+            foreign_sp_cnt: f_sp_cnt,
+            foreign_sp_amt: f_sp_amt,
+            foreign_sp_bp_diff,
+            foreign_bc_cnt: f_bc_cnt,
+            foreign_bc_amt: f_bc_amt,
+            foreign_sc_cnt: f_sc_cnt,
+            foreign_sc_amt: f_sc_amt,
+            foreign_bc_sc_diff,
+            dealer_bp_amt: tData.dealer_put_b_amt ?? 0,
+            dealer_sp_amt: tData.dealer_put_s_amt ?? 0,
+            dealer_bc_amt: tData.dealer_call_b_amt ?? 0,
+            dealer_sc_amt: tData.dealer_call_s_amt ?? 0,
+        };
+        updatedChips++;
+    }
+
+    return { addedDays, updatedChips };
+}
+
+// ─────────────────────────────────────────────
 // REFRESH DATA & INSTITUTIONAL OPTIONS PIPELINE
 // ─────────────────────────────────────────────
 let isRefreshing = false;
@@ -2333,41 +2558,65 @@ async function handleRefreshData() {
         btnTableRefresh.disabled = true;
         btnTableRefresh.innerHTML = '<span class="spin-animation">⏳</span> 更新中...';
     }
-    dataStatusBadge.innerHTML = '<span class="dot yellow"></span> 正在載入最新數據...';
+    dataStatusBadge.innerHTML = '<span class="dot yellow"></span> 正在同步最新籌碼與行情...';
 
-    showFetchStatus('<span class="spin">⟳</span> 正在從伺服器/GitHub重新獲取最新行情與外資期權金流...');
+    showFetchStatus('<span class="spin">⟳</span> 正在從期交所/FinMind 與 GitHub 即時獲取最新行情與外資期權籌碼...');
 
     try {
-        // Fetch data.json with timestamp bust and remote fallback
         const timestamp = Date.now();
-        let response;
-        try {
-            response = await fetch('./data/data.json?v=' + timestamp);
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        } catch (localErr) {
-            console.warn("Local refresh failed, trying GitHub raw fallback...", localErr);
-            response = await fetch('https://raw.githubusercontent.com/pilimesai/cover-call/main/data/data.json?v=' + timestamp);
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const newData = await response.json();
-        if (!Array.isArray(newData) || newData.length === 0) throw new Error('資料格式錯誤');
+        const prevStartDate = rawData[parseInt(startSelect.value)]?.date;
 
-        const prevCount = rawData.length;
-        rawData = newData;
-        
-        // Re-populate dropdowns
+        // 1. Fetch static data.json from both local & GitHub, pick the newer one
+        const candidates = [];
+        try {
+            const rLocal = await fetch('./data/data.json?v=' + timestamp, { cache: 'no-store' });
+            if (rLocal.ok) {
+                const dLocal = await rLocal.json();
+                if (Array.isArray(dLocal) && dLocal.length > 0) candidates.push(dLocal);
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            const rRemote = await fetch('https://raw.githubusercontent.com/pilimesai/cover-call/main/data/data.json?v=' + timestamp, { cache: 'no-store' });
+            if (rRemote.ok) {
+                const dRemote = await rRemote.json();
+                if (Array.isArray(dRemote) && dRemote.length > 0) candidates.push(dRemote);
+            }
+        } catch (e) { /* ignore */ }
+
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => (b[b.length - 1].date).localeCompare(a[a.length - 1].date));
+            rawData = candidates[0];
+        }
+
+        // 2. Real-time browser sync with FinMind API (即使 GitHub 尚未更新也能即時抓到當日最新籌碼！)
+        try {
+            await syncLiveFinMindData();
+        } catch (liveErr) {
+            console.warn('Live FinMind sync warning:', liveErr);
+        }
+
+        // 3. Re-populate dropdowns (preserving user's start date, setting end date to latest)
         populateDropdowns();
-        
-        // Re-render components
+        if (prevStartDate) {
+            const foundStartIdx = rawData.findIndex(r => r.date === prevStartDate);
+            if (foundStartIdx >= 0 && foundStartIdx < rawData.length - 1) {
+                startSelect.value = foundStartIdx;
+            }
+        }
+        endSelect.value = rawData.length - 1;
+
+        // 4. Re-render all components
         updateRecommendation();
         runBacktest();
         renderInstitutionalOptionsTable();
 
         const latestRec = rawData[rawData.length - 1];
+        const validInst = rawData.filter(r => r.institutional_options);
+        const latestInstDate = validInst.length > 0 ? validInst[validInst.length - 1].date : latestRec.date;
+
         dataStatusBadge.innerHTML = `<span class="dot green"></span> 已更新 (${latestRec.date})`;
-        showFetchStatus(`✅ 數據已成功同步！最新交易日：<strong>${latestRec.date}</strong>（共 ${rawData.length} 筆歷史紀錄）`, 'success');
-        setTimeout(() => hideFetchStatus(), 4000);
+        showFetchStatus(`✅ 籌碼與行情同步完成！最新交易日：<strong>${latestRec.date}</strong>｜最新三大法人籌碼日：<strong>${latestInstDate}</strong>`, 'success');
+        setTimeout(() => hideFetchStatus(), 4500);
     } catch (err) {
         console.error('Refresh error:', err);
         dataStatusBadge.innerHTML = '<span class="dot red"></span> 更新失敗';

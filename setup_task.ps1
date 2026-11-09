@@ -2,9 +2,11 @@ $pythonPath = "C:\Users\User\AppData\Local\Python\pythoncore-3.14-64\python.exe"
 $scriptPath = "d:\vibe code\cover call\generate_data.py"
 $workDir    = "d:\vibe code\cover call"
 
+$cmdArgs = "-NoProfile -WindowStyle Hidden -Command `"Set-Location '$workDir'; & '$pythonPath' '$scriptPath'; git add data/data.json; if ((git status --porcelain data/data.json)) { git commit -m 'chore: auto-update historical data'; git push origin main }`""
+
 $action = New-ScheduledTaskAction `
-    -Execute $pythonPath `
-    -Argument "`"$scriptPath`"" `
+    -Execute "powershell.exe" `
+    -Argument $cmdArgs `
     -WorkingDirectory $workDir
 
 $trigger = New-ScheduledTaskTrigger -Daily -At "15:30"

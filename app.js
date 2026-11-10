@@ -2306,7 +2306,7 @@ function renderInstitutionalOptionsTable() {
 
         rowsHtml += `
             <tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition:background 0.15s;">
-                <td style="text-align:center; padding:7px 8px; font-weight:500; font-family:monospace;">${d}</td>
+                <td class="sticky-date-col" style="text-align:center; padding:7px 8px; font-weight:500; font-family:monospace;">${d}</td>
                 <td style="padding:7px 8px; font-weight:600;">${taiex}</td>
                 <td style="padding:7px 8px; font-weight:600; ${changeStyle}">${changeText}</td>
                 <td style="padding:7px 8px; background:${bpBg}; color:${bpColor}; font-weight:${bpWeight};">${bpAmt.toLocaleString()}</td>

@@ -1326,3 +1326,373 @@ select optgroup {
 #hedge-mode {
     background-color: #0f1b2e !important;
 }
+
+/* ─────────────────────────────────────────────
+   MOBILE & TABLET RESPONSIVE DESIGN (手機版優化)
+   ───────────────────────────────────────────── */
+
+html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+/* Prevent CSS Grid blowout from wide tables or canvas */
+.app-container > *,
+.output-container > *,
+.bottom-grid > *,
+.panel {
+    min-width: 0;
+}
+
+/* Hide mobile quick nav on desktop */
+.mobile-quick-nav {
+    display: none;
+}
+
+/* Sticky Date column in Institutional Options Table */
+.inst-table th.sticky-date-col {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background-color: #1e293b;
+}
+
+.inst-table td.sticky-date-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: #111827;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 1024px) {
+    .app-container {
+        grid-template-columns: 1fr;
+        padding: 0 1.25rem;
+        margin: 1.25rem auto;
+        gap: 1.25rem;
+    }
+
+    .mobile-quick-nav {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-top: 0.55rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mobile-nav-item {
+        text-align: center;
+        text-decoration: none;
+        color: var(--text-main);
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.45rem 0.25rem;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        white-space: nowrap;
+        transition: background 0.15s, border-color 0.15s;
+    }
+
+    .mobile-nav-item:active,
+    .mobile-nav-item:hover {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: var(--primary);
+        color: #ffffff;
+    }
+}
+
+@media (max-width: 768px) {
+    /* 1. Compact Sticky Header for Mobile */
+    .app-header {
+        padding: 0.65rem 0.85rem;
+    }
+
+    .header-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.55rem;
+    }
+
+    .logo-area {
+        gap: 0.6rem;
+    }
+
+    .logo-icon {
+        font-size: 1.6rem;
+    }
+
+    .logo-text h1 {
+        font-size: 0.98rem;
+        line-height: 1.3;
+    }
+
+    .logo-text .subtitle {
+        display: none;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px !important;
+    }
+
+    .btn-refresh {
+        padding: 0.42rem 0.75rem;
+        font-size: 0.78rem;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .status-badge {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.74rem;
+        white-space: nowrap;
+    }
+
+    .mobile-quick-nav {
+        top: 84px;
+    }
+
+    /* 2. Main Layout & Panels */
+    .app-container {
+        padding: 0 0.65rem;
+        margin: 0.75rem auto;
+        gap: 1rem;
+    }
+
+    .output-container {
+        gap: 1rem;
+    }
+
+    .bottom-grid {
+        gap: 1rem;
+    }
+
+    .panel {
+        padding: 1rem 0.9rem;
+        border-radius: 12px;
+    }
+
+    .panel-header {
+        margin-bottom: 0.9rem;
+        padding-bottom: 0.55rem;
+    }
+
+    .panel-header h2 {
+        font-size: 1rem;
+        line-height: 1.35;
+    }
+
+    section[id] {
+        scroll-margin-top: 135px;
+    }
+
+    /* 3. Form Controls (16px font prevents iOS Safari auto-zoom on tap) */
+    .form-row {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .input-group {
+        margin-bottom: 0.85rem;
+    }
+
+    input[type="number"],
+    select,
+    #asset-search-input {
+        font-size: 16px !important;
+        padding: 0.65rem 0.75rem !important;
+        min-height: 44px;
+    }
+
+    #asset-search-input {
+        padding-left: 2.2rem !important;
+    }
+
+    input[type="range"] {
+        height: 8px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+    }
+
+    .btn {
+        min-height: 46px;
+        font-size: 1rem;
+    }
+
+    /* 4. Presets & Custom Slots (Larger Touch Targets) */
+    .preset-row {
+        gap: 0.55rem;
+    }
+
+    .preset-btn {
+        padding: 0.75rem 0.5rem;
+        min-height: 78px;
+    }
+
+    .preset-icon {
+        font-size: 1.4rem;
+    }
+
+    .preset-label {
+        font-size: 0.85rem;
+    }
+
+    .custom-slots-header {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .custom-slots-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .custom-slot-card {
+        min-height: auto;
+        padding: 0.7rem 0.75rem;
+    }
+
+    .custom-slot-label {
+        font-size: 0.8rem;
+    }
+
+    .custom-slot-strategy {
+        font-size: 0.72rem;
+    }
+
+    .slot-btn {
+        font-size: 0.76rem;
+        padding: 6px 12px;
+        min-height: 34px;
+    }
+
+    /* 5. KPI & Metrics 2x2 Compact App Grid */
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+    }
+
+    .metric-card {
+        background: rgba(15, 23, 42, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 0.65rem 0.7rem;
+    }
+
+    .metric-label {
+        font-size: 0.72rem;
+    }
+
+    .metric-value {
+        font-size: 1.25rem;
+        word-break: break-word;
+    }
+
+    .metric-sub {
+        font-size: 0.68rem;
+        line-height: 1.3;
+    }
+
+    /* 6. Chart Panel */
+    .chart-panel {
+        min-height: 300px;
+    }
+
+    .chart-wrapper {
+        height: 250px;
+    }
+
+    /* 7. Advice Panel & Table */
+    .advice-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+        font-size: 0.88rem;
+    }
+
+    .advice-valhighlight {
+        font-size: 0.98rem;
+        width: 100%;
+        display: block;
+    }
+
+    .advice-val {
+        width: 100%;
+    }
+
+    .advice-table-wrapper {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .advice-table {
+        font-size: 0.78rem;
+    }
+
+    .advice-table th,
+    .advice-table td {
+        padding: 0.55rem 0.5rem;
+        white-space: nowrap;
+    }
+
+    .advice-summary-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.6rem !important;
+    }
+
+    /* 8. Institutional Options Panel & Table */
+    .inst-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.6rem !important;
+    }
+
+    .inst-kpi-card {
+        padding: 0.65rem 0.75rem !important;
+    }
+
+    .inst-kpi-card > div:nth-child(2) {
+        font-size: 1.05rem !important;
+    }
+
+    .inst-table-container {
+        -webkit-overflow-scrolling: touch;
+        max-height: 420px !important;
+    }
+
+    .inst-table {
+        font-size: 0.74rem !important;
+    }
+
+    .inst-table th,
+    .inst-table td {
+        padding: 6px 6px !important;
+        white-space: nowrap;
+    }
+
+    .app-footer {
+        padding: 1.25rem 0.85rem;
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 380px) {
+    .metrics-grid,
+    .inst-kpi-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .mobile-nav-item {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.15rem;
+    }
+}

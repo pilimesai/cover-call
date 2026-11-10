@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
-    <link rel="stylesheet" href="index.css?v=29">
+    <link rel="stylesheet" href="index.css?v=31">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +22,7 @@
                     <p class="subtitle">自訂多單組合 + Covered Call 選擇權策略 | 支援 ETF、個股、期貨標的</p>
                 </div>
             </div>
-            <div style="display:flex; align-items:center; gap:10px;">
+            <div class="header-actions" style="display:flex; align-items:center; gap:10px;">
                 <button type="button" class="btn-refresh" id="btn-refresh-data" title="重新下載並載入最新行情與外資籌碼數據">
                     <span class="refresh-icon" id="refresh-icon">🔄</span> 更新最新籌碼
                 </button>
@@ -31,11 +31,12 @@
                 </div>
             </div>
         </div>
+        <nav class="mobile-quick-nav" aria-label="手機版快速導覽"><a href="#section-config" class="mobile-nav-item">⚙️ 參數/自選</a><a href="#section-advice" class="mobile-nav-item">📌 今日建倉</a><a href="#section-metrics" class="mobile-nav-item">📈 回測圖表</a><a href="#section-inst" class="mobile-nav-item">📊 外資籌碼</a></nav>
     </header>
 
     <main class="app-container">
         <!-- Input Panel -->
-        <section class="panel config-panel">
+        <section class="panel config-panel" id="section-config">
             <div class="panel-header">
                 <h2>⚙️ 策略參數配置</h2>
             </div>
@@ -250,7 +251,7 @@
         <!-- Output Panel -->
         <div class="output-container">
             <!-- Metrics Row -->
-            <section class="panel metrics-panel">
+            <section class="panel metrics-panel" id="section-metrics">
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <span class="metric-label">策略累積收益率</span>
@@ -288,7 +289,7 @@
             <!-- Bottom Info Grid -->
             <div class="bottom-grid">
                 <!-- Current Allocation Advice -->
-                <section class="panel advice-panel">
+                <section class="panel advice-panel" id="section-advice">
                     <div class="panel-header">
                         <h2>📌 現階段交易部位判斷 (今日建倉建議)</h2>
                     </div>
@@ -337,7 +338,7 @@
                          </div>
 
                          <!-- 清楚的資金摘要 -->
-                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.9rem;">
+                         <div class="advice-summary-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.9rem;">
                              <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px; padding:0.85rem 1rem;">
                                  <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px; letter-spacing:0.5px;">🏦 股票/ETF 購買金額</div>
                                  <div id="advice-summary-spot" style="font-size:1.2rem; font-weight:700; color:var(--primary);">-- TWD</div>
@@ -382,7 +383,7 @@
             </div>
 
             <!-- Institutional Options Flow Panel (Google Sheet Style) -->
-            <section class="panel inst-options-panel" style="margin-top: 1.5rem;">
+            <section class="panel inst-options-panel" id="section-inst" style="margin-top: 1.5rem;">
                 <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div>
                         <h2>📊 外資 / 三大法人臺指選擇權未平倉金流追蹤表</h2>
@@ -430,7 +431,7 @@
                     <table class="inst-table" style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:right;">
                         <thead style="position:sticky; top:0; z-index:2; background:#1e293b; color:#cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                             <tr style="border-bottom:1px solid #334155;">
-                                <th style="text-align:center; padding:8px 10px; width:95px;">日期</th>
+                                <th class="sticky-date-col" style="text-align:center; padding:8px 10px; width:95px;">日期</th>
                                 <th style="text-align:right; padding:8px 10px;">加權指數</th>
                                 <th style="text-align:right; padding:8px 8px; width:65px;">漲跌</th>
                                 <th style="text-align:right; padding:8px 10px; background:rgba(239,68,68,0.15); color:#fca5a5;">外資 BP 金額<br><span style="font-size:0.68rem; font-weight:normal;">(千元)</span></th>
@@ -456,6 +457,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=30"></script>
+    <script src="app.js?v=31"></script>
 </body>
 </html>

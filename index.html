@@ -302,6 +302,7 @@
                             <span class="advice-label">預估收取權利金：</span>
                             <span class="advice-val" id="advice-premium">---</span>
                         </div>
+                        <div class="advice-row" id="advice-live-calc-row" style="background:rgba(59,130,246,0.07); border:1px dashed rgba(59,130,246,0.35); border-radius:8px; padding:8px 10px;"><div style="width:100%;"><div style="font-size:0.78rem; color:var(--secondary); font-weight:600; margin-bottom:6px;">🔢 券商 APP 實際成交價換算器（直接輸入 APP 看到的真實履約價與點數，下方停利單與轉倉鬧鐘會自動重算）：</div><div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;"><label style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">實際履約價：<input type="number" id="actual-strike-input" step="100" style="width:100px; padding:4px 8px; font-size:0.85rem; min-height:34px;" placeholder="自動帶入"></label><label style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">APP 實際點數：<input type="number" id="actual-premium-input" step="0.5" min="0.5" style="width:90px; padding:4px 8px; font-size:0.85rem; min-height:34px;" placeholder="輸入點數"></label><button type="button" id="btn-reset-actual" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer; min-height:32px;">↺ 重置為理論值</button></div></div></div>
                         <div class="advice-row" id="advice-roll-row">
                             <span class="advice-label">⚡ 停利 / 轉倉實戰掛單：</span>
                             <span class="advice-val" id="advice-roll-sop">---</span>
@@ -457,6 +458,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=32"></script>
+    <script src="app.js?v=33"></script>
 </body>
 </html>

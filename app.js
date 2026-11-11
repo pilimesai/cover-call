@@ -625,17 +625,37 @@ function setupEventListeners() {
         updateRecommendation(); runBacktest();
     });
 
-    optionTypeSelect.addEventListener('change', () => { updateRecommendation(); runBacktest(); });
-    optionCycleSelect.addEventListener('change', () => { updateRecommendation(); runBacktest(); });
+    const clearActualInputs = () => {
+        const elS = document.getElementById('actual-strike-input');
+        const elP = document.getElementById('actual-premium-input');
+        if (elS) elS.value = '';
+        if (elP) elP.value = '';
+    };
+
+    optionTypeSelect.addEventListener('change', () => { clearActualInputs(); updateRecommendation(); runBacktest(); });
+    optionCycleSelect.addEventListener('change', () => { clearActualInputs(); updateRecommendation(); runBacktest(); });
 
     strikeRuleSelect.addEventListener('change', () => {
         if (strikeRuleSelect.value === 'CUSTOM_OTM') customOtmRow.classList.remove('hidden');
         else customOtmRow.classList.add('hidden');
+        clearActualInputs();
         updateRecommendation(); runBacktest();
     });
 
-    customOtmValueInput.addEventListener('input', () => updateRecommendation());
+    customOtmValueInput.addEventListener('input', () => { clearActualInputs(); updateRecommendation(); });
     customOtmValueInput.addEventListener('change', () => runBacktest());
+
+    const actualStrikeEl = document.getElementById('actual-strike-input');
+    const actualPremEl = document.getElementById('actual-premium-input');
+    const btnResetActual = document.getElementById('btn-reset-actual');
+    if (actualStrikeEl) actualStrikeEl.addEventListener('input', () => updateRecommendation());
+    if (actualPremEl) actualPremEl.addEventListener('input', () => updateRecommendation());
+    if (btnResetActual) {
+        btnResetActual.addEventListener('click', () => {
+            clearActualInputs();
+            updateRecommendation();
+        });
+    }
     if (hedgeModeSelect) {
         hedgeModeSelect.addEventListener('change', () => { updateRecommendation(); runBacktest(); });
     }
@@ -1314,6 +1334,35 @@ function getNextPeriodExpiryStr(expiryDateStr) {
     return d.toISOString().split('T')[0];
 }
 
+// 台灣期交所 (TAIFEX) 臺指選擇權合法最小跳動點位 (Tick Size) 對齊：
+// <10點: 0.1點 ｜ 10~50點: 0.5點 ｜ 50~500點: 1點 ｜ 500~1000點: 5點
+function roundToTaifexOptionTick(pts) {
+    const p = Math.max(0.5, pts);
+    if (p < 10) return +(Math.round(p * 10) / 10).toFixed(1);
+    if (p < 50) return +(Math.round(p * 2) / 2).toFixed(1);
+    if (p < 500) return Math.round(p);
+    return Math.round(p / 5) * 5;
+}
+
+// 校準真實台指選上檔 Call 波動率偏態 (Call IV Skew Damper)：
+// 當近期大盤暴跌暴漲導致 20日歷史波動率 (HV) 飆破 22% 時，真實造市商對上檔價外 Call 的隱含波動率 (IV)
+// 通常維持在 18%~24%（Put 高、Call 低的負偏態），避免理論價高估成 250 點而與實盤脫節。
+function getCalibratedCallPremium(row, optionType, optionCycle, strike, rawPremium) {
+    const S = optionType === 'taiex' ? row.taiex : row.tsmc;
+    const rawVol = optionType === 'taiex' ? row.taiex_vol : row.tsmc_vol;
+    if (!rawVol || rawVol <= 0.21) return rawPremium;
+    const expiryDateStr = optionCycle === 'weekly'
+        ? (row.expiry_date_weekly || getNextWeeklyExpiryDate(row.date))
+        : (row.expiry_date_monthly || getNextMonthlyExpiryDate(row.date));
+    const days = Math.max((new Date(expiryDateStr) - new Date(row.date)) / 86400000, 1);
+    const T = days / 365.0;
+    const otmRatio = Math.max(0, (strike - S) / S);
+    const dampedVol = Math.min(0.25, 0.19 + (rawVol - 0.19) * 0.30) * Math.max(0.78, 1.0 - otmRatio * 2.0);
+    const calPrem = blackScholesCall(S, strike, T, 0.015, dampedVol);
+    const minFloor = optionCycle === 'weekly' ? 0.5 : 1.0;
+    return roundToTaifexOptionTick(Math.max(calPrem, minFloor));
+}
+
 // ─────────────────────────────────────────────
 // UPDATE RECOMMENDATION (WITH MARGIN SAFETY GUARD & EFFICIENCY DIAGNOSTICS)
 // ─────────────────────────────────────────────
@@ -1343,15 +1392,33 @@ function updateRecommendation() {
     latestTaiexSpan.textContent = Math.round(row.taiex).toLocaleString();
     latestTsmcSpan.textContent = row.tsmc.toFixed(1);
 
-    let optInfo, delta = 0.20;
+    let rawOptInfo, delta = 0.20;
     if (strikeRule === 'CUSTOM_OTM') {
         const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
-        optInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
-        delta = optInfo.delta;
+        rawOptInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
+        delta = rawOptInfo.delta;
     } else {
-        optInfo = row.options[optionType][optionCycle][strikeRule];
+        rawOptInfo = row.options[optionType][optionCycle][strikeRule];
         delta = estimateDelta(strikeRule);
     }
+
+    // 校準真實台指選 Call 波動率偏態後的理論參考點數，並支援「券商 APP 實際報價換算器」覆寫
+    const calibratedPrem = getCalibratedCallPremium(row, optionType, optionCycle, rawOptInfo.strike, rawOptInfo.premium);
+    const actualStrikeEl = document.getElementById('actual-strike-input');
+    const actualPremEl = document.getElementById('actual-premium-input');
+    if (actualStrikeEl) actualStrikeEl.placeholder = String(rawOptInfo.strike);
+    if (actualPremEl) actualPremEl.placeholder = String(calibratedPrem);
+
+    const userStrikeVal = actualStrikeEl && actualStrikeEl.value.trim() !== '' ? parseFloat(actualStrikeEl.value) : null;
+    const userPremVal = actualPremEl && actualPremEl.value.trim() !== '' ? parseFloat(actualPremEl.value) : null;
+
+    const optInfo = {
+        strike: (userStrikeVal && userStrikeVal > 0) ? userStrikeVal : rawOptInfo.strike,
+        premium: (userPremVal && userPremVal > 0) ? userPremVal : calibratedPrem,
+        isCustomActual: Boolean((userStrikeVal && userStrikeVal > 0) || (userPremVal && userPremVal > 0)),
+        rawTheoreticalPremium: rawOptInfo.premium,
+        calibratedPremium: calibratedPrem
+    };
 
     const activeExpiryStr = optionCycle === 'weekly'
         ? (row.expiry_date_weekly || getNextWeeklyExpiryDate(row.date))
@@ -1362,21 +1429,25 @@ function updateRecommendation() {
 
     adviceStrike.textContent = `${optInfo.strike} Call (${optionType === 'taiex' ? '台指' : '台積電'}) 【合約：${curContract.badgeText}】(賣出 ${optionContracts} 口)`;
     const totalPremTwd = Math.round(optInfo.premium * multiplier * optionContracts);
-    let premHtml = `<strong>${optInfo.premium} 點</strong> (~${totalPremTwd.toLocaleString()} TWD)`;
+    const sourceBadge = optInfo.isCustomActual
+        ? `<span style="font-size:0.74rem; color:var(--secondary); background:rgba(6,182,212,0.15); padding:2px 6px; border-radius:4px; margin-left:6px;">📱 已套用 APP 實盤輸入值</span>`
+        : `<span style="font-size:0.74rem; color:var(--text-muted); margin-left:6px;">(實盤偏態校準估計；原始HV公式值 ${optInfo.rawTheoreticalPremium} 點)</span>`;
+    let premHtml = `<strong>${optInfo.premium} 點</strong> (~${totalPremTwd.toLocaleString()} TWD) ${sourceBadge}`;
     if (optInfo.premium < 15) {
-        const sweetOpt = row.options[optionType][optionCycle]['OTM_5'] || getCustomOtmOption(row, optionType, optionCycle, 4.5);
-        const sweetTwd = Math.round(sweetOpt.premium * multiplier * optionContracts);
+        const sweetRaw = row.options[optionType][optionCycle]['OTM_5'] || getCustomOtmOption(row, optionType, optionCycle, 4.5);
+        const sweetCal = getCalibratedCallPremium(row, optionType, optionCycle, sweetRaw.strike, sweetRaw.premium);
+        const sweetTwd = Math.round(sweetCal * multiplier * optionContracts);
         premHtml += `<div style="margin-top:4px; font-size:0.78rem; color:var(--warning); background:rgba(245,158,11,0.1); border-left:3px solid var(--warning); padding:4px 8px; border-radius:3px;">
-            💡 <strong>收租效率優化建議：</strong>目前單口僅 <strong>${optInfo.premium} 點</strong>，保證金報酬率偏低。建議改選 <strong>OTM 5% (履約價 ${sweetOpt.strike})</strong>，可收 <strong>${sweetOpt.premium} 點 (~${sweetTwd.toLocaleString()} TWD)</strong>，收租效率提升約 ${Math.max(2, Math.round(sweetOpt.premium / Math.max(optInfo.premium, 0.5)))} 倍！
+            💡 <strong>收租效率優化建議：</strong>目前單口僅 <strong>${optInfo.premium} 點</strong>，保證金報酬率偏低。建議在 APP 報價表往內挑 <strong>30~60 點</strong> 的履約價（或改選 <strong>OTM 5% 履約價 ${sweetRaw.strike}</strong>，約 <strong>${sweetCal} 點 / ~${sweetTwd.toLocaleString()} TWD</strong>）！
         </div>`;
     }
     advicePremium.innerHTML = premHtml;
 
-    // 動態更新「選擇權停利與防穿價轉倉機制」實戰操作說明 (含今日精確點位與合約代號對照)
+    // 動態更新「選擇權停利與防穿價轉倉機制」實戰操作說明 (含今日精確點位、期交所合法跳動點與合約代號對照)
     const rollDefenseMode = rollDefenseModeSelect ? rollDefenseModeSelect.value : 'smart_both';
     const rollDefenseDescEl = document.getElementById('roll-defense-desc');
     const adviceRollSopEl = document.getElementById('advice-roll-sop');
-    const tpTargetPts = Math.max(0.5, +(optInfo.premium * 0.15).toFixed(1));
+    const tpTargetPts = roundToTaifexOptionTick(optInfo.premium * 0.15);
     const touchTriggerPrice = optionType === 'taiex' ? Math.round(optInfo.strike * 0.998) : +(optInfo.strike * 0.998).toFixed(1);
     const rollStep = optionType === 'taiex' ? 300 : 20;
     const nextRollStrike = optInfo.strike + rollStep;

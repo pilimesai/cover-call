@@ -1271,6 +1271,50 @@ function solveRequiredCapital(row, optionType, optionCycle, strikeRule, portfoli
 }
 
 // ─────────────────────────────────────────────
+// TAIFEX CONTRACT CODE HELPER (自動計算券商 APP 對應之 11_W1 / 11_W2 / 11月選 / 11_W4 代號)
+// ─────────────────────────────────────────────
+function getTaifexContractCodeByExpiry(expiryDateStr, optionCycle = 'weekly') {
+    if (!expiryDateStr) return { code: '近月', fullLabel: '近月合約', md: '' };
+    const parts = expiryDateStr.split('-').map(Number);
+    const mo = parts[1];
+    const dy = parts[2];
+    const md = `${mo}/${String(dy).padStart(2, '0')}`;
+    const weekNum = Math.ceil(dy / 7); // 第幾個週三 (1~5)
+
+    if (optionCycle === 'monthly') {
+        return {
+            code: `${mo}`,
+            badgeText: `${mo}月選 (代號 ${mo}｜${md}結算)`,
+            shortCode: `${mo} (${mo}月選)`,
+            md
+        };
+    }
+
+    // 台指周選規則：每月第 1、2、4、5 個週三為 W1、W2、W4、W5；
+    // 第 3 個週三剛好是「月選擇權結算日」，期交所不另設 W3，券商 APP 直接選「MM (月選)」！
+    if (weekNum === 3) {
+        return {
+            code: `${mo}`,
+            badgeText: `${mo} (第3週即${mo}月選，無${mo}_W3｜${md}結算)`,
+            shortCode: `${mo} (第3週選${mo}月)`,
+            md
+        };
+    }
+    return {
+        code: `${mo}_W${weekNum}`,
+        badgeText: `${mo}_W${weekNum} (周選｜${md}結算)`,
+        shortCode: `${mo}_W${weekNum}`,
+        md
+    };
+}
+
+function getNextPeriodExpiryStr(expiryDateStr) {
+    const d = new Date(expiryDateStr);
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+}
+
+// ─────────────────────────────────────────────
 // UPDATE RECOMMENDATION (WITH MARGIN SAFETY GUARD & EFFICIENCY DIAGNOSTICS)
 // ─────────────────────────────────────────────
 function updateRecommendation() {
@@ -1309,7 +1353,14 @@ function updateRecommendation() {
         delta = estimateDelta(strikeRule);
     }
 
-    adviceStrike.textContent = `${optInfo.strike} (${optionType === 'taiex' ? '台指' : '台積電'}) [${optionCycle === 'weekly' ? '周選' : '月選'}] (賣出 ${optionContracts} 口)`;
+    const activeExpiryStr = optionCycle === 'weekly'
+        ? (row.expiry_date_weekly || getNextWeeklyExpiryDate(row.date))
+        : (row.expiry_date_monthly || getNextMonthlyExpiryDate(row.date));
+    const curContract = getTaifexContractCodeByExpiry(activeExpiryStr, optionCycle);
+    const nextContract = getTaifexContractCodeByExpiry(getNextPeriodExpiryStr(activeExpiryStr), 'weekly');
+    const weeklyPutContract = getTaifexContractCodeByExpiry(row.expiry_date_weekly || getNextWeeklyExpiryDate(row.date), 'weekly');
+
+    adviceStrike.textContent = `${optInfo.strike} Call (${optionType === 'taiex' ? '台指' : '台積電'}) 【合約：${curContract.badgeText}】(賣出 ${optionContracts} 口)`;
     const totalPremTwd = Math.round(optInfo.premium * multiplier * optionContracts);
     let premHtml = `<strong>${optInfo.premium} 點</strong> (~${totalPremTwd.toLocaleString()} TWD)`;
     if (optInfo.premium < 15) {
@@ -1321,7 +1372,7 @@ function updateRecommendation() {
     }
     advicePremium.innerHTML = premHtml;
 
-    // 動態更新「選擇權停利與防穿價轉倉機制」實戰操作說明 (含今日精確點位對照)
+    // 動態更新「選擇權停利與防穿價轉倉機制」實戰操作說明 (含今日精確點位與合約代號對照)
     const rollDefenseMode = rollDefenseModeSelect ? rollDefenseModeSelect.value : 'smart_both';
     const rollDefenseDescEl = document.getElementById('roll-defense-desc');
     const adviceRollSopEl = document.getElementById('advice-roll-sop');
@@ -1335,51 +1386,51 @@ function updateRecommendation() {
     let rollSopHtml = '';
     if (rollDefenseMode === 'smart_both') {
         const tpRuleText = optInfo.premium >= 15
-            ? `建倉賣出 <strong>${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，立即在券商 APP 掛「<strong style="color:var(--success);">買進平倉限價單 ${tpTargetPts} 點</strong> (殘值 15%)」。成交即入袋 85% 獲利並釋放保證金，空手至原結算日(週三)再賣新倉。`
-            : `目前初始權利金 <strong>${optInfo.premium} 點</strong> (&lt;15點)，不掛提前停利單，直接抱到週三結算自動歸零以省下平倉手續費。`;
+            ? `建倉賣出 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，立即在券商 APP 掛「<strong style="color:var(--success);">買進平倉限價單 ${tpTargetPts} 點</strong> (殘值 15%)」。成交即入袋 85% 獲利並釋放保證金，空手至原結算日(${curContract.md} 週三)再賣新倉。`
+            : `目前 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> 初始權利金 <strong>${optInfo.premium} 點</strong> (&lt;15點)，不掛提前停利單，直接抱到 ${curContract.md}(週三) 結算自動歸零以省下平倉手續費。`;
         rollDescHtml = `
-            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【實戰推薦：85% 提前停利 + 觸價轉倉】操作 SOP：</div>
+            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【實戰推薦：85% 提前停利 + 觸價轉倉】操作 SOP（本週期合約：<span style="color:var(--secondary);">${curContract.badgeText}</span>）：</div>
             <div><strong>① 提前停利掛單：</strong>${tpRuleText}</div>
-            <div style="margin-top:4px;"><strong>② 防穿價向上轉倉 (Roll Up)：</strong>設定${undLabel}觸價通知 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> (履約價 ×99.8%)。一旦急漲觸及，盤中立即「<strong>買回平倉 ${optInfo.strike} Call</strong>」，並同步「<strong style="color:var(--primary);">向上賣出 ${nextRollStrike} Call</strong>」(若距結算 ≤2 天則改賣下週合約)。</div>
+            <div style="margin-top:4px;"><strong>② 防穿價向上轉倉 (Roll Up)：</strong>設定${undLabel}觸價通知 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> (履約價 ×99.8%)。一旦急漲觸及，盤中立即「<strong>買回平倉 [${curContract.shortCode}] ${optInfo.strike} Call</strong>」，並同步「<strong style="color:var(--primary);">向上賣出 ${nextRollStrike} Call</strong>」(若距結算 ≤2 天則直接改賣下週 <strong>[${nextContract.shortCode}]</strong> 合約)。</div>
         `;
         rollSopHtml = `
             <div style="font-size:0.82rem; line-height:1.5; background:rgba(16,185,129,0.08); border-left:3px solid var(--success); padding:5px 8px; border-radius:3px;">
-                🎯 <strong>停利掛單：</strong>${optInfo.premium >= 15 ? `賣出後直接預掛 <strong style="color:var(--success);">買進平倉 ${tpTargetPts} 點</strong> (賺 85% 釋放保證金)` : `點數偏小 (&lt;15點)，免掛停利單抱到結算歸零`}<br>
-                🛡️ <strong>防穿價轉倉：</strong>${undLabel}觸及 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> 時，平倉 ${optInfo.strike} Call 並向上轉賣 <strong style="color:var(--primary);">${nextRollStrike} Call</strong>
+                🎯 <strong>停利掛單 (${curContract.shortCode})：</strong>${optInfo.premium >= 15 ? `賣出後直接預掛 <strong style="color:var(--success);">買進平倉 ${tpTargetPts} 點</strong> (賺 85% 釋放保證金)` : `點數偏小 (&lt;15點)，免掛停利單抱到 ${curContract.md} 結算歸零`}<br>
+                🛡️ <strong>防穿價轉倉：</strong>${undLabel}觸及 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> 時，平倉 [${curContract.shortCode}] ${optInfo.strike} Call 並向上轉賣 <strong style="color:var(--primary);">${nextRollStrike} Call</strong> (近結算改賣下週 <strong>${nextContract.shortCode}</strong>)
             </div>
         `;
     } else if (rollDefenseMode === 'take_profit') {
         const tpRuleText = optInfo.premium >= 15
-            ? `建倉賣出 <strong>${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，立即預掛「<strong style="color:var(--success);">買進平倉限價單 ${tpTargetPts} 點</strong>」。成交即鎖定 85% 獲利並釋放約 18~20 萬保證金，休息至週三結算後再賣下一期。`
-            : `目前初始權利金 <strong>${optInfo.premium} 點</strong> (&lt;15點)，無需提前停利，抱到週三結算自動歸零即可。`;
+            ? `建倉賣出 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，立即預掛「<strong style="color:var(--success);">買進平倉限價單 ${tpTargetPts} 點</strong>」。成交即鎖定 85% 獲利並釋放約 18~20 萬保證金，休息至 ${curContract.md}(週三) 結算後再賣下一期 (${nextContract.shortCode})。`
+            : `目前初始權利金 <strong>${optInfo.premium} 點</strong> (&lt;15點)，無需提前停利，抱到 ${curContract.md}(週三) 結算自動歸零即可。`;
         rollDescHtml = `
-            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【僅啟用 85% 提前停利】實戰操作 SOP：</div>
+            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【僅啟用 85% 提前停利】實戰操作 SOP（合約：<span style="color:var(--secondary);">${curContract.badgeText}</span>）：</div>
             <div><strong>① 提前停利掛單：</strong>${tpRuleText}</div>
-            <div style="margin-top:4px;"><strong>② 上漲處理：</strong>不做盤中轉倉；若大盤大漲超過 <strong>${optInfo.strike}</strong>，直接憑藉底下 100% 多單覆蓋抱到結算日現金交割。</div>
+            <div style="margin-top:4px;"><strong>② 上漲處理：</strong>不做盤中轉倉；若大盤大漲超過 <strong>${optInfo.strike}</strong>，直接憑藉底下 100% 多單覆蓋抱到 ${curContract.md} 結算日現金交割。</div>
         `;
         rollSopHtml = `
             <div style="font-size:0.82rem; line-height:1.5; background:rgba(16,185,129,0.08); border-left:3px solid var(--success); padding:5px 8px; border-radius:3px;">
-                🎯 <strong>停利掛單：</strong>${optInfo.premium >= 15 ? `預掛 <strong style="color:var(--success);">買進平倉 ${tpTargetPts} 點</strong> (獲利 85% 提前釋放保證金)` : `點數 &lt;15 點免掛單，抱到結算`} ｜ 不做中途轉倉
+                🎯 <strong>停利掛單 (${curContract.shortCode})：</strong>${optInfo.premium >= 15 ? `預掛 <strong style="color:var(--success);">買進平倉 ${tpTargetPts} 點</strong> (獲利 85% 提前釋放保證金)` : `點數 &lt;15 點免掛單，抱到 ${curContract.md} 結算`} ｜ 不做中途轉倉
             </div>
         `;
     } else if (rollDefenseMode === 'roll_up') {
         rollDescHtml = `
-            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【僅啟用防穿價向上轉倉】實戰操作 SOP：</div>
-            <div><strong>① 平常抱到結算：</strong>賣出 <strong>${optInfo.strike} Call</strong> 後不掛提前停利單，若未觸價則抱到週三 13:30 結算歸零（賺取 100% 權利金並省平倉手續費）。</div>
-            <div style="margin-top:4px;"><strong>② 防穿價向上轉倉 (Roll Up)：</strong>設定${undLabel}觸價通知 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong>。一旦盤中急漲摸到該價位，立即「<strong>買回平倉 ${optInfo.strike} Call</strong>」並同步「<strong style="color:var(--primary);">向上轉賣 ${nextRollStrike} Call</strong>」。</div>
+            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【僅啟用防穿價向上轉倉】實戰操作 SOP（合約：<span style="color:var(--secondary);">${curContract.badgeText}</span>）：</div>
+            <div><strong>① 平常抱到結算：</strong>賣出 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> 後不掛提前停利單，若未觸價則抱到 ${curContract.md}(週三) 13:30 結算歸零（賺取 100% 權利金並省平倉手續費）。</div>
+            <div style="margin-top:4px;"><strong>② 防穿價向上轉倉 (Roll Up)：</strong>設定${undLabel}觸價通知 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong>。一旦盤中急漲摸到該價位，立即「<strong>買回平倉 [${curContract.shortCode}] ${optInfo.strike} Call</strong>」並同步「<strong style="color:var(--primary);">向上轉賣 ${nextRollStrike} Call</strong>」。</div>
         `;
         rollSopHtml = `
             <div style="font-size:0.82rem; line-height:1.5; background:rgba(245,158,11,0.08); border-left:3px solid var(--warning); padding:5px 8px; border-radius:3px;">
-                🛡️ <strong>防穿價轉倉：</strong>${undLabel}觸及 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> 時，買回 ${optInfo.strike} Call 並轉賣 <strong style="color:var(--primary);">${nextRollStrike} Call</strong>（未觸價則抱到週三結算）
+                🛡️ <strong>防穿價轉倉 (${curContract.shortCode})：</strong>${undLabel}觸及 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> 時，買回 ${optInfo.strike} Call 並轉賣 <strong style="color:var(--primary);">${nextRollStrike} Call</strong>（未觸價則抱到 ${curContract.md} 結算）
             </div>
         `;
     } else {
         rollDescHtml = `
-            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【傳統抱到結算日】實戰操作 SOP：</div>
-            <div><strong>① 免盯盤被動結算：</strong>每週三賣出新倉 <strong>${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，盤中不掛停利單、也不做中途轉倉。</div>
-            <div style="margin-top:4px;"><strong>② 週三 13:30 換倉：</strong>直接放到下週三結算日依結算價自動交割，結算後再賣出下一週期 Call 合約。</div>
+            <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【傳統抱到結算日】實戰操作 SOP（合約：<span style="color:var(--secondary);">${curContract.badgeText}</span>）：</div>
+            <div><strong>① 免盯盤被動結算：</strong>賣出新倉 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，盤中不掛停利單、也不做中途轉倉。</div>
+            <div style="margin-top:4px;"><strong>② 週三 13:30 換倉：</strong>直接放到 ${curContract.md}(週三) 結算日依結算價自動交割，結算後再賣出下一週期 (${nextContract.shortCode}) Call 合約。</div>
         `;
-        rollSopHtml = `<span style="color:var(--text-muted); font-size:0.82rem;">傳統抱到週三 13:30 自動結算（中途不掛停利單、不轉倉）</span>`;
+        rollSopHtml = `<span style="color:var(--text-muted); font-size:0.82rem;">傳統抱到 ${curContract.md}(週三) 13:30 自動結算（合約：<strong>${curContract.shortCode}</strong>）</span>`;
     }
     if (rollDefenseDescEl) rollDefenseDescEl.innerHTML = rollDescHtml;
     if (adviceRollSopEl) adviceRollSopEl.innerHTML = rollSopHtml;
@@ -1400,13 +1451,13 @@ function updateRecommendation() {
         if (hedgeMode === 'b5') {
             hedgeModeDescEl.innerHTML = `
                 <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【B5 買進價外 2% Put】實戰操作 SOP ${statusTag}：</div>
-                <div><strong>① 進場條件：</strong>每日收盤若大盤 <strong>MA5 &lt; MA21</strong>，買進 <strong>${optionContracts} 口</strong> 台指周選價外 2% Put（今日對照履約價：<strong style="color:var(--danger);">${putK2} Put</strong>）。</div>
+                <div><strong>① 進場條件：</strong>每日收盤若大盤 <strong>MA5 &lt; MA21</strong>，買進 <strong>${optionContracts} 口</strong> 台指周選價外 2% Put（今日對照：<strong style="color:var(--danger);">[${weeklyPutContract.shortCode}] ${putK2} Put</strong>，${weeklyPutContract.md}結算）。</div>
                 <div style="margin-top:4px;"><strong>② 出場條件：</strong>週三結算若仍 MA5 &lt; MA21 則轉倉續買下週 Put；一旦任一日收盤 <strong>MA5 &gt; MA21</strong> 站回多頭，立即將 Put 賣出平倉回收殘值。</div>
             `;
         } else if (hedgeMode === 'b3') {
             hedgeModeDescEl.innerHTML = `
                 <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【B3 買進價平 ATM Put】實戰操作 SOP ${statusTag}：</div>
-                <div><strong>① 進場條件：</strong>當收盤 <strong>MA5 &lt; MA21</strong> 翻空時，買進 <strong>${optionContracts} 口</strong> 台指周選價平 Put（今日對照履約價：<strong style="color:var(--danger);">${putK0} Put</strong>），提供約 -0.50 Delta 強效保護。</div>
+                <div><strong>① 進場條件：</strong>當收盤 <strong>MA5 &lt; MA21</strong> 翻空時，買進 <strong>${optionContracts} 口</strong> 台指周選價平 Put（今日對照：<strong style="color:var(--danger);">[${weeklyPutContract.shortCode}] ${putK0} Put</strong>，${weeklyPutContract.md}結算），提供約 -0.50 Delta 強效保護。</div>
                 <div style="margin-top:4px;"><strong>② 出場條件：</strong>一旦收盤 <strong>MA5 &gt; MA21</strong> 重新翻多，立即將 Put 賣出平倉回收殘值。</div>
             `;
         } else if (hedgeMode === 'a1') {
@@ -1432,13 +1483,13 @@ function updateRecommendation() {
                     const putK = Math.round(row.taiex * 0.98 / 100) * 100;
                     adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>
                         <div style="margin-top:3px; font-size:0.82rem; color:var(--text); background:rgba(239,68,68,0.1); border-left:3px solid var(--danger); padding:4px 8px; border-radius:3px;">
-                            🛡️ <strong>觸發 B5 避險：</strong>建議買進台指周選 Put，履約價 <strong>${putK}</strong> (價外 2%)，口數 <strong>${optionContracts}</strong> 口對沖多單風險。
+                            🛡️ <strong>觸發 B5 避險：</strong>建議買進台指周選 <strong>[${weeklyPutContract.shortCode}] ${putK} Put</strong> (價外 2%｜${weeklyPutContract.md}結算)，口數 <strong>${optionContracts}</strong> 口對沖多單風險。
                         </div>`;
                 } else if (hedgeMode === 'b3') {
                     const putK = Math.round(row.taiex / 100) * 100;
                     adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>
                         <div style="margin-top:3px; font-size:0.82rem; color:var(--text); background:rgba(239,68,68,0.1); border-left:3px solid var(--danger); padding:4px 8px; border-radius:3px;">
-                            🛡️ <strong>觸發 B3 避險：</strong>建議買進台指周選 Put，履約價 <strong>${putK}</strong> (價平 ATM)，口數 <strong>${optionContracts}</strong> 口。
+                            🛡️ <strong>觸發 B3 避險：</strong>建議買進台指周選 <strong>[${weeklyPutContract.shortCode}] ${putK} Put</strong> (價平 ATM｜${weeklyPutContract.md}結算)，口數 <strong>${optionContracts}</strong> 口。
                         </div>`;
                 } else if (hedgeMode === 'a1') {
                     adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>

@@ -1455,19 +1455,39 @@ function updateRecommendation() {
 
     let rollDescHtml = '';
     let rollSopHtml = '';
+    const rollUpStepGuideHtml = `
+        <details style="margin-top:6px; background:rgba(15,23,42,0.55); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:6px 8px; font-size:0.78rem; line-height:1.55;">
+            <summary style="cursor:pointer; color:var(--secondary); font-weight:600; user-select:none;">📱 點此展開【券商 APP 停利掛單 ＆ 觸價轉倉 3 步驟實戰教學】</summary>
+            <div style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.1); color:var(--text-main);">
+                <div style="margin-bottom:6px;"><strong style="color:var(--success);">🟢 動作 ①：建倉後怎麼掛「${tpTargetPts} 點提前停利單」？</strong><br>
+                • 到 APP「<strong>未平倉部位/庫存</strong>」點選剛賣出的 <strong>[${curContract.shortCode}] ${optInfo.strike} Call (${optionContracts}口)</strong> ➔ 按「<strong>平倉</strong>」。<br>
+                • 確認面板為：<strong>商品=${optInfo.strike} Call (同履約價)｜買賣=買進｜倉別=平倉｜口數=${optionContracts}口｜價格填 <span style="color:var(--success); font-weight:700;">${tpTargetPts}</span> 點 (限價 ROD)</strong>。</div>
+                <div style="margin-bottom:6px;"><strong style="color:var(--warning);">🟡 動作 ②：萬一${undLabel}暴漲觸及「${touchTriggerPrice.toLocaleString()}」鬧鐘響起，APP 怎麼按？（30秒 3步驟）</strong><br>
+                • <strong>Step 1 (刪舊單)</strong>：到「委託查詢」把原本掛在 ${tpTargetPts} 點的停利單<strong>刪單</strong>。<br>
+                • <strong>Step 2 (買回舊 Call 平倉)</strong>：到「庫存」點 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> ➔ 按「<strong>買進平倉 (${optionContracts}口，範圍市價/限價)</strong>」把舊天花板拆掉。<br>
+                • <strong>Step 3 (向上賣新 Call)</strong>：<br>
+                  &nbsp;&nbsp;↳ 若在<strong>週四/週五/週一</strong>觸價（距結算 ≥3 天）：留在當週 <strong>[${curContract.shortCode}]</strong> 改賣出新倉 <strong style="color:var(--primary);">${nextRollStrike} Call (${optionContracts}口)</strong>。<br>
+                  &nbsp;&nbsp;↳ 若在<strong>週二/週三</strong>觸價（距結算 ≤2 天）：直接切換到下週 <strong>[${nextContract.shortCode}]</strong> 往上賣出新倉 <strong style="color:var(--primary);">${nextRollStrike} 或 ${nextRollStrike + rollStep} Call (${optionContracts}口)</strong>，用下週肥美的時間價值補回平倉成本！</div>
+                <div style="color:var(--text-muted); font-size:0.75rem; background:rgba(59,130,246,0.08); padding:4px 7px; border-radius:4px;">💡 <strong>定心丸（忙著開會沒空轉倉會怎樣？）</strong>：完全不會爆倉！因為您底下有 100%+ 的多單（小台/ETF）保護，大盤漲到 ${touchTriggerPrice.toLocaleString()} 時您的多單已大賺逾 20 萬；轉倉只是為了幫多單再多爭取 +${rollStep} 點上漲空間，就算沒空按、直接抱到 ${curContract.md}(週三) 自動結算也一樣是大賺！</div>
+            </div>
+        </details>
+    `;
+
     if (rollDefenseMode === 'smart_both') {
         const tpRuleText = optInfo.premium >= 15
-            ? `建倉賣出 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，立即在券商 APP 掛「<strong style="color:var(--success);">買進平倉限價單 ${tpTargetPts} 點</strong> (殘值 15%)」。成交即入袋 85% 獲利並釋放保證金，空手至原結算日(${curContract.md} 週三)再賣新倉。`
+            ? `建倉賣出 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> (收 <strong>${optInfo.premium} 點</strong>) 後，立即在券商 APP 庫存點平倉掛「<strong style="color:var(--success);">買進平倉限價單 ${tpTargetPts} 點</strong> (同履約價 ${optInfo.strike} Call，殘值 15%)」。成交即入袋 85% 獲利並釋放保證金，空手至原結算日(${curContract.md} 週三)再賣新倉。`
             : `目前 <strong>[${curContract.shortCode}] ${optInfo.strike} Call</strong> 初始權利金 <strong>${optInfo.premium} 點</strong> (&lt;15點)，不掛提前停利單，直接抱到 ${curContract.md}(週三) 結算自動歸零以省下平倉手續費。`;
         rollDescHtml = `
             <div style="color:var(--text-main); font-weight:600; margin-bottom:4px;">📋 【實戰推薦：85% 提前停利 + 觸價轉倉】操作 SOP（本週期合約：<span style="color:var(--secondary);">${curContract.badgeText}</span>）：</div>
             <div><strong>① 提前停利掛單：</strong>${tpRuleText}</div>
-            <div style="margin-top:4px;"><strong>② 防穿價向上轉倉 (Roll Up)：</strong>設定${undLabel}觸價通知 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> (履約價 ×99.8%)。一旦急漲觸及，盤中立即「<strong>買回平倉 [${curContract.shortCode}] ${optInfo.strike} Call</strong>」，並同步「<strong style="color:var(--primary);">向上賣出 ${nextRollStrike} Call</strong>」(若距結算 ≤2 天則直接改賣下週 <strong>[${nextContract.shortCode}]</strong> 合約)。</div>
+            <div style="margin-top:4px;"><strong>② 防穿價向上轉倉 (Roll Up)：</strong>設定${undLabel}觸價通知 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> (履約價 ×99.8%)。一旦急漲觸及：<strong>(1)刪掉 ${tpTargetPts} 點停利單 ➔ (2)買回平倉 [${curContract.shortCode}] ${optInfo.strike} Call ➔ (3)向上賣出新倉 ${nextRollStrike} Call</strong> (若週二/週三觸價則直接改賣下週 <strong>[${nextContract.shortCode}]</strong> 合約)。</div>
+            ${rollUpStepGuideHtml}
         `;
         rollSopHtml = `
-            <div style="font-size:0.82rem; line-height:1.5; background:rgba(16,185,129,0.08); border-left:3px solid var(--success); padding:5px 8px; border-radius:3px;">
-                🎯 <strong>停利掛單 (${curContract.shortCode})：</strong>${optInfo.premium >= 15 ? `賣出後直接預掛 <strong style="color:var(--success);">買進平倉 ${tpTargetPts} 點</strong> (賺 85% 釋放保證金)` : `點數偏小 (&lt;15點)，免掛停利單抱到 ${curContract.md} 結算歸零`}<br>
-                🛡️ <strong>防穿價轉倉：</strong>${undLabel}觸及 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong> 時，平倉 [${curContract.shortCode}] ${optInfo.strike} Call 並向上轉賣 <strong style="color:var(--primary);">${nextRollStrike} Call</strong> (近結算改賣下週 <strong>${nextContract.shortCode}</strong>)
+            <div style="font-size:0.82rem; line-height:1.5; background:rgba(16,185,129,0.08); border-left:3px solid var(--success); padding:6px 8px; border-radius:3px;">
+                🎯 <strong>① 停利掛單 (${curContract.shortCode})：</strong>${optInfo.premium >= 15 ? `於 APP 庫存點 [${optInfo.strike} Call] 按平倉，預掛「<strong style="color:var(--success);">買進平倉 ${tpTargetPts} 點</strong>」(賺 85% 釋放保證金)` : `點數偏小 (&lt;15點)，免掛停利單抱到 ${curContract.md} 結算歸零`}<br>
+                🛡️ <strong>② 防穿價轉倉：</strong>設${undLabel}鬧鐘 <strong style="color:var(--warning);">${touchTriggerPrice.toLocaleString()}</strong>；觸及時：<strong>刪停利單 ➔ 買回平倉 [${curContract.shortCode}] ${optInfo.strike} Call ➔ 向上賣新倉 <span style="color:var(--primary);">${nextRollStrike} Call</span></strong> (週二/三觸價則改賣下週 <strong>${nextContract.shortCode}</strong>)
+                ${rollUpStepGuideHtml}
             </div>
         `;
     } else if (rollDefenseMode === 'take_profit') {

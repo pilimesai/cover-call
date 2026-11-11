@@ -364,10 +364,21 @@
                 <!-- Strategy Rules Explanation -->
                 <section class="panel rules-panel">
                     <div class="panel-header">
-                        <h2>📝 策略回測機制說明</h2>
+                        <h2>📝 實戰下單操作指南與回測機制說明</h2>
                     </div>
                     <div class="rules-content">
                         <ul>
+                            <li><strong>🎯 實戰 ①：85% 提前停利單怎麼掛？</strong>：週三 13:30 結算後賣出新倉 Call（若 APP 實際報價與理論值不同，請在左側「🔢 成交價換算器」輸入實際賣出點數）。成交後立即到 APP「<strong>未平倉庫存</strong>」點該筆 Call 按「<strong>平倉</strong>」➔ 設定「<strong>同履約價 Call｜買進｜平倉｜限價 = 賣出點數 × 15%</strong>」。一旦大盤盤整或下跌讓權利金縮水至 15%，即可自動買回平倉、提前入袋 85% 獲利並釋放 20 萬保證金！</li>
+                            <li><strong>🛡️ 實戰 ②：觸發「防穿價向上轉倉 (Roll Up)」怎麼做？</strong>：平時先在 APP 設定加權指數「<strong>履約價 × 99.8%</strong>」的到價通知鬧鐘。萬一大盤暴漲觸價（此時您底下的小台/ETF 多單已大賺逾 20 萬！），打開 APP 花 30 秒執行 3 步驟：
+                                <ul>
+                                    <li><strong>Step 1 (刪舊停利單)</strong>：到「委託查詢」把原本掛著的 15% 提前停利單刪單。</li>
+                                    <li><strong>Step 2 (買回舊 Call 平倉)</strong>：到「庫存」點選舊 Call 按「<strong>買進平倉</strong>」把舊天花板拆掉。</li>
+                                    <li><strong>Step 3 (向上改賣新 Call)</strong>：若在<strong>週四/週五/週一</strong>觸價，留在當週合約往上 <strong>+300 點</strong>賣出新 Call；若在<strong>週二/週三</strong>才觸價（距結算 ≤2 天），直接切換到<strong>下一週合約</strong>往上 +300~600 點賣出新 Call（用下週肥美的時間價值補回平倉成本）。</li>
+                                    <li>💡 <strong>開會沒空轉倉定心丸</strong>：萬一盤中忙碌沒空按轉倉，<strong>完全不會爆倉！</strong>因為底下有 100%+ 多單保護，直接抱到週三 13:30 自動結算依然是淨大賺。</li>
+                                </ul>
+                            </li>
+                            <li><strong>📅 期交所周選代號規則 (W1 / W2 / 月選 / W4)</strong>：每月第 1、2、4、5 個週三結算的周選代號為 <code>MM_W1</code>、<code>MM_W2</code>、<code>MM_W4</code>、<code>MM_W5</code>；<strong>第 3 個週三剛好是「月選擇權結算日」，期交所不設 W3，在券商 APP 要直接選「<code>MM</code> (月選)」</strong>。</li>
+                            <li><strong>🌪️ 空頭分級防禦鐵律</strong>：當收盤 <code>MA5 &lt; MA21</code>（破月線）時啟動 <strong>🛡️B5 買進價外 2% Put</strong> 防急跌閃崩；若大盤<strong>跌破季線 (MA60) 超過 1 週</strong>確認進入長空頭緩跌，請將期貨多單與賣 Call 口數<strong>減半（降回 1 倍無槓桿）</strong>，避免緩跌雙巴磨損。</li>
                             <li><strong>滾動周期</strong>：依據您選擇的合約週期（<strong>周選擇權為每週三</strong>，<strong>月選擇權為每月第三個星期三</strong>），於台股期權結算日收盤時將舊合約平倉（以結算價結算損益），並以收盤價賣出下一個週期的 Call 合約。</li>
                             <li><strong>權利金計算</strong>：以 Black-Scholes 模型計算每日理論價格，並以交易當日的理論價格作為新合約收取的權利金。</li>
                             <li><strong>現貨與期貨配置</strong>：每到結算日（Roll Date），系統將重新計算資金規模，並根據設定的權重重新配置你所選擇的多單部位標的。</li>
@@ -458,6 +469,6 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=33"></script>
+    <script src="app.js?v=34"></script>
 </body>
 </html>

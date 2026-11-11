@@ -626,8 +626,10 @@ function setupEventListeners() {
     });
 
     const clearActualInputs = () => {
+        const elI = document.getElementById('actual-index-input');
         const elS = document.getElementById('actual-strike-input');
         const elP = document.getElementById('actual-premium-input');
+        if (elI) elI.value = '';
         if (elS) elS.value = '';
         if (elP) elP.value = '';
     };
@@ -645,9 +647,17 @@ function setupEventListeners() {
     customOtmValueInput.addEventListener('input', () => { clearActualInputs(); updateRecommendation(); });
     customOtmValueInput.addEventListener('change', () => runBacktest());
 
+    const actualIndexEl = document.getElementById('actual-index-input');
     const actualStrikeEl = document.getElementById('actual-strike-input');
     const actualPremEl = document.getElementById('actual-premium-input');
     const btnResetActual = document.getElementById('btn-reset-actual');
+    if (actualIndexEl) {
+        actualIndexEl.addEventListener('input', () => {
+            // 當使用者手動輸入新的「今日收盤價」時，清空手動履約價讓系統自動用新收盤價重算履約價
+            if (actualStrikeEl) actualStrikeEl.value = '';
+            updateRecommendation();
+        });
+    }
     if (actualStrikeEl) actualStrikeEl.addEventListener('input', () => updateRecommendation());
     if (actualPremEl) actualPremEl.addEventListener('input', () => updateRecommendation());
     if (btnResetActual) {
@@ -1392,20 +1402,56 @@ function updateRecommendation() {
     latestTaiexSpan.textContent = Math.round(row.taiex).toLocaleString();
     latestTsmcSpan.textContent = row.tsmc.toFixed(1);
 
-    let rawOptInfo, delta = 0.20;
+    const actualIndexEl = document.getElementById('actual-index-input');
+    const actualStrikeEl = document.getElementById('actual-strike-input');
+    const actualPremEl = document.getElementById('actual-premium-input');
+
+    const baseClosePrice = optionType === 'taiex' ? Math.round(row.taiex) : row.tsmc;
+    if (actualIndexEl) actualIndexEl.placeholder = String(baseClosePrice);
+    const userIndexVal = actualIndexEl && actualIndexEl.value.trim() !== '' ? parseFloat(actualIndexEl.value) : null;
+    const effectiveRow = (userIndexVal && userIndexVal > 0)
+        ? { ...row, [optionType === 'taiex' ? 'taiex' : 'tsmc']: userIndexVal }
+        : row;
+    const effectiveClosePrice = optionType === 'taiex' ? Math.round(effectiveRow.taiex) : effectiveRow.tsmc;
+
+    const ruleMultMap = { ATM: 0, OTM_2: 2, OTM_5: 5, OTM_10: 10 };
+    const ruleLabelMap = {
+        ATM: 'ATM 價平 (+0%)',
+        OTM_2: 'OTM 2% (+2%)',
+        OTM_5: 'OTM 5% (+5%)',
+        OTM_10: 'OTM 10% (+10%)',
+        DELTA_3: 'Delta 0.30',
+        DELTA_2: 'Delta 0.20',
+        DELTA_1: 'Delta 0.10'
+    };
+
+    let rawOptInfo, delta = 0.20, ruleFormulaDesc = '';
     if (strikeRule === 'CUSTOM_OTM') {
         const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
-        rawOptInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
+        rawOptInfo = getCustomOtmOption(effectiveRow, optionType, optionCycle, customOtmPct);
         delta = rawOptInfo.delta;
+        const exactRawK = Math.round(effectiveClosePrice * (1 + customOtmPct / 100));
+        ruleFormulaDesc = `× OTM ${customOtmPct}% (= ${exactRawK.toLocaleString()}) 四捨五入`;
+    } else if (userIndexVal && userIndexVal > 0 && ruleMultMap[strikeRule] !== undefined) {
+        const pct = ruleMultMap[strikeRule];
+        rawOptInfo = getCustomOtmOption(effectiveRow, optionType, optionCycle, pct);
+        delta = estimateDelta(strikeRule);
+        const exactRawK = Math.round(effectiveClosePrice * (1 + pct / 100));
+        ruleFormulaDesc = `× ${ruleLabelMap[strikeRule]} (= ${exactRawK.toLocaleString()}) 四捨五入`;
     } else {
         rawOptInfo = row.options[optionType][optionCycle][strikeRule];
         delta = estimateDelta(strikeRule);
+        if (ruleMultMap[strikeRule] !== undefined) {
+            const pct = ruleMultMap[strikeRule];
+            const exactRawK = Math.round(effectiveClosePrice * (1 + pct / 100));
+            ruleFormulaDesc = `× ${ruleLabelMap[strikeRule]} (= ${exactRawK.toLocaleString()}) 四捨五入`;
+        } else {
+            ruleFormulaDesc = `依 ${ruleLabelMap[strikeRule] || strikeRule} 計算`;
+        }
     }
 
     // 校準真實台指選 Call 波動率偏態後的理論參考點數，並支援「券商 APP 實際報價換算器」覆寫
-    const calibratedPrem = getCalibratedCallPremium(row, optionType, optionCycle, rawOptInfo.strike, rawOptInfo.premium);
-    const actualStrikeEl = document.getElementById('actual-strike-input');
-    const actualPremEl = document.getElementById('actual-premium-input');
+    const calibratedPrem = getCalibratedCallPremium(effectiveRow, optionType, optionCycle, rawOptInfo.strike, rawOptInfo.premium);
     if (actualStrikeEl) actualStrikeEl.placeholder = String(rawOptInfo.strike);
     if (actualPremEl) actualPremEl.placeholder = String(calibratedPrem);
 
@@ -1415,7 +1461,7 @@ function updateRecommendation() {
     const optInfo = {
         strike: (userStrikeVal && userStrikeVal > 0) ? userStrikeVal : rawOptInfo.strike,
         premium: (userPremVal && userPremVal > 0) ? userPremVal : calibratedPrem,
-        isCustomActual: Boolean((userStrikeVal && userStrikeVal > 0) || (userPremVal && userPremVal > 0)),
+        isCustomActual: Boolean((userIndexVal && userIndexVal > 0) || (userStrikeVal && userStrikeVal > 0) || (userPremVal && userPremVal > 0)),
         rawTheoreticalPremium: rawOptInfo.premium,
         calibratedPremium: calibratedPrem
     };
@@ -1427,7 +1473,17 @@ function updateRecommendation() {
     const nextContract = getTaifexContractCodeByExpiry(getNextPeriodExpiryStr(activeExpiryStr), 'weekly');
     const weeklyPutContract = getTaifexContractCodeByExpiry(row.expiry_date_weekly || getNextWeeklyExpiryDate(row.date), 'weekly');
 
-    adviceStrike.textContent = `${optInfo.strike} Call (${optionType === 'taiex' ? '台指' : '台積電'}) 【合約：${curContract.badgeText}】(賣出 ${optionContracts} 口)`;
+    const closePriceSourceText = (userIndexVal && userIndexVal > 0)
+        ? `以您輸入之今日收盤價 <strong>${effectiveClosePrice.toLocaleString()}</strong>`
+        : `以今日最新收盤價 <strong>${effectiveClosePrice.toLocaleString()}</strong> (${row.date})`;
+    const calcNoteText = (userStrikeVal && userStrikeVal > 0)
+        ? `📌 已手動指定履約價 <strong>${optInfo.strike}</strong>（原${closePriceSourceText} ${ruleFormulaDesc} 為 ${rawOptInfo.strike}）`
+        : `📌 ${closePriceSourceText} ${ruleFormulaDesc} 計算`;
+
+    adviceStrike.innerHTML = `
+        <div>${optInfo.strike} Call (${optionType === 'taiex' ? '台指' : '台積電'}) 【合約：${curContract.badgeText}】(賣出 ${optionContracts} 口)</div>
+        <div style="font-size:0.76rem; font-weight:500; color:#a7f3d0; opacity:0.92; margin-top:3px; line-height:1.35;">${calcNoteText}</div>
+    `;
     const totalPremTwd = Math.round(optInfo.premium * multiplier * optionContracts);
     const sourceBadge = optInfo.isCustomActual
         ? `<span style="font-size:0.74rem; color:var(--secondary); background:rgba(6,182,212,0.15); padding:2px 6px; border-radius:4px; margin-left:6px;">📱 已套用 APP 實盤輸入值</span>`
@@ -1534,8 +1590,8 @@ function updateRecommendation() {
     const hedgeModeDescEl = document.getElementById('hedge-mode-desc');
     if (hedgeModeDescEl && ma5 !== null && ma21 !== null) {
         const isBearNow = ma5 < ma21;
-        const putK2 = Math.round(row.taiex * 0.98 / 100) * 100;
-        const putK0 = Math.round(row.taiex / 100) * 100;
+        const putK2 = Math.round(effectiveRow.taiex * 0.98 / 100) * 100;
+        const putK0 = Math.round(effectiveRow.taiex / 100) * 100;
         const statusTag = isBearNow
             ? `<span style="color:var(--danger); font-weight:700;">[目前 MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)}：已觸發避險]</span>`
             : `<span style="color:var(--success); font-weight:700;">[目前 MA5 ${Math.round(ma5)} &gt; MA21 ${Math.round(ma21)}：多頭免避險]</span>`;
@@ -1571,13 +1627,13 @@ function updateRecommendation() {
             const diffPct = ((ma5 - ma21) / ma21 * 100).toFixed(2);
             if (isBear) {
                 if (hedgeMode === 'b5') {
-                    const putK = Math.round(row.taiex * 0.98 / 100) * 100;
+                    const putK = Math.round(effectiveRow.taiex * 0.98 / 100) * 100;
                     adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>
                         <div style="margin-top:3px; font-size:0.82rem; color:var(--text); background:rgba(239,68,68,0.1); border-left:3px solid var(--danger); padding:4px 8px; border-radius:3px;">
                             🛡️ <strong>觸發 B5 避險：</strong>建議買進台指周選 <strong>[${weeklyPutContract.shortCode}] ${putK} Put</strong> (價外 2%｜${weeklyPutContract.md}結算)，口數 <strong>${optionContracts}</strong> 口對沖多單風險。
                         </div>`;
                 } else if (hedgeMode === 'b3') {
-                    const putK = Math.round(row.taiex / 100) * 100;
+                    const putK = Math.round(effectiveRow.taiex / 100) * 100;
                     adviceHedgeStatus.innerHTML = `<span style="color:var(--danger); font-weight:700;">⚠️ 翻空警示 (MA5 ${Math.round(ma5)} &lt; MA21 ${Math.round(ma21)})</span>
                         <div style="margin-top:3px; font-size:0.82rem; color:var(--text); background:rgba(239,68,68,0.1); border-left:3px solid var(--danger); padding:4px 8px; border-radius:3px;">
                             🛡️ <strong>觸發 B3 避險：</strong>建議買進台指周選 <strong>[${weeklyPutContract.shortCode}] ${putK} Put</strong> (價平 ATM｜${weeklyPutContract.md}結算)，口數 <strong>${optionContracts}</strong> 口。

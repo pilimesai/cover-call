@@ -1379,7 +1379,7 @@ body {
 
     .mobile-quick-nav {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 6px;
         margin-top: 0.55rem;
         padding-top: 0.5rem;
@@ -1695,4 +1695,93 @@ body {
         font-size: 0.7rem;
         padding: 0.4rem 0.15rem;
     }
+}
+
+
+/* ═════════════════════════════════════════════
+   🧭 持倉管理中心 (Position Manager)
+   ═════════════════════════════════════════════ */
+.pm-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.pm-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pm-card { background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; min-width: 0; }
+.pm-card h3 { font-size: 0.98rem; font-weight: 600; color: var(--text-main); margin: 0 0 0.75rem; }
+.pm-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.pm-two-col > .pm-card { margin-bottom: 0; }
+.pm-empty { color: var(--text-muted); font-size: 0.85rem; padding: 0.6rem 0; }
+.pm-note { color: var(--text-muted); font-size: 0.74rem; line-height: 1.55; margin-top: 0.6rem; }
+.pm-btn { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 0.5rem 0.9rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; min-height: 38px; }
+.pm-btn:hover { filter: brightness(1.1); }
+.pm-btn--ghost { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); border: 1px solid var(--border); }
+.pm-actions { margin-top: 0.75rem; }
+
+/* 表單 */
+.pm-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.8rem; }
+.pm-grid fieldset { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 0.6rem 0.75rem 0.75rem; margin: 0; min-width: 0; }
+.pm-grid legend { font-size: 0.8rem; color: var(--secondary); font-weight: 600; padding: 0 4px; }
+.pm-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.45rem; }
+.pm-grid input, .pm-grid select, .pm-table input, #pm-events {
+    background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.45rem 0.6rem; font-size: 0.88rem; min-height: 36px; width: 100%; box-sizing: border-box; font-family: inherit;
+}
+#pm-events { min-height: 80px; resize: vertical; margin-top: 0.5rem; }
+
+/* KPI */
+.pm-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; margin: 0.75rem 0; }
+.pm-kpi { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 0.55rem 0.65rem; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pm-kpi span { font-size: 0.7rem; color: var(--text-muted); }
+.pm-kpi strong { font-size: 1.05rem; color: var(--text-main); }
+.pm-kpi em { font-style: normal; font-size: 0.68rem; color: var(--text-muted); line-height: 1.35; }
+
+/* 提示框 */
+.pm-alert { border-radius: 8px; padding: 0.65rem 0.8rem; border-left: 4px solid; font-size: 0.84rem; line-height: 1.55; }
+.pm-alert-title { font-weight: 700; margin-bottom: 3px; }
+.pm-alert-body ol { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+.pm-alert-body li { margin: 2px 0; }
+.pm-alert--success { background: rgba(16, 185, 129, 0.09); border-color: var(--success); }
+.pm-alert--warning { background: rgba(245, 158, 11, 0.1); border-color: var(--warning); }
+.pm-alert--danger { background: rgba(239, 68, 68, 0.1); border-color: var(--danger); }
+.pm-alert--info { background: rgba(59, 130, 246, 0.1); border-color: var(--primary); }
+
+/* 表格 */
+.pm-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 0.6rem; }
+.pm-table th, .pm-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.06); text-align: right; }
+.pm-table th:first-child, .pm-table td:first-child { text-align: left; }
+.pm-table th { color: var(--text-muted); font-weight: 500; }
+.pm-table tfoot td { border-top: 1px solid var(--border); border-bottom: none; }
+.pm-table--compact input { min-height: 30px; padding: 0.25rem 0.4rem; text-align: right; }
+.pm-lines { display: grid; gap: 4px; font-size: 0.84rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 0.6rem 0.75rem; }
+.pm-lines em { font-style: normal; color: var(--text-muted); font-size: 0.76rem; }
+.pm-sub { margin-top: 4px; padding-top: 6px; border-top: 1px dashed rgba(255, 255, 255, 0.1); color: var(--text-muted); font-size: 0.78rem; }
+.c-success { color: var(--success); }
+.c-warning { color: var(--warning); }
+.c-danger { color: var(--danger); }
+
+/* 訊號燈 */
+.pm-lights { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 0.8rem; }
+.pm-light { display: flex; gap: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 0.6rem; min-width: 0; }
+.pm-light-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.pm-light--green .pm-light-dot { background: var(--success); box-shadow: 0 0 10px rgba(16, 185, 129, 0.7); }
+.pm-light--yellow .pm-light-dot { background: var(--warning); box-shadow: 0 0 10px rgba(245, 158, 11, 0.7); }
+.pm-light--red .pm-light-dot { background: var(--danger); box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
+.pm-light-body { min-width: 0; }
+.pm-light-label { font-size: 0.72rem; color: var(--text-muted); }
+.pm-light-value { font-size: 0.86rem; font-weight: 600; color: var(--text-main); word-break: break-word; }
+.pm-light-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.pm-details { margin-top: 0.75rem; font-size: 0.8rem; }
+.pm-details summary { cursor: pointer; color: var(--secondary); font-weight: 600; user-select: none; }
+
+@media (max-width: 1100px) {
+    .pm-lights { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .pm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+    .pm-two-col { grid-template-columns: 1fr; }
+    .pm-two-col > .pm-card { margin-bottom: 1rem; }
+}
+@media (max-width: 640px) {
+    .pm-lights { grid-template-columns: 1fr 1fr; }
+    .pm-grid { grid-template-columns: 1fr; }
+    .pm-kpis { grid-template-columns: 1fr 1fr; }
+    .pm-grid input, .pm-grid select, #pm-events { font-size: 16px; min-height: 44px; }
+    .pm-table { font-size: 0.74rem; }
 }

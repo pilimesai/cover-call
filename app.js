@@ -493,6 +493,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok) throw new Error(`遠端數據載入失敗: ${response.statusText}`);
         }
         rawData = await response.json();
+        window.rawData = rawData;
         console.log(`Database loaded successfully. Records: ${rawData.length}`);
         // 自動檢查 FinMind 是否有比靜態 data.json 更新的當日籌碼與行情
         try {
@@ -2784,6 +2785,7 @@ async function handleRefreshData() {
         if (candidates.length > 0) {
             candidates.sort((a, b) => (b[b.length - 1].date).localeCompare(a[a.length - 1].date));
             rawData = candidates[0];
+            window.rawData = rawData;
         }
 
         // 2. Real-time browser sync with FinMind API (即使 GitHub 尚未更新也能即時抓到當日最新籌碼！)

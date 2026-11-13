@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Covered Call Portfolio Optimizer | 自訂多單組合策略回測系統</title>
-    <link rel="stylesheet" href="index.css?v=31">
+    <link rel="stylesheet" href="index.css?v=36">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +31,7 @@
                 </div>
             </div>
         </div>
-        <nav class="mobile-quick-nav" aria-label="手機版快速導覽"><a href="#section-config" class="mobile-nav-item">⚙️ 參數/自選</a><a href="#section-advice" class="mobile-nav-item">📌 今日建倉</a><a href="#section-metrics" class="mobile-nav-item">📈 回測圖表</a><a href="#section-inst" class="mobile-nav-item">📊 外資籌碼</a></nav>
+        <nav class="mobile-quick-nav" aria-label="手機版快速導覽"><a href="#section-config" class="mobile-nav-item">⚙️ 參數/自選</a><a href="#section-advice" class="mobile-nav-item">📌 今日建倉</a><a href="#section-position" class="mobile-nav-item">🧭 持倉</a><a href="#section-metrics" class="mobile-nav-item">📈 回測圖表</a><a href="#section-inst" class="mobile-nav-item">📊 外資籌碼</a></nav>
     </header>
 
     <main class="app-container">
@@ -394,6 +394,80 @@
                 </section>
             </div>
 
+            <!-- 🧭 持倉管理中心 (Position Manager) -->
+            <section class="panel pm-panel" id="section-position" style="margin-top: 1.5rem;">
+                <div class="panel-header pm-header">
+                    <h2>🧭 持倉管理中心（訊號燈 ｜ 部位監控 ｜ 保證金試算）</h2>
+                    <div class="pm-header-actions">
+                        <button type="button" class="pm-btn" id="pm-fill-advice">⬇️ 帶入今日建倉建議</button>
+                        <button type="button" class="pm-btn pm-btn--ghost" id="pm-clear">清除持倉</button>
+                    </div>
+                </div>
+
+                <!-- #4 訊號燈 -->
+                <div class="pm-card">
+                    <h3>🚦 本週訊號燈</h3>
+                    <div id="pm-signal-out"><div class="pm-empty">載入中...</div></div>
+                    <details class="pm-details">
+                        <summary>📅 編輯事件清單（法說會、FOMC、選舉等；每行「YYYY-MM-DD 說明」）</summary>
+                        <textarea id="pm-events" rows="4" spellcheck="false"></textarea>
+                        <div class="pm-note">結算週內有事件時，訊號燈會建議改用 OTM 7%。資料存在本機瀏覽器。</div>
+                    </details>
+                </div>
+
+                <!-- 持倉輸入 -->
+                <div class="pm-card pm-form">
+                    <h3>✍️ 我的持倉（依券商 APP 成交回報填寫，自動儲存在本機）</h3>
+                    <div class="pm-grid">
+                        <fieldset>
+                            <legend>賣出 Call</legend>
+                            <label>履約價<input type="number" id="pm-call-strike" step="100" placeholder="例 45200"></label>
+                            <label>賣出點數<input type="number" id="pm-call-sold" step="0.5" placeholder="成交價"></label>
+                            <label>口數<input type="number" id="pm-call-qty" min="0" step="1" placeholder="2"></label>
+                            <label>結算日<input type="date" id="pm-expiry"></label>
+                            <label>APP 現價 (選填)<input type="number" id="pm-call-now" step="0.5" placeholder="空白則估算"></label>
+                        </fieldset>
+                        <fieldset>
+                            <legend>期貨多單</legend>
+                            <label>商品<select id="pm-fut-code"><option value="MTX">小型臺指 (50元/點)</option><option value="TMF">微型臺指 (10元/點)</option><option value="TX">大台指 (200元/點)</option></select></label>
+                            <label>口數<input type="number" id="pm-fut-qty" min="0" step="1" placeholder="0"></label>
+                            <label>成交價<input type="number" id="pm-fut-entry" step="1" placeholder="例 43000"></label>
+                            <label>期貨帳戶入金總額<input type="number" id="pm-deposit" step="10000" placeholder="例 1000000"></label>
+                            <label>目前指數 (選填)<input type="number" id="pm-index-now" step="1" placeholder="自動帶最新收盤"></label>
+                        </fieldset>
+                        <fieldset>
+                            <legend>買進 Put（B5 避險，選填）</legend>
+                            <label>履約價<input type="number" id="pm-put-strike" step="100"></label>
+                            <label>買進點數<input type="number" id="pm-put-paid" step="0.5"></label>
+                            <label>口數<input type="number" id="pm-put-qty" min="0" step="1"></label>
+                            <label>APP 現價 (選填)<input type="number" id="pm-put-now" step="0.5" placeholder="空白則估算"></label>
+                        </fieldset>
+                        <fieldset>
+                            <legend>00981A 現股（選填）</legend>
+                            <label>股數<input type="number" id="pm-etf-shares" min="0" step="1000"></label>
+                            <label>成本價<input type="number" id="pm-etf-cost" step="0.01"></label>
+                        </fieldset>
+                    </div>
+                </div>
+
+                <div class="pm-two-col">
+                    <!-- #2 部位監控 -->
+                    <div class="pm-card">
+                        <h3>📡 部位監控 ＆ 轉倉建議</h3>
+                        <div id="pm-monitor-out"></div>
+                    </div>
+                    <!-- #3 保證金 -->
+                    <div class="pm-card">
+                        <h3>🔐 保證金 ／ 維持率試算</h3>
+                        <div id="pm-margin-out"></div>
+                        <details class="pm-details">
+                            <summary>⚙️ 保證金參數（期交所公告，可覆寫）</summary>
+                            <div id="pm-margin-params"></div>
+                        </details>
+                    </div>
+                </div>
+            </section>
+
             <!-- Institutional Options Flow Panel (Google Sheet Style) -->
             <section class="panel inst-options-panel" id="section-inst" style="margin-top: 1.5rem;">
                 <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -469,6 +543,7 @@
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
-    <script src="app.js?v=35"></script>
+    <script src="app.js?v=36"></script>
+    <script src="position_manager.js?v=36"></script>
 </body>
 </html>

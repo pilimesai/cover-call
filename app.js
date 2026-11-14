@@ -628,9 +628,13 @@ function setupEventListeners() {
 
     const clearActualInputs = () => {
         const elI = document.getElementById('actual-index-input');
+        const elF = document.getElementById('actual-futures-input');
+        const elB = document.getElementById('otm-bench-select');
         const elS = document.getElementById('actual-strike-input');
         const elP = document.getElementById('actual-premium-input');
         if (elI) elI.value = '';
+        if (elF) elF.value = '';
+        if (elB) elB.value = 'auto';
         if (elS) elS.value = '';
         if (elP) elP.value = '';
     };
@@ -649,12 +653,27 @@ function setupEventListeners() {
     customOtmValueInput.addEventListener('change', () => runBacktest());
 
     const actualIndexEl = document.getElementById('actual-index-input');
+    const actualFutEl = document.getElementById('actual-futures-input');
+    const otmBenchEl = document.getElementById('otm-bench-select');
     const actualStrikeEl = document.getElementById('actual-strike-input');
     const actualPremEl = document.getElementById('actual-premium-input');
     const btnResetActual = document.getElementById('btn-reset-actual');
     if (actualIndexEl) {
         actualIndexEl.addEventListener('input', () => {
-            // 當使用者手動輸入新的「今日收盤價」時，清空手動履約價讓系統自動用新收盤價重算履約價
+            if (actualStrikeEl) actualStrikeEl.value = '';
+            if (otmBenchEl && actualIndexEl.value.trim() !== '') otmBenchEl.value = 'spot';
+            updateRecommendation();
+        });
+    }
+    if (actualFutEl) {
+        actualFutEl.addEventListener('input', () => {
+            if (actualStrikeEl) actualStrikeEl.value = '';
+            if (otmBenchEl && actualFutEl.value.trim() !== '') otmBenchEl.value = 'futures_day';
+            updateRecommendation();
+        });
+    }
+    if (otmBenchEl) {
+        otmBenchEl.addEventListener('change', () => {
             if (actualStrikeEl) actualStrikeEl.value = '';
             updateRecommendation();
         });
@@ -1374,6 +1393,26 @@ function getCalibratedCallPremium(row, optionType, optionCycle, strike, rawPremi
     return roundToTaifexOptionTick(Math.max(calPrem, minFloor));
 }
 
+window.applyOtmBenchChoice = function (benchMode, otmPct) {
+    const otmBenchEl = document.getElementById('otm-bench-select');
+    const actualStrikeEl = document.getElementById('actual-strike-input');
+    if (actualStrikeEl) actualStrikeEl.value = '';
+    if (benchMode && otmBenchEl) {
+        otmBenchEl.value = benchMode;
+    }
+    if (typeof otmPct === 'number') {
+        if (otmPct === 5) {
+            strikeRuleSelect.value = 'OTM_5';
+            customOtmRow.classList.add('hidden');
+        } else {
+            strikeRuleSelect.value = 'CUSTOM_OTM';
+            customOtmRow.classList.remove('hidden');
+            customOtmValueInput.value = String(otmPct);
+        }
+    }
+    updateRecommendation();
+};
+
 // ─────────────────────────────────────────────
 // UPDATE RECOMMENDATION (WITH MARGIN SAFETY GUARD & EFFICIENCY DIAGNOSTICS)
 // ─────────────────────────────────────────────
@@ -1404,15 +1443,115 @@ function updateRecommendation() {
     latestTsmcSpan.textContent = row.tsmc.toFixed(1);
 
     const actualIndexEl = document.getElementById('actual-index-input');
+    const actualFutEl = document.getElementById('actual-futures-input');
+    const otmBenchEl = document.getElementById('otm-bench-select');
     const actualStrikeEl = document.getElementById('actual-strike-input');
     const actualPremEl = document.getElementById('actual-premium-input');
+    const benchBoxEl = document.getElementById('advice-otm-benchmark-box');
+    const benchRowEl = document.getElementById('advice-otm-benchmark-row');
 
-    const baseClosePrice = optionType === 'taiex' ? Math.round(row.taiex) : row.tsmc;
-    if (actualIndexEl) actualIndexEl.placeholder = String(baseClosePrice);
+    const spotBase = optionType === 'taiex' ? Math.round(row.taiex) : row.tsmc;
+    const futDayBase = optionType === 'taiex' ? Math.round(row.tx_futures || row.taiex) : row.tsmc;
+    const futNightBase = optionType === 'taiex' && row.tx_after_market > 0 ? Math.round(row.tx_after_market) : futDayBase;
+
+    if (actualIndexEl) actualIndexEl.placeholder = String(spotBase);
+    if (actualFutEl) actualFutEl.placeholder = String(futNightBase !== futDayBase ? futNightBase : futDayBase);
+
     const userIndexVal = actualIndexEl && actualIndexEl.value.trim() !== '' ? parseFloat(actualIndexEl.value) : null;
-    const effectiveRow = (userIndexVal && userIndexVal > 0)
-        ? { ...row, [optionType === 'taiex' ? 'taiex' : 'tsmc']: userIndexVal }
-        : row;
+    const userFutVal = actualFutEl && actualFutEl.value.trim() !== '' ? parseFloat(actualFutEl.value) : null;
+    const benchMode = otmBenchEl ? otmBenchEl.value : 'auto';
+
+    // ─────────────────────────────────────────────────────────
+    // 🤖 智慧判斷：現在該用「加權指數 (現貨)」還是「台指期貨」算 OTM？
+    // ─────────────────────────────────────────────────────────
+    const spotVal = (userIndexVal && userIndexVal > 0) ? userIndexVal : spotBase;
+    const futDayVal = (userFutVal && userFutVal > 0) ? userFutVal : futDayBase;
+    const futNightVal = (userFutVal && userFutVal > 0) ? userFutVal : futNightBase;
+    const basisDay = Math.round(futDayVal - spotVal);
+    const basisNight = Math.round(futNightVal - spotVal);
+    const hasNightSession = Boolean(row.tx_after_market > 0 && row.tx_after_date && row.tx_after_date >= row.date);
+    const recMonth = new Date(row.date).getMonth() + 1;
+
+    // 判斷台灣目前時間是否處於盤後/夜盤時段 (13:45 ~ 隔日 08:45 或週末)
+    const nowTw = new Date(Date.now() + 8 * 3600000);
+    const twDay = nowTw.getUTCDay();
+    const twMinutes = nowTw.getUTCHours() * 60 + nowTw.getUTCMinutes();
+    const isAfterHoursNow = (twDay === 0 || twDay === 6 || twMinutes < 525 || twMinutes >= 825);
+
+    let chosenBenchType = 'spot'; // 'spot' | 'futures_day' | 'futures_night'
+    let chosenBenchPrice = spotVal;
+    let chosenBenchLabel = `加權指數現貨 (${row.date})`;
+    let decisionReason = '';
+    let decisionTag = '';
+
+    if (optionType !== 'taiex') {
+        chosenBenchType = 'spot';
+        chosenBenchPrice = spotVal;
+        chosenBenchLabel = `台積電現貨 (${row.date})`;
+        if (benchRowEl) benchRowEl.style.display = 'none';
+    } else {
+        if (benchRowEl) benchRowEl.style.display = 'block';
+        if (benchMode === 'spot') {
+            chosenBenchType = 'spot';
+            chosenBenchPrice = spotVal;
+            chosenBenchLabel = userIndexVal ? '手動輸入加權指數' : `加權指數現貨 (${row.date})`;
+            decisionTag = '📌 手動指定：加權指數 (現貨)';
+            decisionReason = `依您選定的「加權指數 (${spotVal.toLocaleString()})」計算 OTM。`;
+        } else if (benchMode === 'futures_day') {
+            chosenBenchType = 'futures_day';
+            chosenBenchPrice = futDayVal;
+            chosenBenchLabel = userFutVal ? '手動輸入台指期' : `台指期近月日盤 (${row.date})`;
+            decisionTag = '📌 手動指定：台指期近月 (日盤)';
+            decisionReason = `依您選定的「台指期近月 (${futDayVal.toLocaleString()}，價差 ${basisDay >= 0 ? '+' : ''}${basisDay} 點)」計算 OTM。`;
+        } else if (benchMode === 'futures_night') {
+            chosenBenchType = 'futures_night';
+            chosenBenchPrice = futNightVal;
+            chosenBenchLabel = userFutVal ? '手動輸入台指期' : `台指期夜盤最新 (${row.tx_after_date || row.date})`;
+            decisionTag = '📌 手動指定：台指期 (夜盤/最新)';
+            decisionReason = `依您選定的「台指期夜盤最新 (${futNightVal.toLocaleString()}，與現貨價差 ${basisNight >= 0 ? '+' : ''}${basisNight} 點)」計算 OTM。`;
+        } else {
+            // 🤖 系統智慧判斷 (auto)
+            if (userFutVal && userFutVal > 0) {
+                chosenBenchType = 'futures_day';
+                chosenBenchPrice = userFutVal;
+                chosenBenchLabel = '您輸入之台指期報價';
+                decisionTag = '🤖 偵測到您輸入台指期報價 ➔ 採用【台指期貨】';
+                decisionReason = `已優先採用您手動填入的台指期點數 ${userFutVal.toLocaleString()}。`;
+            } else if (userIndexVal && userIndexVal > 0) {
+                chosenBenchType = 'spot';
+                chosenBenchPrice = userIndexVal;
+                chosenBenchLabel = '您輸入之加權收盤價';
+                decisionTag = '🤖 偵測到您輸入加權指數 ➔ 採用【加權指數】';
+                decisionReason = `已優先採用您手動填入的加權指數 ${userIndexVal.toLocaleString()}。`;
+            } else if (hasNightSession && isAfterHoursNow && Math.abs(basisNight) >= 100) {
+                chosenBenchType = 'futures_night';
+                chosenBenchPrice = futNightVal;
+                chosenBenchLabel = `台指期夜盤 (${row.tx_after_date})`;
+                decisionTag = '🌙 盤後夜盤偏離 ≥100 點 ➔ 自動採用【台指期夜盤】';
+                decisionReason = `目前為盤後/夜盤時段，台指期夜盤 (${futNightVal.toLocaleString()}) 與日盤加權現貨 (${spotVal.toLocaleString()}) 偏離達 <strong>${basisNight >= 0 ? '+' : ''}${basisNight} 點</strong>，選擇權報價 100% 跟隨台指期跳動。`;
+            } else if ((recMonth >= 6 && recMonth <= 8 && basisDay <= -80) || basisDay <= -150) {
+                chosenBenchType = 'futures_day';
+                chosenBenchPrice = futDayVal;
+                chosenBenchLabel = `台指期近月 (${row.date})`;
+                decisionTag = '⚡ 逆價差顯著 / 除權息貼水 ➔ 自動採用【台指期貨】';
+                decisionReason = `目前台指期 (${futDayVal.toLocaleString()}) 較加權現貨 (${spotVal.toLocaleString()}) 逆價差達 <strong>${basisDay} 點</strong>，選擇權造市商以「台指期」為真實價平中心；改用台指期算 OTM 才不會挑太遠導致權利金縮水！`;
+            } else if (basisDay >= 150) {
+                chosenBenchType = 'futures_day';
+                chosenBenchPrice = futDayVal;
+                chosenBenchLabel = `台指期近月 (${row.date})`;
+                decisionTag = '⚡ 期貨正價差 ≥150 點 ➔ 自動採用【台指期貨】';
+                decisionReason = `目前台指期 (${futDayVal.toLocaleString()}) 較加權現貨 (${spotVal.toLocaleString()}) 正價差高達 <strong>+${basisDay} 點</strong>（期貨強勢溢價領漲），Call 報價跟隨期貨墊高；改用台指期算 OTM 可多留上檔緩衝，避免賣太近被嘎！`;
+            } else {
+                chosenBenchType = 'spot';
+                chosenBenchPrice = spotVal;
+                chosenBenchLabel = `加權指數現貨 (${row.date})`;
+                decisionTag = '📈 期現貨價差正常收斂 ➔ 自動採用【加權指數現貨】';
+                decisionReason = `目前台指期 (${futDayVal.toLocaleString()}) 與加權現貨 (${spotVal.toLocaleString()}) 價差為 <strong>${basisDay >= 0 ? '+' : ''}${basisDay} 點</strong>（處於 ±150 點正常收斂區間），且週三 13:30 選擇權法定結算價看「加權指數現貨」，以加權指數計算最精準。`;
+            }
+        }
+    }
+
+    const effectiveRow = { ...row, [optionType === 'taiex' ? 'taiex' : 'tsmc']: chosenBenchPrice };
     const effectiveClosePrice = optionType === 'taiex' ? Math.round(effectiveRow.taiex) : effectiveRow.tsmc;
 
     const ruleMultMap = { ATM: 0, OTM_2: 2, OTM_5: 5, OTM_10: 10 };
@@ -1426,6 +1565,10 @@ function updateRecommendation() {
         DELTA_1: 'Delta 0.10'
     };
 
+    const currentOtmPct = strikeRule === 'CUSTOM_OTM'
+        ? (parseFloat(customOtmValueInput.value) || 0)
+        : (ruleMultMap[strikeRule] !== undefined ? ruleMultMap[strikeRule] : null);
+
     let rawOptInfo, delta = 0.20, ruleFormulaDesc = '';
     if (strikeRule === 'CUSTOM_OTM') {
         const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
@@ -1433,7 +1576,7 @@ function updateRecommendation() {
         delta = rawOptInfo.delta;
         const exactRawK = Math.round(effectiveClosePrice * (1 + customOtmPct / 100));
         ruleFormulaDesc = `× OTM ${customOtmPct}% (= ${exactRawK.toLocaleString()}) 四捨五入`;
-    } else if (userIndexVal && userIndexVal > 0 && ruleMultMap[strikeRule] !== undefined) {
+    } else if (effectiveClosePrice !== spotBase && ruleMultMap[strikeRule] !== undefined) {
         const pct = ruleMultMap[strikeRule];
         rawOptInfo = getCustomOtmOption(effectiveRow, optionType, optionCycle, pct);
         delta = estimateDelta(strikeRule);
@@ -1462,7 +1605,7 @@ function updateRecommendation() {
     const optInfo = {
         strike: (userStrikeVal && userStrikeVal > 0) ? userStrikeVal : rawOptInfo.strike,
         premium: (userPremVal && userPremVal > 0) ? userPremVal : calibratedPrem,
-        isCustomActual: Boolean((userIndexVal && userIndexVal > 0) || (userStrikeVal && userStrikeVal > 0) || (userPremVal && userPremVal > 0)),
+        isCustomActual: Boolean((userIndexVal && userIndexVal > 0) || (userFutVal && userFutVal > 0) || (userStrikeVal && userStrikeVal > 0) || (userPremVal && userPremVal > 0)),
         rawTheoreticalPremium: rawOptInfo.premium,
         calibratedPremium: calibratedPrem
     };
@@ -1474,9 +1617,77 @@ function updateRecommendation() {
     const nextContract = getTaifexContractCodeByExpiry(getNextPeriodExpiryStr(activeExpiryStr), 'weekly');
     const weeklyPutContract = getTaifexContractCodeByExpiry(row.expiry_date_weekly || getNextWeeklyExpiryDate(row.date), 'weekly');
 
-    const closePriceSourceText = (userIndexVal && userIndexVal > 0)
-        ? `以您輸入之今日收盤價 <strong>${effectiveClosePrice.toLocaleString()}</strong>`
-        : `以今日最新收盤價 <strong>${effectiveClosePrice.toLocaleString()}</strong> (${row.date})`;
+    // 計算「加權現貨 / 台指期日盤 / 台指期夜盤」三種基準下的點位對照與最終建議
+    if (benchBoxEl && optionType === 'taiex') {
+        const evalOtmPct = currentOtmPct !== null ? currentOtmPct : 5;
+        const calcForBase = (baseVal, pctVal) => {
+            const tmpRow = { ...row, taiex: baseVal };
+            const rOpt = getCustomOtmOption(tmpRow, 'taiex', optionCycle, pctVal);
+            const cPrem = getCalibratedCallPremium(tmpRow, 'taiex', optionCycle, rOpt.strike, rOpt.premium);
+            return { strike: rOpt.strike, prem: cPrem, exactK: Math.round(baseVal * (1 + pctVal / 100)) };
+        };
+        const sSpot = calcForBase(spotVal, evalOtmPct);
+        const sFutDay = calcForBase(futDayVal, evalOtmPct);
+        const sFutNight = calcForBase(futNightVal, evalOtmPct);
+
+        // 結合當下波動率與反彈狀態，給出 OTM 5% / 6% / 7% 的最終點位建議
+        const isHighVolOrBounce = (row.taiex_vol || 0) >= 0.28;
+        const recOtmPct = isHighVolOrBounce ? 6 : 5;
+        const sFinal5 = calcForBase(chosenBenchPrice, 5);
+        const sFinal6 = calcForBase(chosenBenchPrice, 6);
+        const sFinal7 = calcForBase(chosenBenchPrice, 7);
+        const sFinalRec = isHighVolOrBounce ? sFinal6 : sFinal5;
+
+        const btnStyle = (active) => active
+            ? 'background:var(--primary); color:#fff; border:1px solid var(--primary); border-radius:5px; padding:2px 8px; font-size:0.74rem; font-weight:600; cursor:pointer;'
+            : 'background:rgba(255,255,255,0.06); color:var(--text-main); border:1px solid var(--border); border-radius:5px; padding:2px 8px; font-size:0.74rem; cursor:pointer;';
+
+        benchBoxEl.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+                <span style="font-weight:700; color:var(--success); font-size:0.86rem;">🧭 ${decisionTag}</span>
+                <span style="font-size:0.75rem; color:var(--text-muted);">期現貨日盤價差：<strong style="color:${basisDay >= 0 ? 'var(--success)' : 'var(--danger)'};">${basisDay >= 0 ? '+' : ''}${basisDay} 點</strong>${hasNightSession ? ` ｜ 夜盤價差：<strong>${basisNight >= 0 ? '+' : ''}${basisNight} 點</strong>` : ''}</span>
+            </div>
+            <div style="color:var(--text-main); font-size:0.79rem; margin-bottom:8px;">${decisionReason}</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(175px, 1fr)); gap:6px; margin-bottom:8px;">
+                <div style="background:rgba(15,23,42,0.65); border:1px solid ${chosenBenchType === 'spot' ? 'var(--success)' : 'rgba(255,255,255,0.08)'}; border-radius:7px; padding:6px 8px;">
+                    <div style="font-size:0.73rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                        <span>📈 加權指數 (現貨)</span>
+                        <button type="button" onclick="window.applyOtmBenchChoice('spot')" style="${btnStyle(chosenBenchType === 'spot')}">${chosenBenchType === 'spot' ? '✓ 使用中' : '切換'}</button>
+                    </div>
+                    <div style="font-size:0.9rem; font-weight:700; margin-top:2px;">${spotVal.toLocaleString()} ➔ <span style="color:var(--primary);">${sSpot.strike} Call</span></div>
+                    <div style="font-size:0.72rem; color:var(--text-muted);">OTM ${evalOtmPct}% (=${sSpot.exactK.toLocaleString()})｜估 ~${sSpot.prem} 點</div>
+                </div>
+                <div style="background:rgba(15,23,42,0.65); border:1px solid ${chosenBenchType === 'futures_day' ? 'var(--success)' : 'rgba(255,255,255,0.08)'}; border-radius:7px; padding:6px 8px;">
+                    <div style="font-size:0.73rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                        <span>⚡ 台指期近月 (日盤)</span>
+                        <button type="button" onclick="window.applyOtmBenchChoice('futures_day')" style="${btnStyle(chosenBenchType === 'futures_day')}">${chosenBenchType === 'futures_day' ? '✓ 使用中' : '切換'}</button>
+                    </div>
+                    <div style="font-size:0.9rem; font-weight:700; margin-top:2px;">${futDayVal.toLocaleString()} ➔ <span style="color:var(--primary);">${sFutDay.strike} Call</span></div>
+                    <div style="font-size:0.72rem; color:var(--text-muted);">OTM ${evalOtmPct}% (=${sFutDay.exactK.toLocaleString()})｜估 ~${sFutDay.prem} 點</div>
+                </div>
+                ${hasNightSession ? `
+                <div style="background:rgba(15,23,42,0.65); border:1px solid ${chosenBenchType === 'futures_night' ? 'var(--success)' : 'rgba(255,255,255,0.08)'}; border-radius:7px; padding:6px 8px;">
+                    <div style="font-size:0.73rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                        <span>🌙 台指期 (夜盤最新)</span>
+                        <button type="button" onclick="window.applyOtmBenchChoice('futures_night')" style="${btnStyle(chosenBenchType === 'futures_night')}">${chosenBenchType === 'futures_night' ? '✓ 使用中' : '切換'}</button>
+                    </div>
+                    <div style="font-size:0.9rem; font-weight:700; margin-top:2px;">${futNightVal.toLocaleString()} ➔ <span style="color:var(--primary);">${sFutNight.strike} Call</span></div>
+                    <div style="font-size:0.72rem; color:var(--text-muted);">OTM ${evalOtmPct}% (=${sFutNight.exactK.toLocaleString()})｜估 ~${sFutNight.prem} 點</div>
+                </div>` : ''}
+            </div>
+            <div style="background:rgba(59,130,246,0.12); border-left:3px solid var(--primary); padding:6px 9px; border-radius:5px; font-size:0.8rem;">
+                🎯 <strong>最終點位建議（以${chosenBenchLabel} ${chosenBenchPrice.toLocaleString()} 為基準，合約 ${curContract.shortCode}）：</strong><br>
+                • <strong>當前選用 (OTM ${evalOtmPct}%)：賣出 <span style="color:var(--success); font-size:0.92rem;">${optInfo.strike} Call</span></strong>（預估收 <strong>${optInfo.premium} 點</strong>｜停利掛 <strong>${roundToTaifexOptionTick(optInfo.premium * 0.15)} 點</strong>｜觸價鬧鐘 <strong>${Math.round(optInfo.strike * 0.998).toLocaleString()}</strong>）<br>
+                • 💡 <strong>三檔位快速切換：</strong>
+                <button type="button" onclick="window.applyOtmBenchChoice(null, 5)" style="${btnStyle(evalOtmPct === 5)} margin-top:3px;">標準收租 OTM 5% ➔ ${sFinal5.strike} Call (~${sFinal5.prem}點)</button>
+                <button type="button" onclick="window.applyOtmBenchChoice(null, 6)" style="${btnStyle(evalOtmPct === 6)} margin-top:3px;">均衡甜蜜點 OTM 6% ➔ ${sFinal6.strike} Call (~${sFinal6.prem}點)</button>
+                <button type="button" onclick="window.applyOtmBenchChoice(null, 7)" style="${btnStyle(evalOtmPct === 7)} margin-top:3px;">防急彈 OTM 7% ➔ ${sFinal7.strike} Call (~${sFinal7.prem}點)</button>
+                ${isHighVolOrBounce ? `<div style="color:var(--warning); font-size:0.75rem; margin-top:3px;">⚠️ 偵測到近期波動率偏高 (HV20 ${((row.taiex_vol || 0) * 100).toFixed(0)}%)，建議優先考慮 <strong>OTM ${recOtmPct}% (${sFinalRec.strike} Call)</strong> 或 <strong>OTM 7% (${sFinal7.strike} Call)</strong> 以提高安全邊際！</div>` : ''}
+            </div>
+        `;
+    }
+
+    const closePriceSourceText = `以 <strong>${chosenBenchLabel} ${effectiveClosePrice.toLocaleString()}</strong>`;
     const calcNoteText = (userStrikeVal && userStrikeVal > 0)
         ? `📌 已手動指定履約價 <strong>${optInfo.strike}</strong>（原${closePriceSourceText} ${ruleFormulaDesc} 為 ${rawOptInfo.strike}）`
         : `📌 ${closePriceSourceText} ${ruleFormulaDesc} 計算`;
@@ -2607,6 +2818,9 @@ async function syncLiveFinMindData() {
         fetchJson(`${baseUrl}?dataset=TaiwanStockPrice&data_id=00991A&start_date=${startStr}`).catch(() => ({ data: [] })),
     ]);
 
+    const txDayByDate = {};
+    let latestAfterMarket = null;
+
     // 1. Parse institutional options by date
     const instByDate = {};
     for (const row of (optRes.data || [])) {
@@ -2698,10 +2912,14 @@ async function syncLiveFinMindData() {
         addedDays++;
     }
 
-    // 4. Backfill / refresh institutional_options across recent records
+    // 4. Backfill / refresh tx_futures & institutional_options across recent records
     let updatedChips = 0;
     for (let i = 0; i < rawData.length; i++) {
         const rec = rawData[i];
+        if (txDayByDate[rec.date]) {
+            rec.tx_futures = txDayByDate[rec.date].close;
+            rec.tx_contract = txDayByDate[rec.date].contract_date;
+        }
         const tData = instByDate[rec.date];
         if (!tData || Object.keys(tData).length === 0) continue;
 
@@ -2737,6 +2955,13 @@ async function syncLiveFinMindData() {
             dealer_sc_amt: tData.dealer_call_s_amt ?? 0,
         };
         updatedChips++;
+    }
+
+    if (latestAfterMarket && rawData.length > 0) {
+        const latestRec = rawData[rawData.length - 1];
+        latestRec.tx_after_market = latestAfterMarket.close;
+        latestRec.tx_after_date = latestAfterMarket.date;
+        latestRec.tx_after_spread = latestAfterMarket.spread;
     }
 
     return { addedDays, updatedChips };

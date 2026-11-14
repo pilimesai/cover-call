@@ -61122,6 +61122,11 @@
       "dealer_sp_amt": 737024,
       "dealer_bc_amt": 1590840,
       "dealer_sc_amt": 675903
-    }
+    },
+    "tx_futures": 43834.0,
+    "tx_contract": "202611",
+    "tx_after_market": 43706.0,
+    "tx_after_date": "2026-11-13",
+    "tx_after_spread": -133.0
   }
 ]

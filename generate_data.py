@@ -427,6 +427,40 @@ def main():
     except Exception as e:
         print(f"Warning: Failed to process TAIFEX options data: {e}")
 
+    # Fetch TX near-month futures (regular session + latest after_market session) from Official TAIFEX OpenAPI & MIS
+    try:
+        oa_resp = requests.get("https://openapi.taifex.com.tw/v1/DailyMarketReportFut", timeout=15).json()
+        tx_oa = [x for x in oa_resp if x.get("Contract") == "TX" and len(str(x.get("ContractMonth(Week)", "")).strip()) == 6]
+        tx_day_rows = sorted(
+            [x for x in tx_oa if x.get("TradingSession") == "一般" and str(x.get("Last", "")).isdigit()],
+            key=lambda x: str(x.get("ContractMonth(Week)", "")).strip()
+        )
+        if tx_day_rows and output_records:
+            near_day = tx_day_rows[0]
+            oa_date_raw = str(near_day.get("Date", "")).strip()
+            oa_date = f"{oa_date_raw[:4]}-{oa_date_raw[4:6]}-{oa_date_raw[6:8]}" if len(oa_date_raw) == 8 else output_records[-1]["date"]
+            for r in output_records:
+                if r["date"] == oa_date:
+                    r["tx_futures"] = float(near_day["Last"])
+                    r["tx_contract"] = str(near_day.get("ContractMonth(Week)", "")).strip()
+            if "tx_futures" not in output_records[-1]:
+                output_records[-1]["tx_futures"] = float(near_day["Last"])
+                output_records[-1]["tx_contract"] = str(near_day.get("ContractMonth(Week)", "")).strip()
+
+        mis_resp = requests.post(
+            "https://mis.taifex.com.tw/futures/api/getQuoteList",
+            json={"MarketType": "1", "SymbolType": "F", "KindID": "1", "CID": "TXF", "ExpireMonth": "", "RowSize": "全部", "PageNo": "", "SortColumn": "", "AscDesc": "A"},
+            timeout=10
+        ).json()
+        q_list = [q for q in mis_resp.get("RtData", {}).get("QuoteList", []) if q.get("SymbolID", "").startswith("TXF") and not q.get("SymbolID", "").endswith("-P") and q.get("CLastPrice")]
+        if q_list and output_records:
+            near_night = q_list[0]
+            output_records[-1]["tx_after_market"] = float(near_night["CLastPrice"])
+            output_records[-1]["tx_after_date"] = output_records[-1]["date"]
+            output_records[-1]["tx_after_spread"] = float(near_night.get("CDiff") or 0.0)
+    except Exception as e:
+        print(f"Warning: Failed to fetch TAIFEX TX futures data: {e}")
+
     os.makedirs("data", exist_ok=True)
     with open("data/data.json", "w", encoding="utf-8") as f:
         json.dump(output_records, f, indent=2, ensure_ascii=False)

@@ -501,10 +501,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         } catch (liveErr) {
             console.warn("Live FinMind auto-sync skipped:", liveErr);
         }
+        // 立即同步盤中即時報價 (加權指數、台指期日/夜盤、台積電、0050、00981A)
+        try {
+            await syncRealtimeIntradayQuotes();
+        } catch (rtErr) {
+            console.warn("Realtime intraday quote sync skipped:", rtErr);
+        }
         const initLatest = rawData[rawData.length - 1];
-        dataStatusBadge.innerHTML = `<span class="dot green"></span> 數據已載入 (${initLatest ? initLatest.date : ''})`;
+        updateLiveStatusBadge(initLatest);
         populateDropdowns();
         setupEventListeners();
+        startIntradayAutoPolling();
         if (chkAutoWeight) chkAutoWeight.checked = isAutoWeight;
 
         // Load custom slots from localStorage
@@ -3013,11 +3020,16 @@ async function handleRefreshData() {
             window.rawData = rawData;
         }
 
-        // 2. Real-time browser sync with FinMind API (即使 GitHub 尚未更新也能即時抓到當日最新籌碼！)
+        // 2. Real-time browser sync with FinMind API & Live Intraday Quotes
         try {
             await syncLiveFinMindData();
         } catch (liveErr) {
             console.warn('Live FinMind sync warning:', liveErr);
+        }
+        try {
+            await syncRealtimeIntradayQuotes();
+        } catch (rtErr) {
+            console.warn('Realtime quote sync warning:', rtErr);
         }
 
         // 3. Re-populate dropdowns (preserving user's start date, setting end date to latest)
@@ -3039,8 +3051,8 @@ async function handleRefreshData() {
         const validInst = rawData.filter(r => r.institutional_options);
         const latestInstDate = validInst.length > 0 ? validInst[validInst.length - 1].date : latestRec.date;
 
-        dataStatusBadge.innerHTML = `<span class="dot green"></span> 已更新 (${latestRec.date})`;
-        showFetchStatus(`✅ 籌碼與行情同步完成！最新交易日：<strong>${latestRec.date}</strong>｜最新三大法人籌碼日：<strong>${latestInstDate}</strong>`, 'success');
+        updateLiveStatusBadge(latestRec);
+        showFetchStatus(`✅ 即時行情與籌碼同步完成！最新報價日：<strong>${latestRec.date}</strong>（加權 <strong>${Math.round(latestRec.taiex).toLocaleString()}</strong>｜台指期 <strong>${Math.round(latestRec.tx_after_market || latestRec.tx_futures || latestRec.taiex).toLocaleString()}</strong>）｜最新法人籌碼日：<strong>${latestInstDate}</strong>`, 'success');
         setTimeout(() => hideFetchStatus(), 4500);
     } catch (err) {
         console.error('Refresh error:', err);
@@ -3056,4 +3068,164 @@ async function handleRefreshData() {
             btnTableRefresh.innerHTML = '<span>🔄</span> 立即更新籌碼';
         }
     }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// ⚡ REAL-TIME INTRADAY QUOTE ENGINE (盤中即時報價直連：加權指數、台指期、台積電、0050、00981A)
+// 來源：cnyes 即時報價 API (支援瀏覽器 CORS: Access-Control-Allow-Origin: *)
+// ─────────────────────────────────────────────────────────────
+let intradayPollTimer = null;
+
+function formatTwTimeFromEpochSec(epochSec) {
+    if (!epochSec || isNaN(epochSec)) return null;
+    const d = new Date(Number(epochSec) * 1000 + 8 * 3600000);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mi = String(d.getUTCMinutes()).padStart(2, '0');
+    const ss = String(d.getUTCSeconds()).padStart(2, '0');
+    return { dateStr: `${yyyy}-${mm}-${dd}`, timeStr: `${hh}:${mi}:${ss}`, hours: d.getUTCHours(), minutes: d.getUTCMinutes() };
+}
+
+function updateLiveStatusBadge(rec) {
+    if (!dataStatusBadge || !rec) return;
+    const taiexVal = Math.round(rec.taiex).toLocaleString();
+    const chg = rec.taiex_change;
+    const chgHtml = (typeof chg === 'number' && !isNaN(chg))
+        ? `<span style="color:${chg >= 0 ? '#34d399' : '#f87171'}; font-weight:700; margin-left:3px;">${chg >= 0 ? '▲' : '▼'}${Math.abs(Math.round(chg))}</span>`
+        : '';
+    const txVal = rec.tx_after_market || rec.tx_futures;
+    const txHtml = txVal ? ` ｜ 期 ${Math.round(txVal).toLocaleString()}` : '';
+    const timeTag = rec.live_quote_time ? ` (${rec.date.slice(5)} ${rec.live_quote_time.slice(0, 5)})` : ` (${rec.date})`;
+    dataStatusBadge.innerHTML = `<span class="dot green"></span> 加權 ${taiexVal}${chgHtml}${txHtml}${timeTag}`;
+}
+
+async function syncRealtimeIntradayQuotes() {
+    if (!rawData || rawData.length === 0) return false;
+    const symbols = [
+        'TWS:TSE01:INDEX',
+        'TWF:TXF:FUTURES',
+        'TWS:2330:STOCK',
+        'TWS:0050:STOCK',
+        'TWS:00981A:STOCK',
+        'TWS:00991A:STOCK'
+    ].join(',');
+    const url = `https://ws.api.cnyes.com/ws/api/v1/quote/quotes/${symbols}?column=I&_=${Date.now()}`;
+    const resp = await fetch(url, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`Quote API HTTP ${resp.status}`);
+    const json = await resp.json();
+    const items = json && Array.isArray(json.data) ? json.data : [];
+    if (items.length === 0) return false;
+
+    const byCode = {};
+    for (const it of items) {
+        if (it && it['0']) byCode[it['0']] = it;
+    }
+
+    const qTaiex = byCode['TWS:TSE01:INDEX'];
+    const qTxf = byCode['TWF:TXF:FUTURES'];
+    const qTsmc = byCode['TWS:2330:STOCK'];
+    const q0050 = byCode['TWS:0050:STOCK'];
+    const q00981 = byCode['TWS:00981A:STOCK'];
+    const q00991 = byCode['TWS:00991A:STOCK'];
+
+    if (!qTaiex || !(Number(qTaiex['6']) > 0)) return false;
+
+    const spotPrice = Number(qTaiex['6']);
+    const spotChange = Number(qTaiex['11'] || 0);
+    const spotTimeInfo = formatTwTimeFromEpochSec(qTaiex['200007']);
+    const quoteDate = spotTimeInfo ? spotTimeInfo.dateStr : rawData[rawData.length - 1].date;
+
+    let targetRec = rawData[rawData.length - 1];
+
+    // 若盤中即時報價日期比資料庫最新日期還新（例如今日 09:00 開盤後 GitHub 尚未跑排程），自動建立今日即時記錄！
+    if (quoteDate > targetRec.date) {
+        const prev = targetRec;
+        const expiry_weekly = getNextWeeklyExpiryDate(quoteDate);
+        const expiry_monthly = getNextMonthlyExpiryDate(quoteDate);
+        const curDate = new Date(quoteDate);
+        const days_w = Math.max(1, Math.round((new Date(expiry_weekly) - curDate) / 86400000));
+        const days_m = Math.max(1, Math.round((new Date(expiry_monthly) - curDate) / 86400000));
+        const S_tsmc_new = (qTsmc && Number(qTsmc['6']) > 0) ? Number(qTsmc['6']) : prev.tsmc;
+        const newRec = {
+            date: quoteDate,
+            taiex: spotPrice,
+            tsmc: S_tsmc_new,
+            etf_0050: (q0050 && Number(q0050['6']) > 0) ? Number(q0050['6']) : prev.etf_0050,
+            etf_981: (q00981 && Number(q00981['6']) > 0) ? Number(q00981['6']) : prev.etf_981,
+            etf_991: (q00991 && Number(q00991['6']) > 0) ? Number(q00991['6']) : prev.etf_991,
+            taiex_vol: prev.taiex_vol,
+            tsmc_vol: prev.tsmc_vol,
+            expiry_date_monthly: expiry_monthly,
+            expiry_date_weekly: expiry_weekly,
+            days_to_expiry_monthly: days_m,
+            days_to_expiry_weekly: days_w,
+            betas: { ...prev.betas },
+            options: buildOptionsChainForRecord(spotPrice, prev.taiex_vol, S_tsmc_new, prev.tsmc_vol, days_w / 365.0, days_m / 365.0),
+            institutional_options: prev.institutional_options ? { ...prev.institutional_options } : null,
+            tx_futures: prev.tx_futures,
+            tx_after_market: prev.tx_after_market,
+            tx_after_date: prev.tx_after_date,
+        };
+        rawData.push(newRec);
+        window.rawData = rawData;
+        targetRec = newRec;
+    } else if (quoteDate === targetRec.date) {
+        targetRec.taiex = spotPrice;
+        if (qTsmc && Number(qTsmc['6']) > 0) targetRec.tsmc = Number(qTsmc['6']);
+        if (q0050 && Number(q0050['6']) > 0) targetRec.etf_0050 = Number(q0050['6']);
+        if (q00981 && Number(q00981['6']) > 0) targetRec.etf_981 = Number(q00981['6']);
+        if (q00991 && Number(q00991['6']) > 0) targetRec.etf_991 = Number(q00991['6']);
+        const days_w = Math.max(1, targetRec.days_to_expiry_weekly || 5);
+        const days_m = Math.max(1, targetRec.days_to_expiry_monthly || 15);
+        targetRec.options = buildOptionsChainForRecord(targetRec.taiex, targetRec.taiex_vol, targetRec.tsmc, targetRec.tsmc_vol, days_w / 365.0, days_m / 365.0);
+    }
+
+    targetRec.taiex_change = spotChange;
+    if (spotTimeInfo) targetRec.live_quote_time = spotTimeInfo.timeStr;
+
+    // 同步更新台指期 (TWF:TXF:FUTURES) 即時報價
+    if (qTxf && Number(qTxf['6']) > 0) {
+        const txfPrice = Number(qTxf['6']);
+        const txfChange = Number(qTxf['11'] || 0);
+        const txfPrevClose = Number(qTxf['21'] || 0);
+        const txfTimeInfo = formatTwTimeFromEpochSec(qTxf['200007']);
+        const txfMins = txfTimeInfo ? (txfTimeInfo.hours * 60 + txfTimeInfo.minutes) : 900;
+        const isDaySessionQuote = (txfMins >= 525 && txfMins <= 828); // 08:45 ~ 13:48
+
+        if (isDaySessionQuote) {
+            targetRec.tx_futures = txfPrice;
+            targetRec.tx_after_market = txfPrice;
+            targetRec.tx_after_date = txfTimeInfo ? txfTimeInfo.dateStr : targetRec.date;
+        } else {
+            // 夜盤時段：若原本尚無日盤收盤價，則以夜盤參考價 (21 欄位 = 日盤結算價) 作為日盤基準
+            if (!targetRec.tx_futures && txfPrevClose > 0) {
+                targetRec.tx_futures = txfPrevClose;
+            }
+            targetRec.tx_after_market = txfPrice;
+            targetRec.tx_after_date = txfTimeInfo ? txfTimeInfo.dateStr : targetRec.date;
+            targetRec.tx_after_spread = txfChange;
+        }
+    }
+
+    updateLiveStatusBadge(targetRec);
+    return true;
+}
+
+function startIntradayAutoPolling() {
+    if (intradayPollTimer) clearInterval(intradayPollTimer);
+    intradayPollTimer = setInterval(async () => {
+        const chk = document.getElementById('chk-live-intraday');
+        if (!chk || !chk.checked || document.hidden || isRefreshing) return;
+        try {
+            const ok = await syncRealtimeIntradayQuotes();
+            if (ok) {
+                updateRecommendation();
+            }
+        } catch (e) {
+            // 靜默忽略背景輪詢網路瞬斷
+        }
+    }, 15000);
 }

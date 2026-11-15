@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>槓桿收租術 | 台股主動型 ETF × 期貨 Covered Call 策略回測系統</title>
-    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=39">
-    <link rel="shortcut icon" href="favicon.ico?v=39">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=39">
-    <link rel="manifest" href="manifest.json?v=39">
+    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=40">
+    <link rel="shortcut icon" href="favicon.ico?v=40">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=40">
+    <link rel="manifest" href="manifest.json?v=40">
     <meta name="theme-color" content="#121826">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="槓桿收租術">
     <meta property="og:title" content="槓桿收租術 | 融資 × Covered Call 雙重奏">
-    <meta property="og:image" content="assets/app-banner.jpg?v=39">
-    <link rel="stylesheet" href="index.css?v=39">
+    <meta property="og:image" content="assets/app-banner.jpg?v=40">
+    <link rel="stylesheet" href="index.css?v=40">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,15 +26,18 @@
     <header class="app-header">
         <div class="header-container">
             <div class="logo-area">
-                <img src="assets/app-banner.jpg?v=39" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
+                <img src="assets/app-banner.jpg?v=40" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
                 <div class="logo-text">
                     <h1>台股主動型 ETF 搭配個股期貨之 Covered Call 策略回測系統</h1>
                     <p class="subtitle">槓桿收租術：自訂多單組合 + Covered Call 選擇權策略 | 支援 ETF、個股、期貨標的</p>
                 </div>
             </div>
-            <div class="header-actions" style="display:flex; align-items:center; gap:10px;">
-                <button type="button" class="btn-refresh" id="btn-refresh-data" title="重新下載並載入最新行情與外資籌碼數據">
-                    <span class="refresh-icon" id="refresh-icon">🔄</span> 更新最新籌碼
+            <div class="header-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <label class="live-poll-toggle" style="display:inline-flex; align-items:center; gap:5px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.35); color:#a7f3d0; padding:0.38rem 0.7rem; border-radius:9999px; font-size:0.78rem; font-weight:600; cursor:pointer; user-select:none;" title="開啟後每 15 秒自動抓取加權指數、台指期、台積電、0050、00981A 盤中即時報價">
+                    <input type="checkbox" id="chk-live-intraday" checked style="accent-color:var(--success); cursor:pointer;"> ⚡ 盤中即時 (15s)
+                </label>
+                <button type="button" class="btn-refresh" id="btn-refresh-data" title="立即抓取盤中即時報價與最新外資籌碼">
+                    <span class="refresh-icon" id="refresh-icon">🔄</span> 更新即時行情/籌碼
                 </button>
                 <div class="status-badge" id="data-status-badge">
                     <span class="dot green"></span> 數據載入中...
@@ -48,7 +51,7 @@
         <!-- Input Panel -->
         <section class="panel config-panel" id="section-config">
             <div class="app-hero-banner" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';" title="點擊放大檢視">
-                <img src="assets/app-banner.jpg?v=39" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+                <img src="assets/app-banner.jpg?v=40" alt="槓桿收租術：融資 × Covered Call 雙重奏">
             </div>
             <div class="panel-header">
                 <h2>⚙️ 策略參數配置</h2>
@@ -560,9 +563,9 @@
     </footer>
 
     <div id="hero-banner-modal" class="hero-banner-modal" onclick="this.style.display='none'">
-        <img src="assets/app-banner.jpg?v=39" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+        <img src="assets/app-banner.jpg?v=40" alt="槓桿收租術：融資 × Covered Call 雙重奏">
     </div>
-    <script src="app.js?v=39"></script>
-    <script src="position_manager.js?v=39"></script>
+    <script src="app.js?v=40"></script>
+    <script src="position_manager.js?v=40"></script>
 </body>
 </html>

@@ -2794,21 +2794,28 @@ function renderInstitutionalOptionsTable() {
     }
 
     // Select row limit
-    let limit = 60;
+    let limit = 15;
     if (instTableRowsSelect) {
         const val = instTableRowsSelect.value;
-        if (val === '30') limit = 30;
+        if (val === '15') limit = 15;
+        else if (val === '30') limit = 30;
         else if (val === '60') limit = 60;
-        else if (val === '120') limit = 120;
         else if (val === 'all') limit = validRecords.length;
     }
 
     // Slice and reverse to show most recent first
     const displayRecords = validRecords.slice(-limit).reverse();
+    const toYi = (k) => `${(Number(k || 0) / 100000).toFixed(1)}億`;
+    const toSignedYi = (k) => {
+        const v = Number(k || 0) / 100000;
+        return `${v > 0 ? '+' : ''}${v.toFixed(2)}億`;
+    };
 
     let rowsHtml = '';
+    let cardsHtml = '';
     displayRecords.forEach(rec => {
         const d = rec.date;
+        const dShort = d.slice(5);
         const taiex = Math.round(rec.taiex).toLocaleString();
         const inst = rec.institutional_options;
 
@@ -2823,40 +2830,41 @@ function renderInstitutionalOptionsTable() {
             changeText = diffSign;
         }
 
-        // 1. Foreign BP 金額 (千元) -> 暴增標記
+        // 1. Foreign BP 金額 -> 億
         const bpAmt = inst.foreign_bp_amt || 0;
         let bpBg = 'transparent';
         let bpColor = 'inherit';
         let bpWeight = 'normal';
         if (bpAmt >= 3000000) {
-            bpBg = 'rgba(239, 68, 68, 0.45)'; // 30億以上極度避險
+            bpBg = 'rgba(239, 68, 68, 0.38)';
             bpColor = '#fff';
             bpWeight = '700';
         } else if (bpAmt >= 1500000) {
-            bpBg = 'rgba(239, 68, 68, 0.25)'; // 15億以上顯著避險
+            bpBg = 'rgba(239, 68, 68, 0.22)';
             bpColor = '#fca5a5';
             bpWeight = '600';
         } else if (bpAmt >= 800000) {
-            bpBg = 'rgba(239, 68, 68, 0.12)';
+            bpBg = 'rgba(239, 68, 68, 0.10)';
         }
 
         // 2. Foreign SP 口數與金額
-        const spCnt = (inst.foreign_sp_cnt || 0).toLocaleString();
-        const spAmt = (inst.foreign_sp_amt || 0).toLocaleString();
-        let spBg = (inst.foreign_sp_cnt >= 20000) ? 'rgba(59, 130, 246, 0.18)' : 'transparent';
+        const spCntRaw = inst.foreign_sp_cnt || 0;
+        const spCntShort = spCntRaw >= 10000 ? `${(spCntRaw / 10000).toFixed(2)}萬` : spCntRaw.toLocaleString();
+        const spYi = toYi(inst.foreign_sp_amt);
+        const spBg = spCntRaw >= 20000 ? 'rgba(59, 130, 246, 0.16)' : 'transparent';
 
         // 3. (SP增幅 - BP增幅)
         const diff = inst.foreign_sp_bp_diff || 0;
-        const diffStr = diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString();
+        const diffStr = toSignedYi(diff);
         let diffBg = 'transparent';
         let diffColor = 'inherit';
         if (diff <= -500000) {
-            diffBg = 'rgba(239, 68, 68, 0.35)'; // 單日避險大增5億以上
+            diffBg = 'rgba(239, 68, 68, 0.35)';
             diffColor = '#fff';
         } else if (diff < 0) {
             diffColor = 'var(--danger)';
         } else if (diff >= 300000) {
-            diffBg = 'rgba(16, 185, 129, 0.2)'; // 偏多回補3億以上
+            diffBg = 'rgba(16, 185, 129, 0.2)';
             diffColor = 'var(--success)';
         } else if (diff > 0) {
             diffColor = 'var(--success)';
@@ -2867,38 +2875,57 @@ function renderInstitutionalOptionsTable() {
         const fCallRow = (inst.foreign_bc_amt || 0) + (inst.foreign_sc_amt || 0);
         const fPutRow = (inst.foreign_sp_amt || 0) + (inst.foreign_bp_amt || 0);
         const rowForeignPcr = fCallRow > 0 ? (fPutRow / fCallRow * 100) : null;
-        let pcrCellHtml = '<td style="padding:7px 8px; color:var(--text-muted);">--</td>';
+        let pcrText = '--';
+        let pcrColor = 'var(--text-muted)';
         if (rowPcr !== null) {
-            const pColor = rowPcr >= 110 ? 'var(--success)' : (rowPcr >= 90 ? 'var(--warning)' : 'var(--danger)');
-            pcrCellHtml = `<td style="padding:7px 8px; font-weight:700; color:${pColor};">${rowPcr.toFixed(1)}%</td>`;
+            pcrColor = rowPcr >= 110 ? 'var(--success)' : (rowPcr >= 90 ? 'var(--warning)' : 'var(--danger)');
+            pcrText = `${rowPcr.toFixed(1)}%`;
         } else if (rowForeignPcr !== null) {
-            pcrCellHtml = `<td style="padding:7px 8px; color:var(--text-muted); font-size:0.74rem;" title="外資未平倉 Put/Call 金額比">${rowForeignPcr.toFixed(0)}%<small style="opacity:0.65;">(外)</small></td>`;
+            pcrText = `${rowForeignPcr.toFixed(0)}%<small style="opacity:0.65;">(外)</small>`;
         }
 
-        const bcAmt = (inst.foreign_bc_amt || 0).toLocaleString();
-        const scAmt = (inst.foreign_sc_amt || 0).toLocaleString();
-        const d_bp = (inst.dealer_bp_amt || 0).toLocaleString();
-        const d_sp = (inst.dealer_sp_amt || 0).toLocaleString();
+        const bpYi = toYi(bpAmt);
+        const bcYi = toYi(inst.foreign_bc_amt);
+        const scYi = toYi(inst.foreign_sc_amt);
+        const dBpYi = toYi(inst.dealer_bp_amt);
+        const dSpYi = toYi(inst.dealer_sp_amt);
 
         rowsHtml += `
-            <tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition:background 0.15s;">
-                <td class="sticky-date-col" style="text-align:center; padding:7px 8px; font-weight:500; font-family:monospace;">${d}</td>
-                <td style="padding:7px 8px; font-weight:600;">${taiex}</td>
-                <td style="padding:7px 8px; font-weight:600; ${changeStyle}">${changeText}</td>
-                ${pcrCellHtml}
-                <td style="padding:7px 8px; background:${bpBg}; color:${bpColor}; font-weight:${bpWeight};">${bpAmt.toLocaleString()}</td>
-                <td style="padding:7px 8px; background:${spBg}; font-weight:500;">${spCnt}</td>
-                <td style="padding:7px 8px; background:${spBg}; font-weight:500;">${spAmt}</td>
-                <td style="padding:7px 8px; background:${diffBg}; color:${diffColor}; font-weight:600;">${diffStr}</td>
-                <td style="padding:7px 8px; color:rgba(255,255,255,0.8);">${bcAmt}</td>
-                <td style="padding:7px 8px; color:rgba(255,255,255,0.8);">${scAmt}</td>
-                <td style="padding:7px 8px; color:var(--text-muted);">${d_bp}</td>
-                <td style="padding:7px 8px; color:var(--text-muted);">${d_sp}</td>
+            <tr>
+                <td style="text-align:center; font-family:monospace; font-weight:600;">${dShort}</td>
+                <td><strong>${taiex}</strong> <span style="font-size:0.72rem; ${changeStyle}">(${changeText})</span></td>
+                <td style="font-weight:700; color:${pcrColor};">${pcrText}</td>
+                <td style="background:${bpBg}; color:${bpColor}; font-weight:${bpWeight};">${bpYi}</td>
+                <td style="background:${spBg};">${spCntShort}口 / <strong>${spYi}</strong></td>
+                <td style="background:${diffBg}; color:${diffColor}; font-weight:600;">${diffStr}</td>
+                <td>${bcYi}</td>
+                <td>${scYi}</td>
+                <td style="color:var(--text-muted);">${dBpYi}</td>
+                <td style="color:var(--text-muted);">${dSpYi}</td>
             </tr>
+        `;
+
+        cardsHtml += `
+            <div class="inst-m-card">
+                <div class="inst-m-head">
+                    <span class="inst-m-date">${d}</span>
+                    <span class="inst-m-idx">${taiex} <small style="${changeStyle}">(${changeText})</small></span>
+                    <span class="inst-m-pcr" style="color:${pcrColor};">P/C ${pcrText}</span>
+                </div>
+                <div class="inst-m-grid">
+                    <div><span>外資 BP</span><strong style="color:${bpAmt >= 1500000 ? '#fca5a5' : 'var(--text-main)'};">${bpYi}</strong></div>
+                    <div><span>外資 SP</span><strong>${spCntShort}口 / ${spYi}</strong></div>
+                    <div><span>SP−BP差</span><strong style="color:${diffColor};">${diffStr}</strong></div>
+                    <div><span>外資 BC / SC</span><strong>${bcYi} / ${scYi}</strong></div>
+                    <div><span>自營 BP / SP</span><strong>${dBpYi} / ${dSpYi}</strong></div>
+                </div>
+            </div>
         `;
     });
 
     instTableTbody.innerHTML = rowsHtml;
+    const mobileCardsEl = document.getElementById('inst-mobile-cards');
+    if (mobileCardsEl) mobileCardsEl.innerHTML = cardsHtml;
 }
 
 

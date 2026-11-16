@@ -2077,3 +2077,111 @@ html, body {
         padding: 0.85rem 0.75rem;
     }
 }
+
+
+/* ═════════════════════════════════════════════
+   📊 金流追蹤表免捲軸排版 & 手機卡片 (v47)
+   ═════════════════════════════════════════════ */
+.inst-table-container {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.55);
+    overflow: hidden;
+}
+
+.inst-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    text-align: right;
+}
+
+.inst-table thead {
+    background: #1e293b;
+    color: #cbd5e1;
+}
+
+.inst-table th {
+    padding: 8px 6px;
+    font-weight: 600;
+    border-bottom: 1px solid #334155;
+    white-space: nowrap;
+}
+
+.inst-table td {
+    padding: 7px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
+}
+
+.inst-mobile-cards {
+    display: none;
+}
+
+@media (max-width: 960px) {
+    .inst-table-container {
+        display: none;
+    }
+
+    .inst-mobile-cards {
+        display: grid;
+        gap: 0.6rem;
+    }
+
+    .inst-m-card {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 0.7rem 0.8rem;
+    }
+
+    .inst-m-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        padding-bottom: 0.45rem;
+        margin-bottom: 0.45rem;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+        font-size: 0.82rem;
+    }
+
+    .inst-m-date {
+        font-family: monospace;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .inst-m-idx {
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .inst-m-pcr {
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+
+    .inst-m-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.45rem 0.5rem;
+        font-size: 0.74rem;
+    }
+
+    .inst-m-grid > div {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+    }
+
+    .inst-m-grid span {
+        font-size: 0.66rem;
+        color: var(--text-muted);
+    }
+
+    .inst-m-grid strong {
+        font-size: 0.78rem;
+        color: var(--text-main);
+    }
+}

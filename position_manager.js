@@ -552,14 +552,94 @@
         renderAll();
     }
 
-    async function loadMargins() {
-        try {
-            const r = await fetch('./data/margins.json?v=' + Date.now(), { cache: 'no-store' });
-            if (r.ok) {
-                const j = await r.json();
-                if (j && j.margins && j.margins.MTX) marginTable = j;
+    function parseTaifexMarginHtml(html) {
+        const text = html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+        const nameMap = {
+            '臺股期貨': 'TX',
+            '小型臺指': 'MTX',
+            '微型臺指期貨': 'TMF',
+            '臺指選擇權風險保證金(A)值': 'TXO_A',
+            '臺指選擇權風險保證金(B)值': 'TXO_B',
+            '臺指選擇權風險保證金(C)值': 'TXO_C',
+        };
+        const result = {};
+        for (const [name, key] of Object.entries(nameMap)) {
+            const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const m = text.match(new RegExp(esc + '\\s+([\\d,]+)\\s+([\\d,]+)\\s+([\\d,]+)'));
+            if (m) {
+                const toInt = (s) => parseInt(s.replace(/,/g, ''), 10);
+                result[key] = { clearing: toInt(m[1]), maintenance: toInt(m[2]), initial: toInt(m[3]) };
             }
-        } catch (e) { /* 使用備援值 */ }
+        }
+        if (!result.MTX || !result.TXO_A || !result.TXO_B) return null;
+        const upd = text.match(/更新日期[:：]\s*(\d{4}\/\d{2}\/\d{2})/);
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return {
+            source: 'https://www.taifex.com.tw/cht/5/indexMarging',
+            taifex_updated: upd ? upd[1] : null,
+            fetched_at: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} (即時)`,
+            margins: result,
+        };
+    }
+
+    function updateMarginSyncBadge(srcLabel) {
+        const el = $('pm-margin-sync-status');
+        if (!el) return;
+        const m = getMargins();
+        const mtx = m.fut('MTX');
+        el.innerHTML = `✅ 已套用期交所 (TAIFEX) 公告（更新日 <strong>${marginTable.taifex_updated || '--'}</strong>｜${srcLabel}）<br>📌 小台 MTX：原始 <strong>${fmt(mtx.initial)}</strong> / 維持 <strong>${fmt(mtx.maintenance)}</strong> ｜ TXO A值 <strong>${fmt(m.A.initial)}</strong> / B值 <strong>${fmt(m.B.initial)}</strong>`;
+    }
+
+    async function loadMargins(forceLive = false) {
+        const statusEl = $('pm-margin-sync-status');
+        const syncBtn = $('pm-sync-margins');
+        if (forceLive && statusEl) statusEl.textContent = '🔄 正在連線搜尋期交所最新保證金一覽表...';
+        if (syncBtn) syncBtn.disabled = true;
+
+        let srcLabel = '內建備援';
+        try {
+            const ts = Date.now();
+            const candidates = [];
+            await Promise.all([
+                fetch('./data/margins.json?v=' + ts, { cache: 'no-store' })
+                    .then((r) => (r.ok ? r.json() : null))
+                    .then((j) => { if (j && j.margins && j.margins.MTX) candidates.push({ data: j, label: '本地排程庫' }); })
+                    .catch(() => {}),
+                fetch('https://raw.githubusercontent.com/pilimesai/cover-call/main/data/margins.json?v=' + ts, { cache: 'no-store' })
+                    .then((r) => (r.ok ? r.json() : null))
+                    .then((j) => { if (j && j.margins && j.margins.MTX) candidates.push({ data: j, label: 'GitHub 雲端同步' }); })
+                    .catch(() => {}),
+            ]);
+
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => String(b.data.fetched_at || '').localeCompare(String(a.data.fetched_at || '')));
+                marginTable = candidates[0].data;
+                srcLabel = candidates[0].label;
+            }
+
+            // 若手動點擊同步或遠端尚未更新，嘗試經由代理直連期交所網頁解析最新公告
+            if (forceLive || candidates.length === 0) {
+                try {
+                    const ctrl = new AbortController();
+                    const timer = setTimeout(() => ctrl.abort(), 5000);
+                    const taifexUrl = encodeURIComponent('https://www.taifex.com.tw/cht/5/indexMarging');
+                    const rLive = await fetch(`https://api.codetabs.com/v1/proxy?quest=${taifexUrl}`, { signal: ctrl.signal, cache: 'no-store' });
+                    clearTimeout(timer);
+                    if (rLive.ok) {
+                        const html = await rLive.text();
+                        const parsed = parseTaifexMarginHtml(html);
+                        if (parsed) {
+                            marginTable = parsed;
+                            srcLabel = '期交所官網直連';
+                        }
+                    }
+                } catch (e) { /* 若代理逾時則保留既有最新 JSON */ }
+            }
+        } finally {
+            if (syncBtn) syncBtn.disabled = false;
+            updateMarginSyncBadge(srcLabel);
+        }
     }
 
     function bindEvents() {
@@ -571,6 +651,12 @@
         });
         const fill = $('pm-fill-advice');
         if (fill) fill.addEventListener('click', fillFromAdvice);
+        const syncBtn = $('pm-sync-margins');
+        if (syncBtn) syncBtn.addEventListener('click', async () => {
+            await loadMargins(true);
+            renderMarginEditor();
+            renderAll();
+        });
         const clear = $('pm-clear');
         if (clear) clear.addEventListener('click', () => {
             if (!confirm('確定清除已輸入的持倉資料？')) return;
@@ -614,5 +700,12 @@
     }, 300);
     setTimeout(() => clearInterval(waitTimer), 60000);
 
-    window.PositionManager = { renderAll };
+    window.PositionManager = {
+        renderAll,
+        syncMargins: async () => {
+            await loadMargins(true);
+            renderMarginEditor();
+            renderAll();
+        },
+    };
 })();

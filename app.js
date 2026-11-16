@@ -3068,6 +3068,9 @@ async function handleRefreshData() {
         updateRecommendation();
         runBacktest();
         renderInstitutionalOptionsTable();
+        if (window.PositionManager && typeof window.PositionManager.syncMargins === 'function') {
+            window.PositionManager.syncMargins().catch(() => {});
+        }
 
         const latestRec = rawData[rawData.length - 1];
         const validInst = rawData.filter(r => r.institutional_options);

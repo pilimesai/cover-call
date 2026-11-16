@@ -2082,17 +2082,21 @@ html, body {
 /* ═════════════════════════════════════════════
    📊 金流追蹤表免捲軸排版 & 手機卡片 (v47)
    ═════════════════════════════════════════════ */
+.panel--full {
+    grid-column: 1 / -1;
+}
+
 .inst-table-container {
     border: 1px solid var(--border);
     border-radius: 10px;
     background: rgba(15, 23, 42, 0.55);
-    overflow: hidden;
+    overflow-x: auto;
 }
 
 .inst-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.78rem;
+    font-size: 0.84rem;
     text-align: right;
 }
 
@@ -2102,14 +2106,14 @@ html, body {
 }
 
 .inst-table th {
-    padding: 8px 6px;
+    padding: 9px 10px;
     font-weight: 600;
     border-bottom: 1px solid #334155;
     white-space: nowrap;
 }
 
 .inst-table td {
-    padding: 7px 6px;
+    padding: 8px 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     white-space: nowrap;
 }

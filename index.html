@@ -1,32 +1,37 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>槓桿收租術 | 台股主動型 ETF × 期貨 Covered Call 策略回測系統</title>
-    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=47">
-    <link rel="shortcut icon" href="favicon.ico?v=47">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=47">
-    <link rel="manifest" href="manifest.json?v=47">
+    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=48">
+    <link rel="shortcut icon" href="favicon.ico?v=48">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=48">
+    <link rel="manifest" href="manifest.json?v=48">
     <meta name="theme-color" content="#121826">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="槓桿收租術">
     <meta property="og:title" content="槓桿收租術 | 融資 × Covered Call 雙重奏">
-    <meta property="og:image" content="assets/app-banner.jpg?v=47">
-    <link rel="stylesheet" href="index.css?v=47">
+    <meta property="og:image" content="assets/app-banner.jpg?v=48">
+    <link rel="stylesheet" href="index.css?v=48">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body class="dark-theme">
     <header class="app-header">
         <div class="header-container">
             <div class="logo-area">
-                <img src="assets/app-banner.jpg?v=47" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
+                <img src="assets/app-banner.jpg?v=48" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視"
+                    onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
                 <div class="logo-text">
                     <h1>台股主動型 ETF 搭配個股期貨之 Covered Call 策略回測系統</h1>
                     <p class="subtitle">槓桿收租術：自訂多單組合 + Covered Call 選擇權策略 | 支援 ETF、個股、期貨標的</p>
@@ -47,18 +52,23 @@
             </div>
         </div>
     </header>
-    <nav class="mobile-quick-nav" aria-label="手機版快速導覽"><a href="#section-config" class="mobile-nav-item">⚙️ 參數</a><a href="#section-advice" class="mobile-nav-item">📌 建倉</a><a href="#section-position" class="mobile-nav-item">🧭 持倉</a><a href="#section-metrics" class="mobile-nav-item">📈 圖表</a><a href="#section-inst" class="mobile-nav-item">📊 籌碼</a></nav>
+    <nav class="mobile-quick-nav" aria-label="手機版快速導覽"><a href="#section-config" class="mobile-nav-item">⚙️ 參數</a><a
+            href="#section-advice" class="mobile-nav-item">📌 建倉</a><a href="#section-position"
+            class="mobile-nav-item">🧭 持倉</a><a href="#section-metrics" class="mobile-nav-item">📈 圖表</a><a
+            href="#section-inst" class="mobile-nav-item">📊 籌碼</a></nav>
 
     <main class="app-container">
         <!-- Input Panel -->
         <section class="panel config-panel" id="section-config">
-            <div class="app-hero-banner" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';" title="點擊放大檢視">
-                <img src="assets/app-banner.jpg?v=47" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+            <div class="app-hero-banner"
+                onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';"
+                title="點擊放大檢視">
+                <img src="assets/app-banner.jpg?v=48" alt="槓桿收租術：融資 × Covered Call 雙重奏">
             </div>
             <div class="panel-header">
                 <h2>⚙️ 策略參數配置</h2>
             </div>
-            
+
             <form id="strategy-form" onsubmit="event.preventDefault();">
                 <!-- Capital Mode & Input -->
                 <div class="form-row">
@@ -70,17 +80,21 @@
                         </select>
                     </div>
                     <div class="input-group half" id="capital-input-container">
-                        <label for="input-capital">回測初始資金 (TWD) <small style="color:var(--text-muted)">（以回測開始日市價計算）</small></label>
+                        <label for="input-capital">回測初始資金 (TWD) <small
+                                style="color:var(--text-muted)">（以回測開始日市價計算）</small></label>
                         <input type="number" id="input-capital" value="1000000" min="100000" step="50000" disabled>
-                        <small id="today-capital-hint" style="display:none; color:var(--accent); margin-top:4px; display:block;"></small>
+                        <small id="today-capital-hint"
+                            style="display:none; color:var(--accent); margin-top:4px; display:block;"></small>
                     </div>
                 </div>
 
                 <div class="form-row" id="target-ratio-row">
                     <div class="input-group">
                         <label for="target-margin-ratio">目標初始維持率 (%)</label>
-                        <input type="number" id="target-margin-ratio" value="200" min="100" max="500" step="5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
-                        <small class="help-text" style="color: var(--warning); display: block; margin-top: 4px;">⚠️ 預設提升至 200% 安全水位。系統內建「維持率安全鎖」，若組合中同時含現股/ETF 與期貨，會自動控制現股比例以保留足夠期貨保證金緩衝。</small>
+                        <input type="number" id="target-margin-ratio" value="200" min="100" max="500" step="5"
+                            style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <small class="help-text" style="color: var(--warning); display: block; margin-top: 4px;">⚠️
+                            預設提升至 200% 安全水位。系統內建「維持率安全鎖」，若組合中同時含現股/ETF 與期貨，會自動控制現股比例以保留足夠期貨保證金緩衝。</small>
                     </div>
                 </div>
 
@@ -144,7 +158,8 @@
                     </div>
                     <div class="input-group half">
                         <label for="option-contracts">賣出部位口數</label>
-                        <input type="number" id="option-contracts" value="1" min="1" max="100" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <input type="number" id="option-contracts" value="1" min="1" max="100"
+                            style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
                         <small class="help-text">自定義賣出的選擇權口數</small>
                     </div>
                 </div>
@@ -152,34 +167,43 @@
                 <div class="form-row hidden" id="custom-otm-row">
                     <div class="input-group">
                         <label for="custom-otm-value">自定義 OTM 比例 (%)</label>
-                        <input type="number" id="custom-otm-value" value="4.5" min="0.0" max="50.0" step="0.5" style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
-                        <small class="help-text" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">請輸入自定義的價外（OTM）百分比，例如 7.5 代表履約價設為大盤現價的 +7.5%</small>
+                        <input type="number" id="custom-otm-value" value="4.5" min="0.0" max="50.0" step="0.5"
+                            style="background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; font-weight: 500;">
+                        <small class="help-text"
+                            style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">請輸入自定義的價外（OTM）百分比，例如
+                            7.5 代表履約價設為大盤現價的 +7.5%</small>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="input-group">
                         <label for="roll-defense-mode">⚡ 選擇權停利與防穿價轉倉機制</label>
-                        <select id="roll-defense-mode" style="border-color: rgba(16, 185, 129, 0.4); background-color: #0d1f1c; color: #f8fafc; font-weight: 600;">
+                        <select id="roll-defense-mode"
+                            style="border-color: rgba(16, 185, 129, 0.4); background-color: #0d1f1c; color: #f8fafc; font-weight: 600;">
                             <option value="smart_both" selected>🔥 [實戰推薦] 85% 提前停利釋放保證金 + 觸價向上轉倉 (Roll Up)</option>
                             <option value="take_profit">僅啟用 85% 提前停利 (跌市提前平倉釋放 20 萬保證金)</option>
                             <option value="roll_up">僅啟用防穿價向上轉倉 (大漲觸碰履約價時自動拉高履約價)</option>
                             <option value="hold_expiry">傳統抱到結算日 (不提前停利 / 不中途轉倉)</option>
                         </select>
-                        <div id="roll-defense-desc" class="help-text" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px; background: rgba(16, 185, 129, 0.06); border-left: 3px solid var(--success); padding: 8px 10px; border-radius: 4px; line-height: 1.55;">已內建計入真實交易成本（手續費、期交稅、期貨每月換月轉倉滑價、選擇權價差損耗，且現貨買進後長抱不每週洗盤）。</div>
+                        <div id="roll-defense-desc" class="help-text"
+                            style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px; background: rgba(16, 185, 129, 0.06); border-left: 3px solid var(--success); padding: 8px 10px; border-radius: 4px; line-height: 1.55;">
+                            已內建計入真實交易成本（手續費、期交稅、期貨每月換月轉倉滑價、選擇權價差損耗，且現貨買進後長抱不每週洗盤）。</div>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="input-group">
                         <label for="hedge-mode">🛡️ 下跌避險優化策略 (MA5 &lt; MA21)</label>
-                        <select id="hedge-mode" style="border-color: rgba(59, 130, 246, 0.4); background-color: #0f1b2e; color: #f8fafc; font-weight: 600;">
+                        <select id="hedge-mode"
+                            style="border-color: rgba(59, 130, 246, 0.4); background-color: #0f1b2e; color: #f8fafc; font-weight: 600;">
                             <option value="none">不避險 (原始 Covered Call)</option>
                             <option value="b5" selected>🔥 [推薦 B5] 買進價外 2% 台指周選 Put (高勝率+低回撤)</option>
                             <option value="b3">[B3] 買進價平 (ATM) 台指周選 Put (強防護)</option>
                             <option value="a1">[A1] 降低多單部位至 50%</option>
                         </select>
-                        <div id="hedge-mode-desc" class="help-text" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px; background: rgba(59, 130, 246, 0.06); border-left: 3px solid var(--primary); padding: 8px 10px; border-radius: 4px; line-height: 1.55;">當加權指數 5 日線跌破 21 日線時觸發保護機制；站回時自動平倉獲利/回收殘值。</div>
+                        <div id="hedge-mode-desc" class="help-text"
+                            style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 6px; background: rgba(59, 130, 246, 0.06); border-left: 3px solid var(--primary); padding: 8px 10px; border-radius: 4px; line-height: 1.55;">
+                            當加權指數 5 日線跌破 21 日線時觸發保護機制；站回時自動平倉獲利/回收殘值。</div>
                     </div>
                 </div>
 
@@ -192,12 +216,14 @@
 
                 <!-- Preset Buttons -->
                 <div class="preset-row">
-                    <button type="button" class="preset-btn preset-btn--frugal active" id="preset-btn-frugal" onclick="applyPreset('frugal')" title="0050期貨 + 小台積期貨 + 00981A">
+                    <button type="button" class="preset-btn preset-btn--frugal active" id="preset-btn-frugal"
+                        onclick="applyPreset('frugal')" title="0050期貨 + 小台積期貨 + 00981A">
                         <span class="preset-icon">💰</span>
                         <span class="preset-label">小資組合</span>
                         <span class="preset-desc">0050F · QFF · 00981A</span>
                     </button>
-                    <button type="button" class="preset-btn preset-btn--stable" id="preset-btn-stable" onclick="applyPreset('stable')" title="純小台指 MTX (100%) | 台指 · 周選 · OTM 5% · 2口 · B5避險">
+                    <button type="button" class="preset-btn preset-btn--stable" id="preset-btn-stable"
+                        onclick="applyPreset('stable')" title="純小台指 MTX (100%) | 台指 · 周選 · OTM 5% · 2口 · B5避險">
                         <span class="preset-icon">⚡</span>
                         <span class="preset-label">資金效率</span>
                         <span class="preset-desc">純 MTX 100% · 2口 · B5</span>
@@ -224,7 +250,8 @@
                 <!-- Search Box -->
                 <div class="asset-search-wrapper" id="asset-search-section">
                     <div class="asset-search-input-row">
-                        <input type="search" id="asset-search-input" placeholder="搜尋標的代碼或名稱（如 0050、2330、台積電）" autocomplete="off">
+                        <input type="search" id="asset-search-input" placeholder="搜尋標的代碼或名稱（如 0050、2330、台積電）"
+                            autocomplete="off">
                     </div>
                     <div id="asset-search-dropdown" class="asset-dropdown hidden"></div>
                 </div>
@@ -232,9 +259,11 @@
                 <!-- TWSE data fetch status -->
                 <div id="data-fetch-status" class="data-fetch-status hidden"></div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; margin-top: 1rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; margin-top: 1rem;">
                     <span style="font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.5px;">多單部位權重分配</span>
-                    <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; color: var(--primary); font-weight: 500;">
+                    <label
+                        style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; color: var(--primary); font-weight: 500;">
                         <input type="checkbox" id="chk-auto-weight" checked style="accent-color: var(--primary);">
                         智慧權重分配 (期現貨最佳化)
                     </label>
@@ -247,7 +276,8 @@
                 <div class="weight-total-bar" id="weight-total-bar">
                     <span class="weight-total-label">權重合計</span>
                     <div class="weight-total-track">
-                        <div class="weight-total-fill" id="weight-total-fill" style="width:100%; background: var(--success);"></div>
+                        <div class="weight-total-fill" id="weight-total-fill"
+                            style="width:100%; background: var(--success);"></div>
                     </div>
                     <span class="weight-total-val ok" id="weight-total-val">100%</span>
                 </div>
@@ -256,7 +286,9 @@
                 <div class="auto-weights-info hidden" id="auto-weights-container">
                     <div class="info-card">
                         <p>ℹ️ <strong>自動 Delta 覆蓋對沖模式已啟用 (超越大盤)</strong></p>
-                        <p class="desc">系統將根據每日選擇權 Delta，自動動態調整各多單標的的部位（目標曝險為 1.0 + Delta），使整體投資組合的淨多頭 Delta 始終維持在 <strong>+1.0</strong>。這能確保您的持股 100% 跟隨標的成長，並將賣出選擇權所收取的權利金完全轉化為<strong>超額報酬 (Alpha)</strong>。</p>
+                        <p class="desc">系統將根據每日選擇權 Delta，自動動態調整各多單標的的部位（目標曝險為 1.0 + Delta），使整體投資組合的淨多頭 Delta 始終維持在
+                            <strong>+1.0</strong>。這能確保您的持股 100% 跟隨標的成長，並將賣出選擇權所收取的權利金完全轉化為<strong>超額報酬 (Alpha)</strong>。
+                        </p>
                         <p class="desc" style="margin-top: 5px;"><strong>配置分配基準（依各標的設定權重等比例分配）：</strong></p>
                         <ul id="auto-weights-list"></ul>
                     </div>
@@ -312,8 +344,10 @@
                         <h2>📌 現階段交易部位判斷 (今日建倉建議)</h2>
                     </div>
                     <div class="advice-content">
-                        <div class="advice-row" id="advice-otm-benchmark-row" style="background:rgba(16,185,129,0.07); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:10px 12px; display:block;">
-                            <div id="advice-otm-benchmark-box" style="width:100%; font-size:0.82rem; line-height:1.55;">計算中...</div>
+                        <div class="advice-row" id="advice-otm-benchmark-row"
+                            style="background:rgba(16,185,129,0.07); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:10px 12px; display:block;">
+                            <div id="advice-otm-benchmark-box" style="width:100%; font-size:0.82rem; line-height:1.55;">
+                                計算中...</div>
                         </div>
                         <div class="advice-row">
                             <span class="advice-label">建議 Sell Call 位置：</span>
@@ -326,12 +360,23 @@
                         <div class="advice-row live-calc-box" id="advice-live-calc-row">
                             <div class="live-calc-title">🔢 券商 APP 實際報價／台指期換算器（變更基準或輸入 APP 點數，停利單與鬧鐘自動重算）</div>
                             <div class="live-calc-grid">
-                                <label class="live-calc-field live-calc-field--wide"><span>計算基準</span><select id="otm-bench-select"><option value="auto" selected>🤖 系統智慧判斷 (推薦)</option><option value="spot">📈 加權指數 (現貨)</option><option value="futures_day">⚡ 台指期近月 (日盤)</option><option value="futures_night">🌙 台指期近月 (夜盤/最新)</option></select></label>
-                                <label class="live-calc-field"><span>加權收盤</span><input type="number" id="actual-index-input" step="10" placeholder="自動帶入"></label>
-                                <label class="live-calc-field"><span>台指期報價</span><input type="number" id="actual-futures-input" step="10" placeholder="自動帶入"></label>
-                                <label class="live-calc-field"><span>實際履約價</span><input type="number" id="actual-strike-input" step="100" placeholder="自動帶入"></label>
-                                <label class="live-calc-field"><span>APP 實際點數</span><input type="number" id="actual-premium-input" step="0.5" min="0.5" placeholder="輸入點數"></label>
-                                <div class="live-calc-actions"><button type="button" id="btn-reset-actual" class="live-calc-reset">↺ 重置</button></div>
+                                <label class="live-calc-field live-calc-field--wide"><span>計算基準</span><select
+                                        id="otm-bench-select">
+                                        <option value="auto" selected>🤖 系統智慧判斷 (推薦)</option>
+                                        <option value="spot">📈 加權指數 (現貨)</option>
+                                        <option value="futures_day">⚡ 台指期近月 (日盤)</option>
+                                        <option value="futures_night">🌙 台指期近月 (夜盤/最新)</option>
+                                    </select></label>
+                                <label class="live-calc-field"><span>加權收盤</span><input type="number"
+                                        id="actual-index-input" step="10" placeholder="自動帶入"></label>
+                                <label class="live-calc-field"><span>台指期報價</span><input type="number"
+                                        id="actual-futures-input" step="10" placeholder="自動帶入"></label>
+                                <label class="live-calc-field"><span>實際履約價</span><input type="number"
+                                        id="actual-strike-input" step="100" placeholder="自動帶入"></label>
+                                <label class="live-calc-field"><span>APP 實際點數</span><input type="number"
+                                        id="actual-premium-input" step="0.5" min="0.5" placeholder="輸入點數"></label>
+                                <div class="live-calc-actions"><button type="button" id="btn-reset-actual"
+                                        class="live-calc-reset">↺ 重置</button></div>
                             </div>
                         </div>
                         <div class="advice-row" id="advice-roll-row">
@@ -344,49 +389,66 @@
                         </div>
                         <div class="advice-table-wrapper">
                             <table class="advice-table">
-                               <thead>
-                                   <tr>
-                                       <th>標的</th>
-                                       <th>資金配置權重</th>
-                                       <th>建議部位大小</th>
-                                       <th>預估資金佔用 (TWD)</th>
-                                       <th>Beta (β)</th>
-                                   </tr>
-                               </thead>
-                               <tbody id="advice-assets-tbody">
-                                   <!-- dynamically generated by JS -->
+                                <thead>
+                                    <tr>
+                                        <th>標的</th>
+                                        <th>資金配置權重</th>
+                                        <th>建議部位大小</th>
+                                        <th>預估資金佔用 (TWD)</th>
+                                        <th>Beta (β)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="advice-assets-tbody">
+                                    <!-- dynamically generated by JS -->
                                 </tbody>
                                 <tfoot>
                                     <tr style="border-top: 1px solid var(--border);">
-                                        <td colspan="4" style="text-align:center; color:var(--text-muted); font-size:0.78em; padding:5px 6px;">
+                                        <td colspan="4"
+                                            style="text-align:center; color:var(--text-muted); font-size:0.78em; padding:5px 6px;">
                                             ↓ 賣出選擇權 (Short Call) &nbsp;—&nbsp;
-                                            <span id="advice-qty-options" style="font-weight:600; color:var(--primary)">-- 口</span>
+                                            <span id="advice-qty-options"
+                                                style="font-weight:600; color:var(--primary)">-- 口</span>
                                             &nbsp;|&nbsp; 維持率:
-                                            <span id="advice-margin-ratio" style="font-weight:600; color:var(--success)">--%</span>
+                                            <span id="advice-margin-ratio"
+                                                style="font-weight:600; color:var(--success)">--%</span>
                                         </td>
                                     </tr>
                                 </tfoot>
-                             </table>
-                         </div>
+                            </table>
+                        </div>
 
-                         <!-- 清楚的資金摘要 -->
-                         <div class="advice-summary-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.9rem;">
-                             <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px; padding:0.85rem 1rem;">
-                                 <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px; letter-spacing:0.5px;">🏦 股票/ETF 購買金額</div>
-                                 <div id="advice-summary-spot" style="font-size:1.2rem; font-weight:700; color:var(--primary);">-- TWD</div>
-                                 <div style="font-size:0.7rem; color:var(--text-muted); margin-top:3px;">匯入股票帳戶，用於買進現股</div>
-                             </div>
-                             <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:0.85rem 1rem;">
-                                 <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px; letter-spacing:0.5px;">🔐 保證金帳戶需準備金額</div>
-                                 <div id="advice-summary-margin" style="font-size:1.2rem; font-weight:700; color:var(--warning);">-- TWD</div>
-                                 <div style="font-size:0.7rem; color:var(--text-muted); margin-top:3px;">存入期貨帳戶，涵蓋期貨+選擇權保證金</div>
-                             </div>
-                         </div>
+                        <!-- 清楚的資金摘要 -->
+                        <div class="advice-summary-grid"
+                            style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.9rem;">
+                            <div
+                                style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px; padding:0.85rem 1rem;">
+                                <div
+                                    style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px; letter-spacing:0.5px;">
+                                    🏦 股票/ETF 購買金額</div>
+                                <div id="advice-summary-spot"
+                                    style="font-size:1.2rem; font-weight:700; color:var(--primary);">-- TWD</div>
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:3px;">匯入股票帳戶，用於買進現股
+                                </div>
+                            </div>
+                            <div
+                                style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:0.85rem 1rem;">
+                                <div
+                                    style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px; letter-spacing:0.5px;">
+                                    🔐 保證金帳戶需準備金額</div>
+                                <div id="advice-summary-margin"
+                                    style="font-size:1.2rem; font-weight:700; color:var(--warning);">-- TWD</div>
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:3px;">
+                                    存入期貨帳戶，涵蓋期貨+選擇權保證金</div>
+                            </div>
+                        </div>
 
                         <div class="advice-note">
-                            💡 <strong>計算依據：</strong>基於目前最新市價 (加權指數: <span id="latest-taiex">--</span>, 台積電: <span id="latest-tsmc">--</span> TWD)。<br>
-                            * <strong>Beta 加權覆蓋說明</strong>：各多單標的的有效市場曝險 = 持股市值 × β（對選擇權標的的滾動 Beta）。Beta &lt; 1 的 ETF 對沖效果較弱，系統已自動增加購買數量以補足覆蓋缺口（覆蓋率 &lt; 100% 表示保護不足）。<br>
-                            * <strong>Delta 對沖說明</strong>：自動對沖模式下，各標的部位大小是為了完全對沖賣出選擇權的曝險。調整「目標維持率」會增減所需的「可用保證金」（現金緩衝），並不影響對沖部位數量。若要放大保證金部位，請調整<strong>「賣出部位口數」</strong>。<br>
+                            💡 <strong>計算依據：</strong>基於目前最新市價 (加權指數: <span id="latest-taiex">--</span>, 台積電: <span
+                                id="latest-tsmc">--</span> TWD)。<br>
+                            * <strong>Beta 加權覆蓋說明</strong>：各多單標的的有效市場曝險 = 持股市值 × β（對選擇權標的的滾動 Beta）。Beta &lt; 1 的 ETF
+                            對沖效果較弱，系統已自動增加購買數量以補足覆蓋缺口（覆蓋率 &lt; 100% 表示保護不足）。<br>
+                            * <strong>Delta
+                                對沖說明</strong>：自動對沖模式下，各標的部位大小是為了完全對沖賣出選擇權的曝險。調整「目標維持率」會增減所需的「可用保證金」（現金緩衝），並不影響對沖部位數量。若要放大保證金部位，請調整<strong>「賣出部位口數」</strong>。<br>
                             * 期貨保證金以合約價值之 15% 估算，ETF/個股全額計算。
                         </div>
                     </div>
@@ -401,35 +463,51 @@
                         <details class="rules-accordion">
                             <summary>📖 點擊展開：85% 停利掛單 / 防穿價轉倉 3 步驟 / 期交所代號 / 空頭鐵律</summary>
                             <ul>
-                            <li><strong>🎯 實戰 ①：85% 提前停利單怎麼掛？</strong>：週三 13:30 結算後賣出新倉 Call（若 APP 實際報價與理論值不同，請在左側「🔢 成交價換算器」輸入實際賣出點數）。成交後立即到 APP「<strong>未平倉庫存</strong>」點該筆 Call 按「<strong>平倉</strong>」➔ 設定「<strong>同履約價 Call｜買進｜平倉｜限價 = 賣出點數 × 15%</strong>」。一旦大盤盤整或下跌讓權利金縮水至 15%，即可自動買回平倉、提前入袋 85% 獲利並釋放 20 萬保證金！</li>
-                            <li><strong>🛡️ 實戰 ②：觸發「防穿價向上轉倉 (Roll Up)」怎麼做？</strong>：平時先在 APP 設定加權指數「<strong>履約價 × 99.8%</strong>」的到價通知鬧鐘。萬一大盤暴漲觸價（此時您底下的小台/ETF 多單已大賺逾 20 萬！），打開 APP 花 30 秒執行 3 步驟：
-                                <ul>
-                                    <li><strong>Step 1 (刪舊停利單)</strong>：到「委託查詢」把原本掛著的 15% 提前停利單刪單。</li>
-                                    <li><strong>Step 2 (買回舊 Call 平倉)</strong>：到「庫存」點選舊 Call 按「<strong>買進平倉</strong>」把舊天花板拆掉。</li>
-                                    <li><strong>Step 3 (向上改賣新 Call)</strong>：若在<strong>週四/週五/週一</strong>觸價，留在當週合約往上 <strong>+300 點</strong>賣出新 Call；若在<strong>週二/週三</strong>才觸價（距結算 ≤2 天），直接切換到<strong>下一週合約</strong>往上 +300~600 點賣出新 Call（用下週肥美的時間價值補回平倉成本）。</li>
-                                    <li>💡 <strong>開會沒空轉倉定心丸</strong>：萬一盤中忙碌沒空按轉倉，<strong>完全不會爆倉！</strong>因為底下有 100%+ 多單保護，直接抱到週三 13:30 自動結算依然是淨大賺。</li>
-                                </ul>
-                            </li>
-                            <li><strong>📅 期交所周選代號規則 (W1 / W2 / 月選 / W4)</strong>：每月第 1、2、4、5 個週三結算的周選代號為 <code>MM_W1</code>、<code>MM_W2</code>、<code>MM_W4</code>、<code>MM_W5</code>；<strong>第 3 個週三剛好是「月選擇權結算日」，期交所不設 W3，在券商 APP 要直接選「<code>MM</code> (月選)」</strong>。</li>
-                            <li><strong>🌪️ 空頭分級防禦鐵律</strong>：當收盤 <code>MA5 &lt; MA21</code>（破月線）時啟動 <strong>🛡️B5 買進價外 2% Put</strong> 防急跌閃崩；若大盤<strong>跌破季線 (MA60) 超過 1 週</strong>確認進入長空頭緩跌，請將期貨多單與賣 Call 口數<strong>減半（降回 1 倍無槓桿）</strong>，避免緩跌雙巴磨損。</li>
-                            <li><strong>滾動周期</strong>：依據您選擇的合約週期（<strong>周選擇權為每週三</strong>，<strong>月選擇權為每月第三個星期三</strong>），於台股期權結算日收盤時將舊合約平倉（以結算價結算損益），並以收盤價賣出下一個週期的 Call 合約。</li>
-                            <li><strong>權利金計算</strong>：以 Black-Scholes 模型計算每日理論價格，並以交易當日的理論價格作為新合約收取的權利金。</li>
-                            <li><strong>現貨與期貨配置</strong>：每到結算日（Roll Date），系統將重新計算資金規模，並根據設定的權重重新配置你所選擇的多單部位標的。</li>
-                            <li><strong>期貨與選擇權保證金</strong>：
-                                <ul>
-                                    <li>期貨保證金：根據所選期貨契約乘數，保證金成數以 15% 估算。</li>
-                                    <li>Sell Call 賣方保證金：估算為標的價值的 15% 加上權利金。</li>
-                                </ul>
-                            </li>
-                            <li><strong>保證金追繳機制</strong>：若每日帳戶的可用現金不足以支付期貨與選擇權的維持保證金要求，即判定為<strong>保證金追繳（Margin Call）</strong>，警告計數器加 1。</li>
-                        </ul>
+                                <li><strong>🎯 實戰 ①：85% 提前停利單怎麼掛？</strong>：週三 13:30 結算後賣出新倉 Call（若 APP
+                                    實際報價與理論值不同，請在左側「🔢 成交價換算器」輸入實際賣出點數）。成交後立即到 APP「<strong>未平倉庫存</strong>」點該筆 Call
+                                    按「<strong>平倉</strong>」➔ 設定「<strong>同履約價 Call｜買進｜平倉｜限價 = 賣出點數 ×
+                                        15%</strong>」。一旦大盤盤整或下跌讓權利金縮水至 15%，即可自動買回平倉、提前入袋 85% 獲利並釋放 20 萬保證金！</li>
+                                <li><strong>🛡️ 實戰 ②：觸發「防穿價向上轉倉 (Roll Up)」怎麼做？</strong>：平時先在 APP 設定加權指數「<strong>履約價 ×
+                                        99.8%</strong>」的到價通知鬧鐘。萬一大盤暴漲觸價（此時您底下的小台/ETF 多單已大賺逾 20 萬！），打開 APP 花 30 秒執行 3 步驟：
+                                    <ul>
+                                        <li><strong>Step 1 (刪舊停利單)</strong>：到「委託查詢」把原本掛著的 15% 提前停利單刪單。</li>
+                                        <li><strong>Step 2 (買回舊 Call 平倉)</strong>：到「庫存」點選舊 Call
+                                            按「<strong>買進平倉</strong>」把舊天花板拆掉。</li>
+                                        <li><strong>Step 3 (向上改賣新 Call)</strong>：若在<strong>週四/週五/週一</strong>觸價，留在當週合約往上
+                                            <strong>+300 點</strong>賣出新 Call；若在<strong>週二/週三</strong>才觸價（距結算 ≤2
+                                            天），直接切換到<strong>下一週合約</strong>往上 +300~600 點賣出新 Call（用下週肥美的時間價值補回平倉成本）。</li>
+                                        <li>💡 <strong>開會沒空轉倉定心丸</strong>：萬一盤中忙碌沒空按轉倉，<strong>完全不會爆倉！</strong>因為底下有
+                                            100%+ 多單保護，直接抱到週三 13:30 自動結算依然是淨大賺。</li>
+                                    </ul>
+                                </li>
+                                <li><strong>📅 期交所周選代號規則 (W1 / W2 / 月選 / W4)</strong>：每月第 1、2、4、5 個週三結算的周選代號為
+                                    <code>MM_W1</code>、<code>MM_W2</code>、<code>MM_W4</code>、<code>MM_W5</code>；<strong>第
+                                        3 個週三剛好是「月選擇權結算日」，期交所不設 W3，在券商 APP 要直接選「<code>MM</code> (月選)」</strong>。</li>
+                                <li><strong>🌪️ 空頭分級防禦鐵律</strong>：當收盤 <code>MA5 &lt; MA21</code>（破月線）時啟動 <strong>🛡️B5
+                                        買進價外 2% Put</strong> 防急跌閃崩；若大盤<strong>跌破季線 (MA60) 超過 1
+                                        週</strong>確認進入長空頭緩跌，請將期貨多單與賣 Call 口數<strong>減半（降回 1 倍無槓桿）</strong>，避免緩跌雙巴磨損。
+                                </li>
+                                <li><strong>滾動周期</strong>：依據您選擇的合約週期（<strong>周選擇權為每週三</strong>，<strong>月選擇權為每月第三個星期三</strong>），於台股期權結算日收盤時將舊合約平倉（以結算價結算損益），並以收盤價賣出下一個週期的
+                                    Call 合約。</li>
+                                <li><strong>權利金計算</strong>：以 Black-Scholes 模型計算每日理論價格，並以交易當日的理論價格作為新合約收取的權利金。</li>
+                                <li><strong>現貨與期貨配置</strong>：每到結算日（Roll Date），系統將重新計算資金規模，並根據設定的權重重新配置你所選擇的多單部位標的。</li>
+                                <li><strong>期貨與選擇權保證金</strong>：
+                                    <ul>
+                                        <li>期貨保證金：根據所選期貨契約乘數，保證金成數以 15% 估算。</li>
+                                        <li>Sell Call 賣方保證金：估算為標的價值的 15% 加上權利金。</li>
+                                    </ul>
+                                </li>
+                                <li><strong>保證金追繳機制</strong>：若每日帳戶的可用現金不足以支付期貨與選擇權的維持保證金要求，即判定為<strong>保證金追繳（Margin
+                                        Call）</strong>，警告計數器加 1。</li>
+                            </ul>
                         </details>
                     </div>
                 </section>
             </div>
+        </div>
 
-            <!-- 🧭 持倉管理中心 (Position Manager) -->
-            <section class="panel pm-panel" id="section-position" style="margin-top: 1.5rem;">
+        <!-- 🧭 持倉管理中心 (Full-Width) -->
+        <section class="panel pm-panel panel--full" id="section-position">
                 <div class="panel-header pm-header">
                     <h2>🧭 持倉管理中心（訊號燈 ｜ 部位監控 ｜ 保證金試算）</h2>
                     <div class="pm-header-actions">
@@ -441,7 +519,9 @@
                 <!-- #4 訊號燈 -->
                 <div class="pm-card">
                     <h3>🚦 本週訊號燈</h3>
-                    <div id="pm-signal-out"><div class="pm-empty">載入中...</div></div>
+                    <div id="pm-signal-out">
+                        <div class="pm-empty">載入中...</div>
+                    </div>
                     <details class="pm-details">
                         <summary>📅 編輯事件清單（法說會、FOMC、選舉等；每行「YYYY-MM-DD 說明」）</summary>
                         <textarea id="pm-events" rows="4" spellcheck="false"></textarea>
@@ -454,34 +534,43 @@
                     <details open class="pm-form-details">
                         <summary>✍️ 我的持倉（依券商 APP 成交回報填寫，自動儲存在本機｜點擊收合）</summary>
                         <div class="pm-grid" style="margin-top:0.75rem;">
-                        <fieldset>
-                            <legend>賣出 Call</legend>
-                            <label>履約價<input type="number" id="pm-call-strike" step="100" placeholder="例 45200"></label>
-                            <label>賣出點數<input type="number" id="pm-call-sold" step="0.5" placeholder="成交價"></label>
-                            <label>口數<input type="number" id="pm-call-qty" min="0" step="1" placeholder="2"></label>
-                            <label>結算日<input type="date" id="pm-expiry"></label>
-                            <label>APP 現價 (選填)<input type="number" id="pm-call-now" step="0.5" placeholder="空白則估算"></label>
-                        </fieldset>
-                        <fieldset>
-                            <legend>期貨多單</legend>
-                            <label>商品<select id="pm-fut-code"><option value="MTX">小型臺指 (50元/點)</option><option value="TMF">微型臺指 (10元/點)</option><option value="TX">大台指 (200元/點)</option></select></label>
-                            <label>口數<input type="number" id="pm-fut-qty" min="0" step="1" placeholder="0"></label>
-                            <label>成交價<input type="number" id="pm-fut-entry" step="1" placeholder="例 43000"></label>
-                            <label>期貨帳戶入金總額<input type="number" id="pm-deposit" step="10000" placeholder="例 1000000"></label>
-                            <label>目前指數 (選填)<input type="number" id="pm-index-now" step="1" placeholder="自動帶最新收盤"></label>
-                        </fieldset>
-                        <fieldset>
-                            <legend>買進 Put（B5 避險，選填）</legend>
-                            <label>履約價<input type="number" id="pm-put-strike" step="100"></label>
-                            <label>買進點數<input type="number" id="pm-put-paid" step="0.5"></label>
-                            <label>口數<input type="number" id="pm-put-qty" min="0" step="1"></label>
-                            <label>APP 現價 (選填)<input type="number" id="pm-put-now" step="0.5" placeholder="空白則估算"></label>
-                        </fieldset>
-                        <fieldset>
-                            <legend>00981A 現股（選填）</legend>
-                            <label>股數<input type="number" id="pm-etf-shares" min="0" step="1000"></label>
-                            <label>成本價<input type="number" id="pm-etf-cost" step="0.01"></label>
-                        </fieldset>
+                            <fieldset>
+                                <legend>賣出 Call</legend>
+                                <label>履約價<input type="number" id="pm-call-strike" step="100"
+                                        placeholder="例 45200"></label>
+                                <label>賣出點數<input type="number" id="pm-call-sold" step="0.5" placeholder="成交價"></label>
+                                <label>口數<input type="number" id="pm-call-qty" min="0" step="1" placeholder="2"></label>
+                                <label>結算日<input type="date" id="pm-expiry"></label>
+                                <label>APP 現價 (選填)<input type="number" id="pm-call-now" step="0.5"
+                                        placeholder="空白則估算"></label>
+                            </fieldset>
+                            <fieldset>
+                                <legend>期貨多單</legend>
+                                <label>商品<select id="pm-fut-code">
+                                        <option value="MTX">小型臺指 (50元/點)</option>
+                                        <option value="TMF">微型臺指 (10元/點)</option>
+                                        <option value="TX">大台指 (200元/點)</option>
+                                    </select></label>
+                                <label>口數<input type="number" id="pm-fut-qty" min="0" step="1" placeholder="0"></label>
+                                <label>成交價<input type="number" id="pm-fut-entry" step="1" placeholder="例 43000"></label>
+                                <label>期貨帳戶入金總額<input type="number" id="pm-deposit" step="10000"
+                                        placeholder="例 1000000"></label>
+                                <label>目前指數 (選填)<input type="number" id="pm-index-now" step="1"
+                                        placeholder="自動帶最新收盤"></label>
+                            </fieldset>
+                            <fieldset>
+                                <legend>買進 Put（B5 避險，選填）</legend>
+                                <label>履約價<input type="number" id="pm-put-strike" step="100"></label>
+                                <label>買進點數<input type="number" id="pm-put-paid" step="0.5"></label>
+                                <label>口數<input type="number" id="pm-put-qty" min="0" step="1"></label>
+                                <label>APP 現價 (選填)<input type="number" id="pm-put-now" step="0.5"
+                                        placeholder="空白則估算"></label>
+                            </fieldset>
+                            <fieldset>
+                                <legend>00981A 現股（選填）</legend>
+                                <label>股數<input type="number" id="pm-etf-shares" min="0" step="1000"></label>
+                                <label>成本價<input type="number" id="pm-etf-cost" step="0.01"></label>
+                            </fieldset>
                         </div>
                     </details>
                 </div>
@@ -494,11 +583,15 @@
                     </div>
                     <!-- #3 保證金 -->
                     <div class="pm-card">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">
                             <h3 style="margin:0;">🔐 保證金 ／ 維持率試算</h3>
-                            <button type="button" class="pm-btn pm-btn--ghost" id="pm-sync-margins" style="min-height:30px; padding:0.25rem 0.65rem; font-size:0.75rem;">🔄 同步期交所保證金</button>
+                            <button type="button" class="pm-btn pm-btn--ghost" id="pm-sync-margins"
+                                style="min-height:30px; padding:0.25rem 0.65rem; font-size:0.75rem;">🔄
+                                同步期交所保證金</button>
                         </div>
-                        <div id="pm-margin-sync-status" class="pm-note" style="margin-top:0; margin-bottom:0.6rem;">⏳ 正在載入期交所 (TAIFEX) 最新保證金...</div>
+                        <div id="pm-margin-sync-status" class="pm-note" style="margin-top:0; margin-bottom:0.6rem;">⏳
+                            正在載入期交所 (TAIFEX) 最新保證金...</div>
                         <div id="pm-margin-out"></div>
                         <details class="pm-details">
                             <summary>⚙️ 保證金參數（期交所公告，可覆寫）</summary>
@@ -508,9 +601,10 @@
                 </div>
             </section>
 
-            <!-- Institutional Options Flow Panel (Google Sheet Style) -->
-            <section class="panel inst-options-panel" id="section-inst" style="margin-top: 1.5rem;">
-                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <!-- Institutional Options Flow Panel (Full-Width) -->
+        <section class="panel inst-options-panel panel--full" id="section-inst">
+                <div class="panel-header"
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div>
                         <h2>📊 外資 / 三大法人臺指選擇權未平倉金流追蹤表</h2>
                         <p class="subtitle" style="margin-top:3px; color:var(--text-muted); font-size:0.8rem;">
@@ -519,7 +613,8 @@
                     </div>
                     <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
                         <span style="font-size:0.82rem; color:var(--text-muted); white-space:nowrap;">顯示筆數：</span>
-                        <select id="inst-table-rows" style="width:auto; min-width:115px; background-color:#0f172a; color:var(--text-main); border:1px solid var(--border); padding:5px 10px; border-radius:6px; font-size:0.82rem; cursor:pointer;">
+                        <select id="inst-table-rows"
+                            style="width:auto; min-width:115px; background-color:#0f172a; color:var(--text-main); border:1px solid var(--border); padding:5px 10px; border-radius:6px; font-size:0.82rem; cursor:pointer;">
                             <option value="15" selected>最近 15 天</option>
                             <option value="30">最近 30 天</option>
                             <option value="60">最近 60 天</option>
@@ -529,35 +624,51 @@
                 </div>
 
                 <!-- 🧭 法人選擇權多空綜合判斷 -->
-                <div id="inst-sentiment-box" style="margin-top:0.9rem; margin-bottom:0.9rem; background:rgba(15,23,42,0.55); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.85rem 1rem;">
+                <div id="inst-sentiment-box"
+                    style="margin-top:0.9rem; margin-bottom:0.9rem; background:rgba(15,23,42,0.55); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.85rem 1rem;">
                     ⏳ 正在分析最新三大法人選擇權籌碼與 Put/Call Ratio...
                 </div>
 
                 <!-- Summary KPI Cards -->
-                <div class="inst-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:0.85rem; margin-top:0.75rem; margin-bottom:1.1rem;">
-                    <div class="inst-kpi-card" style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.35); border-radius:8px; padding:0.85rem 1rem;">
+                <div class="inst-kpi-grid"
+                    style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:0.85rem; margin-top:0.75rem; margin-bottom:1.1rem;">
+                    <div class="inst-kpi-card"
+                        style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.35); border-radius:8px; padding:0.85rem 1rem;">
                         <div style="font-size:0.75rem; color:var(--text-muted);">⚖️ 臺指選 Put / Call Ratio</div>
-                        <div id="kpi-pc-ratio" style="font-size:1.25rem; font-weight:700; color:var(--warning); margin-top:4px;">--%</div>
-                        <div id="kpi-pc-ratio-sub" style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">未平倉 P/C 比（>100% 偏多支撐）</div>
+                        <div id="kpi-pc-ratio"
+                            style="font-size:1.25rem; font-weight:700; color:var(--warning); margin-top:4px;">--%</div>
+                        <div id="kpi-pc-ratio-sub" style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                            未平倉 P/C 比（>100% 偏多支撐）</div>
                     </div>
-                    <div class="inst-kpi-card" style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:0.85rem 1rem;">
+                    <div class="inst-kpi-card"
+                        style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:0.85rem 1rem;">
                         <div style="font-size:0.75rem; color:var(--text-muted);">🛡️ 外資 BP 未平倉金額</div>
-                        <div id="kpi-foreign-bp-amt" style="font-size:1.3rem; font-weight:700; color:var(--danger); margin-top:4px;">-- 億</div>
-                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Buy Put 買進賣權 (大跌避險)</div>
+                        <div id="kpi-foreign-bp-amt"
+                            style="font-size:1.3rem; font-weight:700; color:var(--danger); margin-top:4px;">-- 億</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Buy Put 買進賣權 (大跌避險)
+                        </div>
                     </div>
-                    <div class="inst-kpi-card" style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-radius:8px; padding:0.85rem 1rem;">
+                    <div class="inst-kpi-card"
+                        style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-radius:8px; padding:0.85rem 1rem;">
                         <div style="font-size:0.75rem; color:var(--text-muted);">📈 外資 SP 未平倉口數 / 金額</div>
-                        <div id="kpi-foreign-sp" style="font-size:1.3rem; font-weight:700; color:var(--primary); margin-top:4px;">-- 口 / -- 億</div>
-                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Sell Put 賣出賣權 (看多/不看跌)</div>
+                        <div id="kpi-foreign-sp"
+                            style="font-size:1.3rem; font-weight:700; color:var(--primary); margin-top:4px;">-- 口 / -- 億
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Sell Put 賣出賣權 (看多/不看跌)
+                        </div>
                     </div>
-                    <div class="inst-kpi-card" style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:0.85rem 1rem;">
+                    <div class="inst-kpi-card"
+                        style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:0.85rem 1rem;">
                         <div style="font-size:0.75rem; color:var(--text-muted);">⚖️ (SP增幅 − BP增幅) 單日淨差</div>
-                        <div id="kpi-foreign-sp-bp-diff" style="font-size:1.3rem; font-weight:700; color:var(--success); margin-top:4px;">-- 萬</div>
+                        <div id="kpi-foreign-sp-bp-diff"
+                            style="font-size:1.3rem; font-weight:700; color:var(--success); margin-top:4px;">-- 萬</div>
                         <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">正值偏多回補，負值代表擴大避險</div>
                     </div>
-                    <div class="inst-kpi-card" style="background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.3); border-radius:8px; padding:0.85rem 1rem;">
+                    <div class="inst-kpi-card"
+                        style="background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.3); border-radius:8px; padding:0.85rem 1rem;">
                         <div style="font-size:0.75rem; color:var(--text-muted);">🎯 外資 BC 未平倉金額</div>
-                        <div id="kpi-foreign-bc-amt" style="font-size:1.3rem; font-weight:700; color:#c084fc; margin-top:4px;">-- 億</div>
+                        <div id="kpi-foreign-bc-amt"
+                            style="font-size:1.3rem; font-weight:700; color:#c084fc; margin-top:4px;">-- 億</div>
                         <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Buy Call 買進買權做多</div>
                     </div>
                 </div>
@@ -586,7 +697,6 @@
                 </div>
                 <div id="inst-mobile-cards" class="inst-mobile-cards"></div>
             </section>
-        </div>
     </main>
 
     <footer class="app-footer">
@@ -594,9 +704,10 @@
     </footer>
 
     <div id="hero-banner-modal" class="hero-banner-modal" onclick="this.style.display='none'">
-        <img src="assets/app-banner.jpg?v=47" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+        <img src="assets/app-banner.jpg?v=48" alt="槓桿收租術：融資 × Covered Call 雙重奏">
     </div>
-    <script src="app.js?v=47"></script>
-    <script src="position_manager.js?v=47"></script>
+    <script src="app.js?v=48"></script>
+    <script src="position_manager.js?v=48"></script>
 </body>
+
 </html>

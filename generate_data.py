@@ -407,7 +407,9 @@ def main():
                     "dealer_bp_amt": d_bp_amt,
                     "dealer_sp_amt": d_sp_amt,
                     "dealer_bc_amt": d_bc_amt,
-                    "dealer_sc_amt": d_sc_amt
+                    "dealer_sc_amt": d_sc_amt,
+                    "pc_oi_ratio": existing_inst_map.get(d_str, {}).get("pc_oi_ratio"),
+                    "pc_vol_ratio": existing_inst_map.get(d_str, {}).get("pc_vol_ratio"),
                 }
                 prev_taifex = t_data
             elif d_str in existing_inst_map:
@@ -426,6 +428,25 @@ def main():
                 r["institutional_options"] = None
     except Exception as e:
         print(f"Warning: Failed to process TAIFEX options data: {e}")
+
+    # Fetch Official TAIFEX TXO Put/Call Ratio (OI Ratio % & Volume Ratio %)
+    try:
+        pcr_resp = requests.get("https://openapi.taifex.com.tw/v1/PutCallRatio", timeout=15).json()
+        pcr_map = {}
+        for item in pcr_resp:
+            d_raw = str(item.get("Date", "")).strip()
+            if len(d_raw) == 8:
+                d_iso = f"{d_raw[:4]}-{d_raw[4:6]}-{d_raw[6:8]}"
+                pcr_map[d_iso] = {
+                    "pc_oi_ratio": float(item.get("PutCallOIRatio%") or 0),
+                    "pc_vol_ratio": float(item.get("PutCallVolumeRatio%") or 0),
+                }
+        for r in output_records:
+            if r["date"] in pcr_map and r.get("institutional_options"):
+                r["institutional_options"]["pc_oi_ratio"] = pcr_map[r["date"]]["pc_oi_ratio"]
+                r["institutional_options"]["pc_vol_ratio"] = pcr_map[r["date"]]["pc_vol_ratio"]
+    except Exception as e:
+        print(f"Warning: Failed to fetch TAIFEX PutCallRatio: {e}")
 
     # Fetch TX near-month futures (regular session + latest after_market session) from Official TAIFEX OpenAPI & MIS
     try:

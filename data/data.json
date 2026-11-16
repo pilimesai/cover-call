@@ -57861,7 +57861,9 @@
       "dealer_bp_amt": 314549,
       "dealer_sp_amt": 182193,
       "dealer_bc_amt": 934463,
-      "dealer_sc_amt": 929293
+      "dealer_sc_amt": 929293,
+      "pc_oi_ratio": 74.44,
+      "pc_vol_ratio": 103.47
     }
   },
   {
@@ -58024,7 +58026,9 @@
       "dealer_bp_amt": 917654,
       "dealer_sp_amt": 658369,
       "dealer_bc_amt": 974983,
-      "dealer_sc_amt": 674547
+      "dealer_sc_amt": 674547,
+      "pc_oi_ratio": 60.84,
+      "pc_vol_ratio": 74.99
     }
   },
   {
@@ -58187,7 +58191,9 @@
       "dealer_bp_amt": 522567,
       "dealer_sp_amt": 349396,
       "dealer_bc_amt": 1048042,
-      "dealer_sc_amt": 624657
+      "dealer_sc_amt": 624657,
+      "pc_oi_ratio": 67.6,
+      "pc_vol_ratio": 88.75
     }
   },
   {
@@ -58350,7 +58356,9 @@
       "dealer_bp_amt": 679220,
       "dealer_sp_amt": 442710,
       "dealer_bc_amt": 1022299,
-      "dealer_sc_amt": 559733
+      "dealer_sc_amt": 559733,
+      "pc_oi_ratio": 61.6,
+      "pc_vol_ratio": 94.54
     }
   },
   {
@@ -58513,7 +58521,9 @@
       "dealer_bp_amt": 807508,
       "dealer_sp_amt": 651789,
       "dealer_bc_amt": 843094,
-      "dealer_sc_amt": 411986
+      "dealer_sc_amt": 411986,
+      "pc_oi_ratio": 66.17,
+      "pc_vol_ratio": 129.06
     }
   },
   {
@@ -58676,7 +58686,9 @@
       "dealer_bp_amt": 473928,
       "dealer_sp_amt": 314337,
       "dealer_bc_amt": 1176777,
-      "dealer_sc_amt": 378157
+      "dealer_sc_amt": 378157,
+      "pc_oi_ratio": 62.86,
+      "pc_vol_ratio": 111.88
     }
   },
   {
@@ -58839,7 +58851,9 @@
       "dealer_bp_amt": 782259,
       "dealer_sp_amt": 591357,
       "dealer_bc_amt": 875740,
-      "dealer_sc_amt": 423151
+      "dealer_sc_amt": 423151,
+      "pc_oi_ratio": 66.18,
+      "pc_vol_ratio": 86.21
     }
   },
   {
@@ -59002,7 +59016,9 @@
       "dealer_bp_amt": 600249,
       "dealer_sp_amt": 374946,
       "dealer_bc_amt": 603044,
-      "dealer_sc_amt": 335593
+      "dealer_sc_amt": 335593,
+      "pc_oi_ratio": 61.96,
+      "pc_vol_ratio": 89.89
     }
   },
   {
@@ -59165,7 +59181,9 @@
       "dealer_bp_amt": 428756,
       "dealer_sp_amt": 225986,
       "dealer_bc_amt": 1472803,
-      "dealer_sc_amt": 568685
+      "dealer_sc_amt": 568685,
+      "pc_oi_ratio": 69.38,
+      "pc_vol_ratio": 92.29
     }
   },
   {
@@ -59328,7 +59346,9 @@
       "dealer_bp_amt": 573092,
       "dealer_sp_amt": 323584,
       "dealer_bc_amt": 977664,
-      "dealer_sc_amt": 432520
+      "dealer_sc_amt": 432520,
+      "pc_oi_ratio": 64.46,
+      "pc_vol_ratio": 80.96
     }
   },
   {
@@ -59491,7 +59511,9 @@
       "dealer_bp_amt": 846924,
       "dealer_sp_amt": 551827,
       "dealer_bc_amt": 775215,
-      "dealer_sc_amt": 408433
+      "dealer_sc_amt": 408433,
+      "pc_oi_ratio": 62.59,
+      "pc_vol_ratio": 90.91
     }
   },
   {
@@ -59654,7 +59676,9 @@
       "dealer_bp_amt": 845518,
       "dealer_sp_amt": 500254,
       "dealer_bc_amt": 1017095,
-      "dealer_sc_amt": 433270
+      "dealer_sc_amt": 433270,
+      "pc_oi_ratio": 61.58,
+      "pc_vol_ratio": 93.75
     }
   },
   {
@@ -59817,7 +59841,9 @@
       "dealer_bp_amt": 1697569,
       "dealer_sp_amt": 1276880,
       "dealer_bc_amt": 374688,
-      "dealer_sc_amt": 229567
+      "dealer_sc_amt": 229567,
+      "pc_oi_ratio": 47.77,
+      "pc_vol_ratio": 79.99
     }
   },
   {
@@ -59980,7 +60006,9 @@
       "dealer_bp_amt": 1275331,
       "dealer_sp_amt": 828469,
       "dealer_bc_amt": 1819200,
-      "dealer_sc_amt": 333285
+      "dealer_sc_amt": 333285,
+      "pc_oi_ratio": 49.37,
+      "pc_vol_ratio": 85.0
     }
   },
   {
@@ -60143,7 +60171,9 @@
       "dealer_bp_amt": 1981950,
       "dealer_sp_amt": 1509145,
       "dealer_bc_amt": 1035479,
-      "dealer_sc_amt": 247104
+      "dealer_sc_amt": 247104,
+      "pc_oi_ratio": 44.09,
+      "pc_vol_ratio": 72.63
     }
   },
   {
@@ -60306,7 +60336,9 @@
       "dealer_bp_amt": 2644391,
       "dealer_sp_amt": 2000729,
       "dealer_bc_amt": 1365026,
-      "dealer_sc_amt": 247938
+      "dealer_sc_amt": 247938,
+      "pc_oi_ratio": 39.73,
+      "pc_vol_ratio": 75.85
     }
   },
   {
@@ -60469,7 +60501,9 @@
       "dealer_bp_amt": 1723503,
       "dealer_sp_amt": 1365477,
       "dealer_bc_amt": 2686067,
-      "dealer_sc_amt": 491268
+      "dealer_sc_amt": 491268,
+      "pc_oi_ratio": 51.19,
+      "pc_vol_ratio": 79.81
     }
   },
   {
@@ -60632,7 +60666,9 @@
       "dealer_bp_amt": 1232252,
       "dealer_sp_amt": 968910,
       "dealer_bc_amt": 3985875,
-      "dealer_sc_amt": 778748
+      "dealer_sc_amt": 778748,
+      "pc_oi_ratio": 66.54,
+      "pc_vol_ratio": 118.36
     }
   },
   {
@@ -60795,7 +60831,9 @@
       "dealer_bp_amt": 786091,
       "dealer_sp_amt": 597331,
       "dealer_bc_amt": 2488756,
-      "dealer_sc_amt": 901041
+      "dealer_sc_amt": 901041,
+      "pc_oi_ratio": 65.17,
+      "pc_vol_ratio": 107.08
     }
   },
   {
@@ -60958,7 +60996,9 @@
       "dealer_bp_amt": 1114803,
       "dealer_sp_amt": 924391,
       "dealer_bc_amt": 1916496,
-      "dealer_sc_amt": 642022
+      "dealer_sc_amt": 642022,
+      "pc_oi_ratio": 66.69,
+      "pc_vol_ratio": 98.17
     }
   },
   {
@@ -61121,7 +61161,9 @@
       "dealer_bp_amt": 845934,
       "dealer_sp_amt": 737024,
       "dealer_bc_amt": 1590840,
-      "dealer_sc_amt": 675903
+      "dealer_sc_amt": 675903,
+      "pc_oi_ratio": 57.75,
+      "pc_vol_ratio": 98.66
     },
     "tx_futures": 43834.0,
     "tx_contract": "202611"

@@ -2639,7 +2639,7 @@ function renderInstitutionalOptionsTable() {
     // Filter valid records that contain institutional_options
     const validRecords = rawData.filter(r => r.institutional_options);
     if (validRecords.length === 0) {
-        instTableTbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1.5rem; color:var(--text-muted);">尚無三大法人選擇權數據</td></tr>';
+        instTableTbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:1.5rem; color:var(--text-muted);">尚無三大法人選擇權數據</td></tr>';
         return;
     }
 
@@ -2647,6 +2647,131 @@ function renderInstitutionalOptionsTable() {
     const latestRec = validRecords[validRecords.length - 1];
     const prevRec = validRecords.length > 1 ? validRecords[validRecords.length - 2] : null;
     const lInst = latestRec.institutional_options;
+
+    // 尋找最新一筆具官方 Put/Call Ratio 的資料
+    const latestPcrRec = [...validRecords].reverse().find(r => r.institutional_options && r.institutional_options.pc_oi_ratio > 0) || null;
+    const pcOiRatio = lInst.pc_oi_ratio > 0 ? lInst.pc_oi_ratio : (latestPcrRec ? latestPcrRec.institutional_options.pc_oi_ratio : null);
+    const pcVolRatio = lInst.pc_vol_ratio > 0 ? lInst.pc_vol_ratio : (latestPcrRec ? latestPcrRec.institutional_options.pc_vol_ratio : null);
+    const pcrDateTag = (lInst.pc_oi_ratio > 0) ? latestRec.date : (latestPcrRec ? latestPcrRec.date : '');
+
+    // 外資未平倉 Put/Call 金額比 (外資 (SP+BP) / (BC+SC) %)
+    const fCallTot = (lInst.foreign_bc_amt || 0) + (lInst.foreign_sc_amt || 0);
+    const fPutTot = (lInst.foreign_sp_amt || 0) + (lInst.foreign_bp_amt || 0);
+    const foreignPcAmtRatio = fCallTot > 0 ? (fPutTot / fCallTot * 100) : null;
+
+    const kpiPcRatioEl = document.getElementById('kpi-pc-ratio');
+    const kpiPcRatioSubEl = document.getElementById('kpi-pc-ratio-sub');
+    if (kpiPcRatioEl) {
+        if (pcOiRatio !== null) {
+            kpiPcRatioEl.textContent = `${pcOiRatio.toFixed(2)}%`;
+            kpiPcRatioEl.style.color = pcOiRatio >= 110 ? 'var(--success)' : (pcOiRatio >= 90 ? 'var(--warning)' : 'var(--danger)');
+            if (kpiPcRatioSubEl) {
+                kpiPcRatioSubEl.textContent = `成交量 P/C: ${pcVolRatio ? pcVolRatio.toFixed(1) + '%' : '--'} (${pcrDateTag.slice(5)})｜>100% 偏多`;
+            }
+        } else if (foreignPcAmtRatio !== null) {
+            kpiPcRatioEl.textContent = `${foreignPcAmtRatio.toFixed(1)}%`;
+            kpiPcRatioEl.style.color = foreignPcAmtRatio >= 100 ? 'var(--success)' : 'var(--warning)';
+            if (kpiPcRatioSubEl) kpiPcRatioSubEl.textContent = `外資未平倉 Put/Call 金額比`;
+        }
+    }
+
+    // 🧭 法人選擇權多空綜合判斷 (4 大籌碼維度計分)
+    const sentBox = document.getElementById('inst-sentiment-box');
+    if (sentBox) {
+        let score = 0;
+        const signals = [];
+
+        // 1. 全市場未平倉 Put/Call Ratio
+        if (pcOiRatio !== null) {
+            if (pcOiRatio >= 120) {
+                score += 2;
+                signals.push(`<span style="color:var(--success);">🟢 未平倉 P/C Ratio <strong>${pcOiRatio.toFixed(1)}%</strong>（≥120% 莊家賣 Put 強力撐盤）</span>`);
+            } else if (pcOiRatio >= 100) {
+                score += 1;
+                signals.push(`<span style="color:var(--success);">🟢 未平倉 P/C Ratio <strong>${pcOiRatio.toFixed(1)}%</strong>（＞100% 下檔有撐、偏多）</span>`);
+            } else if (pcOiRatio >= 80) {
+                signals.push(`<span style="color:var(--warning);">🟡 未平倉 P/C Ratio <strong>${pcOiRatio.toFixed(1)}%</strong>（80%~100% 中性區間）</span>`);
+            } else {
+                score -= 2;
+                signals.push(`<span style="color:var(--danger);">🔴 未平倉 P/C Ratio <strong>${pcOiRatio.toFixed(1)}%</strong>（＜80% Call 未平倉遠大於 Put，上檔壓力重／偏空）</span>`);
+            }
+        }
+
+        // 2. 外資多空淨部位結構 (SP vs BP, BC vs SC)
+        const fSpAmt = lInst.foreign_sp_amt || 0;
+        const fBpAmt = lInst.foreign_bp_amt || 0;
+        const fBcAmt = lInst.foreign_bc_amt || 0;
+        const fScAmt = lInst.foreign_sc_amt || 0;
+        const netForeignOptBias = (fSpAmt - fBpAmt) + (fBcAmt - fScAmt); // 正值=偏多部位大於避險/壓盤
+        if (fBpAmt >= 2000000 && fBpAmt > fSpAmt * 1.2) {
+            score -= 2;
+            signals.push(`<span style="color:var(--danger);">🔴 外資買進 Put 避險高達 <strong>${(fBpAmt / 100000).toFixed(1)} 億</strong>（明顯大於 SP，避險警戒）</span>`);
+        } else if (netForeignOptBias > 150000) {
+            score += 1;
+            signals.push(`<span style="color:var(--success);">🟢 外資淨部位偏多（SP ${(fSpAmt / 100000).toFixed(1)}億 ＋ BC ${(fBcAmt / 100000).toFixed(1)}億 佔優勢）</span>`);
+        } else if (netForeignOptBias < -150000) {
+            score -= 1;
+            signals.push(`<span style="color:var(--danger);">🔴 外資淨部位偏空避險（BP ${(fBpAmt / 100000).toFixed(1)}億 ＋ SC ${(fScAmt / 100000).toFixed(1)}億 佔優勢）</span>`);
+        } else {
+            signals.push(`<span style="color:var(--warning);">🟡 外資多空部位相近（SP ${(fSpAmt / 100000).toFixed(1)}億 vs BP ${(fBpAmt / 100000).toFixed(1)}億）</span>`);
+        }
+
+        // 3. 外資單日增減趨勢 (SP增幅 - BP增幅)
+        const diffDaily = lInst.foreign_sp_bp_diff || 0;
+        if (diffDaily <= -300000) {
+            score -= 1;
+            signals.push(`<span style="color:var(--danger);">🔴 單日籌碼轉空（避險單日淨增 <strong>${Math.abs(Math.round(diffDaily / 10)).toLocaleString()} 萬</strong>）</span>`);
+        } else if (diffDaily >= 200000) {
+            score += 1;
+            signals.push(`<span style="color:var(--success);">🟢 單日籌碼偏多回補（SP−BP 淨增 <strong>+${Math.round(diffDaily / 10).toLocaleString()} 萬</strong>）</span>`);
+        } else {
+            signals.push(`<span style="color:var(--text-muted);">⚪ 單日資金流向溫和（${diffDaily >= 0 ? '+' : ''}${Math.round(diffDaily / 10).toLocaleString()} 萬）</span>`);
+        }
+
+        // 4. 自營商 (造市商/大額部位)
+        const dSp = lInst.dealer_sp_amt || 0;
+        const dBp = lInst.dealer_bp_amt || 0;
+        if (dBp > dSp * 1.25 && dBp > 500000) {
+            score -= 1;
+            signals.push(`<span style="color:var(--danger);">🔴 自營商 BP (${(dBp / 100000).toFixed(1)}億) ＞ SP (${(dSp / 100000).toFixed(1)}億)</span>`);
+        } else if (dSp > dBp * 1.15) {
+            score += 1;
+            signals.push(`<span style="color:var(--success);">🟢 自營商偏多撐盤（SP ${(dSp / 100000).toFixed(1)}億 ＞ BP ${(dBp / 100000).toFixed(1)}億）</span>`);
+        } else {
+            signals.push(`<span style="color:var(--text-muted);">⚪ 自營商部位中性（BP ${(dBp / 100000).toFixed(1)}億 / SP ${(dSp / 100000).toFixed(1)}億）</span>`);
+        }
+
+        let verdict, verdictColor, verdictBg, adviceTxt;
+        if (score >= 2) {
+            verdict = '🟢 法人籌碼偏多（支撐強勁）';
+            verdictColor = 'var(--success)';
+            verdictBg = 'rgba(16,185,129,0.10)';
+            adviceTxt = '莊家與外資賣 Put 撐盤意願高，Covered Call 可維持標準 <strong>OTM 5%</strong> 收租；若大盤強漲留意防穿價向上轉倉。';
+        } else if (score <= -2) {
+            verdict = '🔴 法人籌碼偏空警戒（避險升溫）';
+            verdictColor = 'var(--danger)';
+            verdictBg = 'rgba(239,68,68,0.10)';
+            adviceTxt = 'Put/Call Ratio 偏低或外資避險部位高企，短線波動易放大！建議嚴格檢查上方 <strong>「🚦 本週訊號燈」B5 避險 Put</strong> 與季線減半紀律，賣 Call 可退守 <strong>OTM 6%～7%</strong> 防急殺後的死貓跳。';
+        } else {
+            verdict = '🟡 法人籌碼中性震盪（多空拉鋸）';
+            verdictColor = 'var(--warning)';
+            verdictBg = 'rgba(245,158,11,0.10)';
+            adviceTxt = '多空力量拉鋸、大盤易區間震盪，對 Covered Call 賣方<strong>最有利收租</strong>（時間價值穩定消耗，不易觸發穿價）。';
+        }
+
+        sentBox.style.background = verdictBg;
+        sentBox.style.borderColor = verdictColor;
+        sentBox.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+                <span style="font-size:0.95rem; font-weight:700; color:${verdictColor};">🧭 法人多空綜合判斷：${verdict}</span>
+                <span style="font-size:0.74rem; color:var(--text-muted);">籌碼資料日：${latestRec.date}（綜合評分 ${score >= 0 ? '+' : ''}${score} 分）</span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-main); margin-bottom:6px; line-height:1.45;">💡 <strong>對 Covered Call 實戰建議：</strong>${adviceTxt}</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:4px 12px; font-size:0.75rem; line-height:1.45;">
+                ${signals.map(s => `<div>• ${s}</div>`).join('')}
+            </div>
+        `;
+    }
 
     if (kpiForeignBpAmt) {
         const bpYi = (lInst.foreign_bp_amt / 100000).toFixed(2);
@@ -2737,7 +2862,19 @@ function renderInstitutionalOptionsTable() {
             diffColor = 'var(--success)';
         }
 
-        // 4. Other institutional fields
+        // 4. Put/Call Ratio & Other institutional fields
+        const rowPcr = inst.pc_oi_ratio > 0 ? inst.pc_oi_ratio : null;
+        const fCallRow = (inst.foreign_bc_amt || 0) + (inst.foreign_sc_amt || 0);
+        const fPutRow = (inst.foreign_sp_amt || 0) + (inst.foreign_bp_amt || 0);
+        const rowForeignPcr = fCallRow > 0 ? (fPutRow / fCallRow * 100) : null;
+        let pcrCellHtml = '<td style="padding:7px 8px; color:var(--text-muted);">--</td>';
+        if (rowPcr !== null) {
+            const pColor = rowPcr >= 110 ? 'var(--success)' : (rowPcr >= 90 ? 'var(--warning)' : 'var(--danger)');
+            pcrCellHtml = `<td style="padding:7px 8px; font-weight:700; color:${pColor};">${rowPcr.toFixed(1)}%</td>`;
+        } else if (rowForeignPcr !== null) {
+            pcrCellHtml = `<td style="padding:7px 8px; color:var(--text-muted); font-size:0.74rem;" title="外資未平倉 Put/Call 金額比">${rowForeignPcr.toFixed(0)}%<small style="opacity:0.65;">(外)</small></td>`;
+        }
+
         const bcAmt = (inst.foreign_bc_amt || 0).toLocaleString();
         const scAmt = (inst.foreign_sc_amt || 0).toLocaleString();
         const d_bp = (inst.dealer_bp_amt || 0).toLocaleString();
@@ -2748,6 +2885,7 @@ function renderInstitutionalOptionsTable() {
                 <td class="sticky-date-col" style="text-align:center; padding:7px 8px; font-weight:500; font-family:monospace;">${d}</td>
                 <td style="padding:7px 8px; font-weight:600;">${taiex}</td>
                 <td style="padding:7px 8px; font-weight:600; ${changeStyle}">${changeText}</td>
+                ${pcrCellHtml}
                 <td style="padding:7px 8px; background:${bpBg}; color:${bpColor}; font-weight:${bpWeight};">${bpAmt.toLocaleString()}</td>
                 <td style="padding:7px 8px; background:${spBg}; font-weight:500;">${spCnt}</td>
                 <td style="padding:7px 8px; background:${spBg}; font-weight:500;">${spAmt}</td>

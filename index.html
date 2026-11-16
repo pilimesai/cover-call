@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>槓桿收租術 | 台股主動型 ETF × 期貨 Covered Call 策略回測系統</title>
-    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=45">
-    <link rel="shortcut icon" href="favicon.ico?v=45">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=45">
-    <link rel="manifest" href="manifest.json?v=45">
+    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=46">
+    <link rel="shortcut icon" href="favicon.ico?v=46">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=46">
+    <link rel="manifest" href="manifest.json?v=46">
     <meta name="theme-color" content="#121826">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="槓桿收租術">
     <meta property="og:title" content="槓桿收租術 | 融資 × Covered Call 雙重奏">
-    <meta property="og:image" content="assets/app-banner.jpg?v=45">
-    <link rel="stylesheet" href="index.css?v=45">
+    <meta property="og:image" content="assets/app-banner.jpg?v=46">
+    <link rel="stylesheet" href="index.css?v=46">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,7 +26,7 @@
     <header class="app-header">
         <div class="header-container">
             <div class="logo-area">
-                <img src="assets/app-banner.jpg?v=45" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
+                <img src="assets/app-banner.jpg?v=46" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
                 <div class="logo-text">
                     <h1>台股主動型 ETF 搭配個股期貨之 Covered Call 策略回測系統</h1>
                     <p class="subtitle">槓桿收租術：自訂多單組合 + Covered Call 選擇權策略 | 支援 ETF、個股、期貨標的</p>
@@ -53,7 +53,7 @@
         <!-- Input Panel -->
         <section class="panel config-panel" id="section-config">
             <div class="app-hero-banner" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';" title="點擊放大檢視">
-                <img src="assets/app-banner.jpg?v=45" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+                <img src="assets/app-banner.jpg?v=46" alt="槓桿收租術：融資 × Covered Call 雙重奏">
             </div>
             <div class="panel-header">
                 <h2>⚙️ 策略參數配置</h2>
@@ -528,8 +528,18 @@
                     </div>
                 </div>
 
+                <!-- 🧭 法人選擇權多空綜合判斷 -->
+                <div id="inst-sentiment-box" style="margin-top:0.9rem; margin-bottom:0.9rem; background:rgba(15,23,42,0.55); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.85rem 1rem;">
+                    ⏳ 正在分析最新三大法人選擇權籌碼與 Put/Call Ratio...
+                </div>
+
                 <!-- Summary KPI Cards -->
-                <div class="inst-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-top:1rem; margin-bottom:1.2rem;">
+                <div class="inst-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:0.85rem; margin-top:0.75rem; margin-bottom:1.1rem;">
+                    <div class="inst-kpi-card" style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.35); border-radius:8px; padding:0.85rem 1rem;">
+                        <div style="font-size:0.75rem; color:var(--text-muted);">⚖️ 臺指選 Put / Call Ratio</div>
+                        <div id="kpi-pc-ratio" style="font-size:1.25rem; font-weight:700; color:var(--warning); margin-top:4px;">--%</div>
+                        <div id="kpi-pc-ratio-sub" style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">未平倉 P/C 比（>100% 偏多支撐）</div>
+                    </div>
                     <div class="inst-kpi-card" style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:0.85rem 1rem;">
                         <div style="font-size:0.75rem; color:var(--text-muted);">🛡️ 外資 BP 未平倉金額</div>
                         <div id="kpi-foreign-bp-amt" style="font-size:1.3rem; font-weight:700; color:var(--danger); margin-top:4px;">-- 億</div>
@@ -560,6 +570,7 @@
                                 <th class="sticky-date-col" style="text-align:center; padding:8px 10px; width:95px;">日期</th>
                                 <th style="text-align:right; padding:8px 10px;">加權指數</th>
                                 <th style="text-align:right; padding:8px 8px; width:65px;">漲跌</th>
+                                <th style="text-align:right; padding:8px 10px; background:rgba(245,158,11,0.18); color:#fde68a;">P/C Ratio<br><span style="font-size:0.68rem; font-weight:normal;">(未平倉%)</span></th>
                                 <th style="text-align:right; padding:8px 10px; background:rgba(239,68,68,0.15); color:#fca5a5;">外資 BP 金額<br><span style="font-size:0.68rem; font-weight:normal;">(千元)</span></th>
                                 <th style="text-align:right; padding:8px 10px; background:rgba(59,130,246,0.15); color:#93c5fd;">外資 SP 口數</th>
                                 <th style="text-align:right; padding:8px 10px; background:rgba(59,130,246,0.15); color:#93c5fd;">外資 SP 金額<br><span style="font-size:0.68rem; font-weight:normal;">(千元)</span></th>
@@ -584,9 +595,9 @@
     </footer>
 
     <div id="hero-banner-modal" class="hero-banner-modal" onclick="this.style.display='none'">
-        <img src="assets/app-banner.jpg?v=45" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+        <img src="assets/app-banner.jpg?v=46" alt="槓桿收租術：融資 × Covered Call 雙重奏">
     </div>
-    <script src="app.js?v=45"></script>
-    <script src="position_manager.js?v=45"></script>
+    <script src="app.js?v=46"></script>
+    <script src="position_manager.js?v=46"></script>
 </body>
 </html>

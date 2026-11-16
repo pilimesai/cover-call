@@ -184,7 +184,7 @@ const PORTFOLIO_PRESETS = {
         contracts: 1,
     },
     stable: {
-        label: '資金效率 (原自選3)',
+        label: '資金效率',
         symbols: ['MTX'],
         weights: { 'MTX': 100 },
         contracts: 2,

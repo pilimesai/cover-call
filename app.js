@@ -184,9 +184,9 @@ const PORTFOLIO_PRESETS = {
         contracts: 1,
     },
     stable: {
-        label: '主力雙雄 (原自選2)',
-        symbols: ['00981A', 'MTX'],
-        weights: { '00981A': 25, 'MTX': 75 },
+        label: '資金效率 (原自選3)',
+        symbols: ['MTX'],
+        weights: { 'MTX': 100 },
         contracts: 2,
         strikeRule: 'OTM_5',
         hedgeMode: 'b5',

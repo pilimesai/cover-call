@@ -1850,3 +1850,230 @@ body {
         border-radius: 10px;
     }
 }
+
+
+/* ═════════════════════════════════════════════
+   ✨ 版面整潔化與手機體驗優化 (v44)
+   ═════════════════════════════════════════════ */
+html, body {
+    overflow-x: hidden;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.header-action-btns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.live-poll-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #a7f3d0;
+    padding: 0.38rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.live-poll-toggle input {
+    accent-color: var(--success);
+    cursor: pointer;
+}
+
+/* 換算器乾淨網格 */
+.live-calc-box {
+    display: block !important;
+    background: rgba(59, 130, 246, 0.07);
+    border: 1px dashed rgba(59, 130, 246, 0.35);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.live-calc-title {
+    font-size: 0.78rem;
+    color: var(--secondary);
+    font-weight: 600;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.live-calc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    align-items: end;
+}
+
+.live-calc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    min-width: 0;
+}
+
+.live-calc-field--wide {
+    grid-column: span 2;
+}
+
+.live-calc-field input,
+.live-calc-field select {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 0.84rem;
+    min-height: 36px;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.live-calc-actions {
+    display: flex;
+    align-items: flex-end;
+}
+
+.live-calc-reset {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    min-height: 36px;
+}
+
+/* 收合式實戰指南 & 持倉表單 */
+.rules-accordion summary,
+.pm-form-details summary {
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--secondary);
+    padding: 0.35rem 0;
+    user-select: none;
+    list-style-position: inside;
+}
+
+.rules-accordion[open] summary {
+    margin-bottom: 0.65rem;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.5rem;
+}
+
+.pm-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+    /* 釋放手機上方可視高度：Header 隨頁面捲動，只留 42px 導覽列置頂 */
+    .app-header {
+        position: static !important;
+        padding: 0.65rem 0.75rem !important;
+    }
+
+    .app-hero-banner {
+        display: none;
+    }
+
+    .mobile-quick-nav {
+        position: sticky;
+        top: 0;
+        z-index: 150;
+        background: rgba(11, 15, 25, 0.94);
+        backdrop-filter: blur(10px);
+        padding: 0.45rem 0.65rem;
+        margin-top: 0 !important;
+        border-top: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    section[id] {
+        scroll-margin-top: 56px;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px !important;
+    }
+
+    .header-action-btns {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px;
+    }
+
+    .live-poll-toggle {
+        padding: 0.42rem 0.65rem;
+        font-size: 0.75rem;
+        min-height: 38px;
+    }
+
+    .btn-refresh {
+        min-height: 38px;
+        font-size: 0.78rem;
+    }
+
+    .status-badge {
+        width: 100%;
+        justify-content: center;
+        font-size: 0.74rem;
+        padding: 0.35rem 0.6rem;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .live-calc-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .live-calc-field--wide {
+        grid-column: 1 / -1;
+    }
+
+    .live-calc-field input,
+    .live-calc-field select {
+        font-size: 16px !important;
+        min-height: 42px;
+    }
+
+    .live-calc-reset {
+        min-height: 42px;
+        font-size: 0.85rem;
+    }
+
+    .pm-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pm-header-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr auto;
+    }
+
+    .pm-card {
+        padding: 0.85rem 0.75rem;
+    }
+}

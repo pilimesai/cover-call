@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>槓桿收租術 | 台股主動型 ETF × 期貨 Covered Call 策略回測系統</title>
-    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=43">
-    <link rel="shortcut icon" href="favicon.ico?v=43">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=43">
-    <link rel="manifest" href="manifest.json?v=43">
+    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=44">
+    <link rel="shortcut icon" href="favicon.ico?v=44">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=44">
+    <link rel="manifest" href="manifest.json?v=44">
     <meta name="theme-color" content="#121826">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="槓桿收租術">
     <meta property="og:title" content="槓桿收租術 | 融資 × Covered Call 雙重奏">
-    <meta property="og:image" content="assets/app-banner.jpg?v=43">
-    <link rel="stylesheet" href="index.css?v=43">
+    <meta property="og:image" content="assets/app-banner.jpg?v=44">
+    <link rel="stylesheet" href="index.css?v=44">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,32 +26,34 @@
     <header class="app-header">
         <div class="header-container">
             <div class="logo-area">
-                <img src="assets/app-banner.jpg?v=43" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
+                <img src="assets/app-banner.jpg?v=44" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
                 <div class="logo-text">
                     <h1>台股主動型 ETF 搭配個股期貨之 Covered Call 策略回測系統</h1>
                     <p class="subtitle">槓桿收租術：自訂多單組合 + Covered Call 選擇權策略 | 支援 ETF、個股、期貨標的</p>
                 </div>
             </div>
-            <div class="header-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <label class="live-poll-toggle" style="display:inline-flex; align-items:center; gap:5px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.35); color:#a7f3d0; padding:0.38rem 0.7rem; border-radius:9999px; font-size:0.78rem; font-weight:600; cursor:pointer; user-select:none;" title="開啟後每 15 秒自動抓取加權指數、台指期、台積電、0050、00981A 盤中即時報價">
-                    <input type="checkbox" id="chk-live-intraday" checked style="accent-color:var(--success); cursor:pointer;"> ⚡ 盤中即時 (15s)
-                </label>
-                <button type="button" class="btn-refresh" id="btn-refresh-data" title="立即抓取盤中即時報價與最新外資籌碼">
-                    <span class="refresh-icon" id="refresh-icon">🔄</span> 更新即時行情/籌碼
-                </button>
+            <div class="header-actions">
+                <div class="header-action-btns">
+                    <label class="live-poll-toggle" title="開啟後每 15 秒自動抓取加權指數、台指期、台積電、0050、00981A 盤中即時報價">
+                        <input type="checkbox" id="chk-live-intraday" checked> ⚡ 盤中即時 (15s)
+                    </label>
+                    <button type="button" class="btn-refresh" id="btn-refresh-data" title="立即抓取盤中即時報價與最新外資籌碼">
+                        <span class="refresh-icon" id="refresh-icon">🔄</span> 更新即時行情/籌碼
+                    </button>
+                </div>
                 <div class="status-badge" id="data-status-badge">
                     <span class="dot green"></span> 數據載入中...
                 </div>
             </div>
         </div>
-        <nav class="mobile-quick-nav" aria-label="手機版快速導覽"><a href="#section-config" class="mobile-nav-item">⚙️ 參數/自選</a><a href="#section-advice" class="mobile-nav-item">📌 今日建倉</a><a href="#section-position" class="mobile-nav-item">🧭 持倉</a><a href="#section-metrics" class="mobile-nav-item">📈 回測圖表</a><a href="#section-inst" class="mobile-nav-item">📊 外資籌碼</a></nav>
     </header>
+    <nav class="mobile-quick-nav" aria-label="手機版快速導覽"><a href="#section-config" class="mobile-nav-item">⚙️ 參數</a><a href="#section-advice" class="mobile-nav-item">📌 建倉</a><a href="#section-position" class="mobile-nav-item">🧭 持倉</a><a href="#section-metrics" class="mobile-nav-item">📈 圖表</a><a href="#section-inst" class="mobile-nav-item">📊 籌碼</a></nav>
 
     <main class="app-container">
         <!-- Input Panel -->
         <section class="panel config-panel" id="section-config">
             <div class="app-hero-banner" onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';" title="點擊放大檢視">
-                <img src="assets/app-banner.jpg?v=43" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+                <img src="assets/app-banner.jpg?v=44" alt="槓桿收租術：融資 × Covered Call 雙重奏">
             </div>
             <div class="panel-header">
                 <h2>⚙️ 策略參數配置</h2>
@@ -321,7 +323,17 @@
                             <span class="advice-label">預估收取權利金：</span>
                             <span class="advice-val" id="advice-premium">---</span>
                         </div>
-                        <div class="advice-row" id="advice-live-calc-row" style="background:rgba(59,130,246,0.07); border:1px dashed rgba(59,130,246,0.35); border-radius:8px; padding:8px 10px;"><div style="width:100%;"><div style="font-size:0.78rem; color:var(--secondary); font-weight:600; margin-bottom:6px;">🔢 券商 APP 實際收盤價／台指期／成交價換算器（可切換計算基準或輸入 APP 即時報價，下方停利單與轉倉鬧鐘自動重算）：</div><div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;"><label style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">計算基準：<select id="otm-bench-select" style="padding:4px 6px; font-size:0.82rem; min-height:34px; background:var(--bg-dark); color:var(--text-main); border:1px solid var(--border); border-radius:6px;"><option value="auto" selected>🤖 系統智慧判斷 (推薦)</option><option value="spot">📈 加權指數 (現貨)</option><option value="futures_day">⚡ 台指期近月 (日盤)</option><option value="futures_night">🌙 台指期近月 (夜盤/最新)</option></select></label><label style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">加權收盤：<input type="number" id="actual-index-input" step="10" style="width:90px; padding:4px 8px; font-size:0.85rem; min-height:34px;" placeholder="自動帶入"></label><label style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">台指期報價：<input type="number" id="actual-futures-input" step="10" style="width:90px; padding:4px 8px; font-size:0.85rem; min-height:34px;" placeholder="自動帶入"></label><label style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">實際履約價：<input type="number" id="actual-strike-input" step="100" style="width:90px; padding:4px 8px; font-size:0.85rem; min-height:34px;" placeholder="自動帶入"></label><label style="font-size:0.78rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">APP 實際點數：<input type="number" id="actual-premium-input" step="0.5" min="0.5" style="width:80px; padding:4px 8px; font-size:0.85rem; min-height:34px;" placeholder="輸入點數"></label><button type="button" id="btn-reset-actual" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer; min-height:32px;">↺ 重置</button></div></div></div>
+                        <div class="advice-row live-calc-box" id="advice-live-calc-row">
+                            <div class="live-calc-title">🔢 券商 APP 實際報價／台指期換算器（變更基準或輸入 APP 點數，停利單與鬧鐘自動重算）</div>
+                            <div class="live-calc-grid">
+                                <label class="live-calc-field live-calc-field--wide"><span>計算基準</span><select id="otm-bench-select"><option value="auto" selected>🤖 系統智慧判斷 (推薦)</option><option value="spot">📈 加權指數 (現貨)</option><option value="futures_day">⚡ 台指期近月 (日盤)</option><option value="futures_night">🌙 台指期近月 (夜盤/最新)</option></select></label>
+                                <label class="live-calc-field"><span>加權收盤</span><input type="number" id="actual-index-input" step="10" placeholder="自動帶入"></label>
+                                <label class="live-calc-field"><span>台指期報價</span><input type="number" id="actual-futures-input" step="10" placeholder="自動帶入"></label>
+                                <label class="live-calc-field"><span>實際履約價</span><input type="number" id="actual-strike-input" step="100" placeholder="自動帶入"></label>
+                                <label class="live-calc-field"><span>APP 實際點數</span><input type="number" id="actual-premium-input" step="0.5" min="0.5" placeholder="輸入點數"></label>
+                                <div class="live-calc-actions"><button type="button" id="btn-reset-actual" class="live-calc-reset">↺ 重置</button></div>
+                            </div>
+                        </div>
                         <div class="advice-row" id="advice-roll-row">
                             <span class="advice-label">⚡ 停利 / 轉倉實戰掛單：</span>
                             <span class="advice-val" id="advice-roll-sop">---</span>
@@ -386,7 +398,9 @@
                         <h2>📝 實戰下單操作指南與回測機制說明</h2>
                     </div>
                     <div class="rules-content">
-                        <ul>
+                        <details class="rules-accordion">
+                            <summary>📖 點擊展開：85% 停利掛單 / 防穿價轉倉 3 步驟 / 期交所代號 / 空頭鐵律</summary>
+                            <ul>
                             <li><strong>🎯 實戰 ①：85% 提前停利單怎麼掛？</strong>：週三 13:30 結算後賣出新倉 Call（若 APP 實際報價與理論值不同，請在左側「🔢 成交價換算器」輸入實際賣出點數）。成交後立即到 APP「<strong>未平倉庫存</strong>」點該筆 Call 按「<strong>平倉</strong>」➔ 設定「<strong>同履約價 Call｜買進｜平倉｜限價 = 賣出點數 × 15%</strong>」。一旦大盤盤整或下跌讓權利金縮水至 15%，即可自動買回平倉、提前入袋 85% 獲利並釋放 20 萬保證金！</li>
                             <li><strong>🛡️ 實戰 ②：觸發「防穿價向上轉倉 (Roll Up)」怎麼做？</strong>：平時先在 APP 設定加權指數「<strong>履約價 × 99.8%</strong>」的到價通知鬧鐘。萬一大盤暴漲觸價（此時您底下的小台/ETF 多單已大賺逾 20 萬！），打開 APP 花 30 秒執行 3 步驟：
                                 <ul>
@@ -409,6 +423,7 @@
                             </li>
                             <li><strong>保證金追繳機制</strong>：若每日帳戶的可用現金不足以支付期貨與選擇權的維持保證金要求，即判定為<strong>保證金追繳（Margin Call）</strong>，警告計數器加 1。</li>
                         </ul>
+                        </details>
                     </div>
                 </section>
             </div>
@@ -436,8 +451,9 @@
 
                 <!-- 持倉輸入 -->
                 <div class="pm-card pm-form">
-                    <h3>✍️ 我的持倉（依券商 APP 成交回報填寫，自動儲存在本機）</h3>
-                    <div class="pm-grid">
+                    <details open class="pm-form-details">
+                        <summary>✍️ 我的持倉（依券商 APP 成交回報填寫，自動儲存在本機｜點擊收合）</summary>
+                        <div class="pm-grid" style="margin-top:0.75rem;">
                         <fieldset>
                             <legend>賣出 Call</legend>
                             <label>履約價<input type="number" id="pm-call-strike" step="100" placeholder="例 45200"></label>
@@ -466,7 +482,8 @@
                             <label>股數<input type="number" id="pm-etf-shares" min="0" step="1000"></label>
                             <label>成本價<input type="number" id="pm-etf-cost" step="0.01"></label>
                         </fieldset>
-                    </div>
+                        </div>
+                    </details>
                 </div>
 
                 <div class="pm-two-col">
@@ -563,9 +580,9 @@
     </footer>
 
     <div id="hero-banner-modal" class="hero-banner-modal" onclick="this.style.display='none'">
-        <img src="assets/app-banner.jpg?v=43" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+        <img src="assets/app-banner.jpg?v=44" alt="槓桿收租術：融資 × Covered Call 雙重奏">
     </div>
-    <script src="app.js?v=43"></script>
-    <script src="position_manager.js?v=43"></script>
+    <script src="app.js?v=44"></script>
+    <script src="position_manager.js?v=44"></script>
 </body>
 </html>

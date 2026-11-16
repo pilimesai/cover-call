@@ -284,7 +284,7 @@
                 <div class="pm-kpi"><span>🛡️ 防穿價觸價點</span><strong class="c-warning">${trigger.toLocaleString()}</strong><em>履約價 × 99.8%｜距離 ${fmt(distPts)} 點</em></div>
                 <div class="pm-kpi"><span>Call 現價${callIsEst ? ' (估計)' : ''}</span><strong>${callNow} 點</strong><em>已實現 ${pct(captured, 0)}｜IV ${pct(ctx.vol, 1)} ${ctx.volSource}</em></div>
             </div>
-            <table class="pm-table">
+            <div class="pm-table-wrap"><table class="pm-table">
                 <thead><tr><th>部位</th><th>進場</th><th>現價</th><th>損益 (TWD)</th></tr></thead>
                 <tbody>
                     <tr><td>賣 Call ${pos.callStrike} × ${pos.callQty}</td><td>${pos.callSold}</td><td>${callNow}${callIsEst ? '*' : ''}</td><td class="${callPnl >= 0 ? 'c-success' : 'c-danger'}">${fmtSigned(callPnl)}</td></tr>
@@ -293,7 +293,7 @@
                     ${pos.etfShares ? `<tr><td>00981A × ${pos.etfShares.toLocaleString()} 股</td><td>${pos.etfCost ?? '--'}</td><td>${etfPrice ? etfPrice.toFixed(2) : '--'}</td><td class="${etfPnl >= 0 ? 'c-success' : 'c-danger'}">${fmtSigned(etfPnl)}</td></tr>` : ''}
                 </tbody>
                 <tfoot><tr><td colspan="3">合計未實現損益</td><td class="${total >= 0 ? 'c-success' : 'c-danger'}"><strong>${fmtSigned(total)}</strong></td></tr></tfoot>
-            </table>
+            </table></div>
             <div class="pm-note">* 標示為 Black-Scholes 估計值；請在上方填入 APP 實際現價以取得精確數字。00981A 現價為最近收盤 (${row ? row.date : '--'})。</div>
         `;
     }
@@ -365,10 +365,10 @@
                 <div>⬆️ 上漲代沖銷點：${lineTxt(liqUp)}</div>
                 <div class="pm-sub">可再承受下跌：${callDown ? `<strong>${fmt(S0 - callDown.S)} 點</strong>才會被追繳` : '—'}　|　若要撐到 -15% 不追繳，需再入金約 <strong>${(() => { const a = accountAt(pos, S0 * 0.85, ctx, margins); const need = a.reqMaint - a.eqForRatio; return need > 0 ? fmt(need) : '0'; })()}</strong> 元</div>
             </div>
-            <table class="pm-table">
+            <div class="pm-table-wrap"><table class="pm-table">
                 <thead><tr><th>大盤瞬間變動</th><th>指數</th><th>權益數</th><th>維持率</th><th>狀態</th></tr></thead>
                 <tbody>${rows}</tbody>
-            </table>
+            </table></div>
             <div class="pm-note">
                 保證金採期交所公告（${marginTable.taifex_updated || '--'}）：${pos.futCode} 原始 ${fmt(fm.initial)} / 維持 ${fmt(fm.maintenance)}；TXO A 值 ${fmt(margins.A.initial)} / ${fmt(margins.A.maintenance)}，B 值 ${fmt(margins.B.initial)} / ${fmt(margins.B.maintenance)}。
                 賣出買權保證金 = 權利金市值 + MAX(A 值 − 價外值, B 值)。

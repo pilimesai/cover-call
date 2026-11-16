@@ -181,10 +181,16 @@ const PORTFOLIO_PRESETS = {
     frugal: {
         label: '小資組合',
         symbols: ['0050F', 'QFF', '00981A'],
+        contracts: 1,
     },
     stable: {
-        label: '穩健組合',
-        symbols: ['00981A', '00991A', 'TSMC'],
+        label: '主力雙雄 (原自選2)',
+        symbols: ['00981A', 'MTX'],
+        weights: { '00981A': 25, 'MTX': 75 },
+        contracts: 2,
+        strikeRule: 'OTM_5',
+        hedgeMode: 'b5',
+        rollDefenseMode: 'smart_both',
     },
 };
 
@@ -320,8 +326,24 @@ function applyPreset(preset) {
     const def = PORTFOLIO_PRESETS[preset];
     if (!def) return;
     const assets = def.symbols.map(sym => findPresetAsset(sym)).filter(Boolean);
-    selectedAssets = assets.map(a => ({ ...a, weight: 0 }));
-    autoDistributeWeights();
+    if (def.weights) {
+        isAutoWeight = false;
+        if (chkAutoWeight) chkAutoWeight.checked = false;
+        selectedAssets = assets.map(a => ({ ...a, weight: def.weights[a.symbol] ?? 0 }));
+    } else {
+        isAutoWeight = true;
+        if (chkAutoWeight) chkAutoWeight.checked = true;
+        selectedAssets = assets.map(a => ({ ...a, weight: 0 }));
+        autoDistributeWeights();
+    }
+    if (def.contracts && optionContractsInput) optionContractsInput.value = String(def.contracts);
+    if (def.strikeRule && strikeRuleSelect) {
+        strikeRuleSelect.value = def.strikeRule;
+        if (customOtmRow) customOtmRow.classList.toggle('hidden', def.strikeRule !== 'CUSTOM_OTM');
+    }
+    if (def.hedgeMode && hedgeModeSelect) hedgeModeSelect.value = def.hedgeMode;
+    if (def.rollDefenseMode && rollDefenseModeSelect) rollDefenseModeSelect.value = def.rollDefenseMode;
+
     setActivePreset(preset);
     renderAssetCards();
     updateWeightTotalBar();

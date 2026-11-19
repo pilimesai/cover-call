@@ -188,7 +188,7 @@ const PORTFOLIO_PRESETS = {
         symbols: ['MTX'],
         weights: { 'MTX': 100 },
         contracts: 2,
-        strikeRule: 'OTM_5',
+        strikeRule: 'AUTO_OTM',
         hedgeMode: 'b5',
         rollDefenseMode: 'smart_both',
     },
@@ -1308,6 +1308,56 @@ function computeSmartAssetQuantities(row, optionType, targetExposure, isDeltaNeu
 // ─────────────────────────────────────────────
 // SOLVE REQUIRED CAPITAL
 // ─────────────────────────────────────────────
+function getSmartAutoOtmDecision(rowOrIdx, dataArr = rawData) {
+    const arr = dataArr || rawData;
+    if (!arr || arr.length === 0) return { pct: 5, reasons: [], hv20: 0.20, isRebound: false, hasEvent: false };
+    let idx = typeof rowOrIdx === 'number' ? rowOrIdx : arr.findIndex(r => r.date === rowOrIdx.date);
+    if (idx < 0) idx = arr.length - 1;
+    const row = arr[idx];
+
+    let hv20 = row.taiex_vol || 0.20;
+    if (idx >= 20) {
+        const rets = [];
+        for (let k = idx - 19; k <= idx; k++) {
+            if (arr[k - 1] && arr[k - 1].taiex > 0) rets.push(Math.log(arr[k].taiex / arr[k - 1].taiex));
+        }
+        if (rets.length >= 10) {
+            const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+            const variance = rets.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, rets.length - 1);
+            hv20 = Math.sqrt(variance) * Math.sqrt(252);
+        }
+    }
+
+    let isRebound = false;
+    if (idx >= 59) {
+        let hi60 = 0, lo10 = Infinity;
+        for (let k = idx - 59; k <= idx; k++) hi60 = Math.max(hi60, arr[k].taiex);
+        for (let k = idx - 9; k <= idx; k++) lo10 = Math.min(lo10, arr[k].taiex);
+        if (hi60 > 0 && lo10 < Infinity) {
+            isRebound = (lo10 / hi60 - 1 <= -0.08 && row.taiex / lo10 - 1 >= 0.03);
+        }
+    }
+
+    let hasEvent = false;
+    if (idx === arr.length - 1) {
+        try {
+            const evTxt = localStorage.getItem('cc_events_v1') || '';
+            const expiry = row.expiry_date_weekly || getNextWeeklyExpiryDate(row.date);
+            hasEvent = evTxt.split('\n').some(line => {
+                const m = line.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+                return m && m[1] >= row.date && m[1] <= expiry;
+            });
+        } catch (e) {}
+    }
+
+    const reasons = [];
+    if (hv20 >= 0.30) reasons.push(`波動率 HV20 達 ${(hv20 * 100).toFixed(1)}% (≥30%)`);
+    if (isRebound) reasons.push('跌深反彈週 (防死貓跳急漲)');
+    if (hasEvent) reasons.push('本週有重大事件');
+
+    return { pct: reasons.length > 0 ? 7 : 5, reasons, hv20, isRebound, hasEvent };
+}
+
 function solveRequiredCapital(row, optionType, optionCycle, strikeRule, portfolioMode) {
     const multiplier = optionType === 'taiex' ? 50 : 2000;
     const S_underlying = optionType === 'taiex' ? row.taiex : row.tsmc;
@@ -1316,7 +1366,11 @@ function solveRequiredCapital(row, optionType, optionCycle, strikeRule, portfoli
     const ratioMultiplier = targetRatio / 100.0;
 
     let optInfo, delta = 0.20;
-    if (strikeRule === 'CUSTOM_OTM') {
+    if (strikeRule === 'AUTO_OTM') {
+        const smart = getSmartAutoOtmDecision(row);
+        optInfo = getCustomOtmOption(row, optionType, optionCycle, smart.pct);
+        delta = optInfo.delta;
+    } else if (strikeRule === 'CUSTOM_OTM') {
         const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
         optInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
         delta = optInfo.delta;
@@ -1594,12 +1648,23 @@ function updateRecommendation() {
         DELTA_1: 'Delta 0.10'
     };
 
-    const currentOtmPct = strikeRule === 'CUSTOM_OTM'
-        ? (parseFloat(customOtmValueInput.value) || 0)
-        : (ruleMultMap[strikeRule] !== undefined ? ruleMultMap[strikeRule] : null);
+    const smartAuto = strikeRule === 'AUTO_OTM' ? getSmartAutoOtmDecision(rawData.length - 1) : null;
+    const currentOtmPct = strikeRule === 'AUTO_OTM'
+        ? smartAuto.pct
+        : (strikeRule === 'CUSTOM_OTM'
+            ? (parseFloat(customOtmValueInput.value) || 0)
+            : (ruleMultMap[strikeRule] !== undefined ? ruleMultMap[strikeRule] : null));
 
     let rawOptInfo, delta = 0.20, ruleFormulaDesc = '';
-    if (strikeRule === 'CUSTOM_OTM') {
+    if (strikeRule === 'AUTO_OTM') {
+        rawOptInfo = getCustomOtmOption(effectiveRow, optionType, optionCycle, smartAuto.pct);
+        delta = rawOptInfo.delta;
+        const exactRawK = Math.round(effectiveClosePrice * (1 + smartAuto.pct / 100));
+        const whyTag = smartAuto.reasons.length > 0
+            ? `🤖 波動警戒（${smartAuto.reasons.join('、')}）自動切為 OTM ${smartAuto.pct}%`
+            : `🤖 波動正常（HV20 ${(smartAuto.hv20 * 100).toFixed(1)}%）自動採 OTM ${smartAuto.pct}%`;
+        ruleFormulaDesc = `× OTM ${smartAuto.pct}% (= ${exactRawK.toLocaleString()}) 四捨五入【${whyTag}】`;
+    } else if (strikeRule === 'CUSTOM_OTM') {
         const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
         rawOptInfo = getCustomOtmOption(effectiveRow, optionType, optionCycle, customOtmPct);
         delta = rawOptInfo.delta;
@@ -2150,7 +2215,10 @@ function runBacktest() {
                         newExpiry = optionCycle === 'weekly' ? getNextWeeklyExpiryDate(activeOption.expiry_date) : getNextMonthlyExpiryDate(activeOption.expiry_date);
                     }
                     let newOptInfo;
-                    if (strikeRule === 'CUSTOM_OTM') {
+                    if (strikeRule === 'AUTO_OTM') {
+                        const smart = getSmartAutoOtmDecision(i);
+                        newOptInfo = getCustomOtmOption(row, optionType, optionCycle, smart.pct);
+                    } else if (strikeRule === 'CUSTOM_OTM') {
                         const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
                         newOptInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
                     } else {
@@ -2220,7 +2288,10 @@ function runBacktest() {
         // 2. Open New Short Call on Scheduled Roll Day
         const canOpenNewOption = (activeOption === null && (!optionCooldownUntil || dateStr >= optionCooldownUntil) && i < endIdx);
         let currentDelta = 0.20;
-        if (strikeRule === 'CUSTOM_OTM') {
+        const smartAtBar = strikeRule === 'AUTO_OTM' ? getSmartAutoOtmDecision(i) : null;
+        if (strikeRule === 'AUTO_OTM') {
+            currentDelta = getCustomOtmOption(row, optionType, optionCycle, smartAtBar.pct).delta;
+        } else if (strikeRule === 'CUSTOM_OTM') {
             const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
             currentDelta = getCustomOtmOption(row, optionType, optionCycle, customOtmPct).delta;
         } else {
@@ -2229,7 +2300,9 @@ function runBacktest() {
 
         if (canOpenNewOption) {
             let optInfo;
-            if (strikeRule === 'CUSTOM_OTM') {
+            if (strikeRule === 'AUTO_OTM') {
+                optInfo = getCustomOtmOption(row, optionType, optionCycle, smartAtBar.pct);
+            } else if (strikeRule === 'CUSTOM_OTM') {
                 const customOtmPct = parseFloat(customOtmValueInput.value) || 0;
                 optInfo = getCustomOtmOption(row, optionType, optionCycle, customOtmPct);
             } else {

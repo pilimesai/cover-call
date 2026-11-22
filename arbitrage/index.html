@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>柴柴輝哥散戶套利｜進場決策與損益試算系統</title>
+  <title>選擇權與期現套利｜進場決策與損益試算系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
@@ -29,15 +29,15 @@
       <div>
         <div class="flex items-center gap-2">
           <span class="px-2 py-0.5 text-xs font-semibold rounded bg-[var(--primary)] text-[var(--primary-foreground)]">實戰量化工具</span>
-          <h1 class="text-lg md:text-xl font-bold tracking-tight">柴柴輝哥散戶套利｜進場決策與損益試算系統</h1>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight">選擇權與期現套利｜進場決策與損益試算系統</h1>
         </div>
         <p class="text-xs text-[var(--muted-foreground)] mt-1">
-          專為散戶打造：選擇權結算日極限價差（策略 3-B）× 連續 IOC 錯價釣魚（策略 3-A）× 台積電 1 張配 5 口小股期正價差套利（策略 4）
+          結算套利（漲跌停極限價差）× 連續 IOC 錯價釣魚（策略 3-A）× 台積電 1 張配 5 口小股期正價差套利（策略 4）
         </p>
       </div>
       <div class="flex flex-wrap gap-1.5">
         <button onclick="switchTab('tab-3b')" id="btn-tab-3b" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] transition">
-          🎯 策略 3-B：結算極限套利
+          🎯 結算套利
         </button>
         <button onclick="switchTab('tab-3a')" id="btn-tab-3a" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] transition">
           🎣 策略 3-A：連續 IOC 釣魚
@@ -51,7 +51,7 @@
     <!-- ==================== TAB 3-B: 結算日漲跌停極限套利 ==================== -->
     <section id="tab-3b" class="space-y-4">
       <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span class="text-[var(--muted-foreground)] font-medium">📌 一鍵載入柴柴輝哥貼文真實案例：</span>
+        <span class="text-[var(--muted-foreground)] font-medium">📌 一鍵載入歷史實戰案例：</span>
         <div class="flex flex-wrap gap-2">
           <button onclick="loadPreset3B('20261117_call')" class="px-2.5 py-1 rounded border border-[var(--border)] hover:bg-[var(--secondary)] transition">
             2026/11/17 買權比例價差（大盤 40092｜買 43000C×5 賣 43100C×7 收 48 點）
@@ -254,7 +254,7 @@
           </div>
 
           <div class="p-3.5 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1.5 leading-relaxed">
-            <div class="font-bold">💡 柴柴輝哥連續 IOC 實戰提醒：</div>
+            <div class="font-bold">💡 連續 IOC 實戰提醒：</div>
             <p class="text-[var(--muted-foreground)]" id="note-3a"></p>
           </div>
         </div>
@@ -350,7 +350,7 @@
 
           <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2.5">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-bold">🚀 延伸組合：柴柴輝哥「0050 正 2 優化三步架構」（以 300 萬多頭曝險為例）</h3>
+              <h3 class="text-sm font-bold">🚀 延伸組合：「0050 正 2 優化三步架構」（以 300 萬多頭曝險為例）</h3>
               <span class="px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--secondary-foreground)] font-mono">2026/04/13 教學文</span>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -482,7 +482,7 @@
 
       if (isSafe && creditPts > 0) {
         dot.textContent = '🟢';
-        title.textContent = '符合柴柴輝哥「結算極限準套利」條件（損益兩平點在理論極限之外）';
+        title.textContent = '符合「結算套利（理論極限）」條件（損益兩平點在理論極限之外）';
         desc.textContent = `前日收盤 ${idx.toLocaleString()} 點，隔日理論極限結算價約 ${limitIdx.toLocaleString()} 點，而本策略要到 ${beIdx ? beIdx.toLocaleString() + ' 點' : '極端外'} 才會開始虧損。不動先收 ${creditPts} 點（扣成本實拿 NT$${baseNetNT.toLocaleString()}）。`;
       } else {
         dot.textContent = '🟡';
@@ -657,7 +657,7 @@
       } else {
         dot.textContent = '🔴';
         title.textContent = `套利空間不足（扣除定存 ${rfPct}% 後超額報酬僅 ${excessPct}%）`;
-        desc.textContent = `符合柴柴輝哥 2024/03/11 原則：「扣除定存利率與交易成本後若只剩不到 1%，超難賺不如放棄」，建議等待市場過熱、正價差擴大至單月 5 元以上再進場鎖單。`;
+        desc.textContent = `實戰原則：「扣除定存利率與交易成本後若只剩不到 1%，風險報酬比不佳不如放棄」，建議等待市場過熱、正價差擴大至單月 5 元以上再進場鎖單。`;
       }
     }
 

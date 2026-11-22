@@ -178,9 +178,16 @@
               <div id="out-peak-3b" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--</div>
               <div id="out-peak-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
             </div>
-            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 col-span-2 sm:col-span-4 flex flex-wrap items-center justify-between gap-2">
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 col-span-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div class="text-[var(--muted-foreground)]">🚨 極端單日 ±10% 漲/跌停鎖死時之帳面損益上限</div>
+                <div class="text-[var(--muted-foreground)]">🔐 預估所需保證金 <span id="out-roi-3b" class="text-[var(--success)] font-mono font-bold ml-1"></span></div>
+                <div id="out-margin-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+              </div>
+              <div id="out-margin-3b" class="text-base font-mono font-bold text-[var(--primary)]">--</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 col-span-2 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="text-[var(--muted-foreground)]">🚨 極端單日 ±10% 漲/跌停損益上限</div>
                 <div id="out-extreme-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
               </div>
               <div id="out-extreme-3b" class="text-base font-mono font-bold text-[var(--warning)]">--</div>
@@ -389,6 +396,20 @@
   </div>
 
   <script>
+    let txoMarginA = 187000;
+    let txoMarginB = 94000;
+    (async function loadTaifexTxoMargins() {
+      try {
+        const r = await fetch('../data/margins.json?v=' + Date.now(), { cache: 'no-store' });
+        if (r.ok) {
+          const j = await r.json();
+          if (j?.margins?.TXO_A?.initial) txoMarginA = j.margins.TXO_A.initial;
+          if (j?.margins?.TXO_B?.initial) txoMarginB = j.margins.TXO_B.initial;
+          calc3B();
+        }
+      } catch (e) {}
+    })();
+
     function switchTab(tabId) {
       ['tab-3b', 'tab-3a', 'tab-4'].forEach(id => {
         document.getElementById(id).classList.toggle('hidden', id !== tabId);
@@ -537,11 +558,66 @@
         }
       }
 
+      const uncoveredShorts = Math.max(0, n2 - n1 - n3);
+
+      // 預估所需保證金 (依期交所價差配對與賣方 A/B 值規則)
+      const marginEl = document.getElementById('out-margin-3b');
+      const marginSubEl = document.getElementById('out-margin-sub');
+      const roiEl = document.getElementById('out-roi-3b');
+      if (marginEl && marginSubEl) {
+        let reqMargin = 0;
+        const parts = [];
+        if (structMode === 'vertical_1_1') {
+          const pairCnt = Math.min(n1, n2);
+          const spreadWidth = Math.abs(k1 - k2);
+          reqMargin = pairCnt * spreadWidth * 50;
+          parts.push(`1:1 垂直價差 ${pairCnt}組 × ${spreadWidth}點 × 50`);
+          if (n2 > n1) {
+            const extra = n2 - n1;
+            const otmPts = dir === 'call' ? Math.max(0, k2 - idx) : Math.max(0, idx - k2);
+            const perLot = Math.max(txoMarginA - otmPts * 50, txoMarginB) + 1000;
+            reqMargin += extra * perLot;
+            parts.push(`＋ 裸賣 ${extra}口`);
+          }
+        } else {
+          // 比例價差：前 min(n1, n2) 口與 K1 組成「買近賣遠」多頭/空頭買方價差 (若為垂直順向價差則免保證金)
+          // 剩餘 n3 口與 K3 組成信用價差 (賣近買遠)；剩餘 uncoveredShorts 口為裸賣
+          const creditSpreadLots = Math.min(n3, Math.max(0, n2 - n1));
+          if (creditSpreadLots > 0) {
+            const spreadW = Math.abs(k3 - k2);
+            reqMargin += creditSpreadLots * spreadW * 50;
+            parts.push(`K2~K3 信用價差 ${creditSpreadLots}組 × ${spreadW}點 × 50`);
+          }
+          // 若 K1 反而比 K2 更外側 (使用者手動調成信用價差)，也要計入
+          const isK1Credit = (dir === 'call' && k1 > k2) || (dir === 'put' && k1 < k2);
+          if (isK1Credit) {
+            const k1Pairs = Math.min(n1, n2);
+            reqMargin += k1Pairs * Math.abs(k1 - k2) * 50;
+            parts.push(`K1~K2 信用價差 ${k1Pairs}組`);
+          }
+          if (uncoveredShorts > 0) {
+            const otmPts = dir === 'call' ? Math.max(0, k2 - idx) : Math.max(0, idx - k2);
+            const perLot = Math.max(txoMarginA - otmPts * 50, txoMarginB) + 1000;
+            reqMargin += uncoveredShorts * perLot;
+            parts.push(`裸賣 ${uncoveredShorts}口 (B值約${Math.round(perLot / 10000 * 10) / 10}萬/口，穿價升至A值${Math.round(txoMarginA / 10000 * 10) / 10}萬)`);
+          }
+          if (reqMargin === 0 && n1 > 0 && n2 > 0) {
+            // 全數為借方價差 (n1 >= n2 且 K1 較近價外)，最大虧損即為淨付出點數，保證金近 0 (約僅預留幾千元緩衝)
+            reqMargin = Math.max(0, -baseNetNT);
+            parts.push('全為買近賣遠借方價差，免額外賣方保證金');
+          }
+        }
+        marginEl.textContent = 'NT$' + Math.round(reqMargin).toLocaleString();
+        marginSubEl.textContent = parts.join(' ＋ ') || '無需額外保證金';
+        if (roiEl) {
+          roiEl.textContent = reqMargin > 0 ? `(隔夜報酬 ${((baseNetNT / reqMargin) * 100).toFixed(2)}%)` : '';
+        }
+      }
+
       // 極端 ±10% 漲/跌停鎖死帳面損益
       const extremeIdx = Math.round(idx * (dir === 'call' ? 1.10 : 0.90));
       const extremePts = pnlAtIndex3B(extremeIdx, dir, k1, n1, k2, n2, creditPts, k3, n3);
       const extremeNetNT = Math.round(extremePts * 50 - totalFees);
-      const uncoveredShorts = Math.max(0, n2 - n1 - n3);
       const extEl = document.getElementById('out-extreme-3b');
       const extSubEl = document.getElementById('out-extreme-sub');
       if (extEl && extSubEl) {

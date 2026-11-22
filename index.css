@@ -2284,14 +2284,15 @@ html, body {
 
     .app-main-tabs-inner {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.45rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.35rem;
     }
 
     .main-tab-btn {
-        padding: 0.48rem 0.4rem;
-        font-size: 0.8rem;
+        padding: 0.45rem 0.25rem;
+        font-size: 0.72rem;
         text-align: center;
+        line-height: 1.25;
     }
 
     .arb-tab-pane {

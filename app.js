@@ -3495,12 +3495,12 @@ function startIntradayAutoPolling() {
 
 
 // ─────────────────────────────────────────────────────────────
-// 🗂️ 主分頁切換 (分頁一：Covered Call / 分頁二：柴柴套利策略)
+// 🗂️ 主分頁切換 (分頁一：Covered Call / 分頁二：柴柴套利策略 / 分頁三：近遠月價差)
 // ─────────────────────────────────────────────────────────────
-let arbResizeTimer = null;
+let tabIframeResizeTimer = null;
 
-function resizeArbitrageIframe() {
-    const frame = document.getElementById('arbitrage-frame');
+function resizeIframeById(frameId) {
+    const frame = document.getElementById(frameId);
     if (!frame) return;
     try {
         const doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
@@ -3509,6 +3509,10 @@ function resizeArbitrageIframe() {
             if (h > 300) frame.style.height = (h + 24) + 'px';
         }
     } catch (e) { /* ignore */ }
+}
+
+function resizeArbitrageIframe() {
+    resizeIframeById('arbitrage-frame');
 }
 
 window.syncQuotesToArbitrage = function () {
@@ -3540,43 +3544,50 @@ window.syncQuotesToArbitrage = function () {
 };
 
 window.switchMainTab = function (tab) {
-    const paneCC = document.getElementById('tab-pane-covercall');
-    const paneArb = document.getElementById('tab-pane-arbitrage');
-    const btnCC = document.getElementById('main-tab-btn-cc');
-    const btnArb = document.getElementById('main-tab-btn-arb');
-    if (!paneCC || !paneArb) return;
+    const tabs = [
+        { key: 'covercall', pane: 'tab-pane-covercall', btn: 'main-tab-btn-cc', frame: null },
+        { key: 'arbitrage', pane: 'tab-pane-arbitrage', btn: 'main-tab-btn-arb', frame: 'arbitrage-frame' },
+        { key: 'calendar',  pane: 'tab-pane-calendar',  btn: 'main-tab-btn-cs',  frame: 'calendar-frame' },
+    ];
+    const activeCfg = tabs.find(t => t.key === tab) || tabs[0];
 
-    const isArb = tab === 'arbitrage';
-    paneCC.classList.toggle('hidden', isArb);
-    paneArb.classList.toggle('hidden', !isArb);
-    if (btnCC) { btnCC.classList.toggle('active', !isArb); btnCC.setAttribute('aria-selected', String(!isArb)); }
-    if (btnArb) { btnArb.classList.toggle('active', isArb); btnArb.setAttribute('aria-selected', String(isArb)); }
+    tabs.forEach(t => {
+        const isActive = t.key === activeCfg.key;
+        const paneEl = document.getElementById(t.pane);
+        const btnEl = document.getElementById(t.btn);
+        if (paneEl) paneEl.classList.toggle('hidden', !isActive);
+        if (btnEl) {
+            btnEl.classList.toggle('active', isActive);
+            btnEl.setAttribute('aria-selected', String(isActive));
+        }
+    });
 
-    if (isArb) {
-        const frame = document.getElementById('arbitrage-frame');
-        if (frame && !frame.getAttribute('src')) {
-            frame.onload = () => {
-                resizeArbitrageIframe();
-                setTimeout(resizeArbitrageIframe, 500);
-            };
-            frame.setAttribute('src', frame.getAttribute('data-src') || './arbitrage/index.html');
-        } else {
-            resizeArbitrageIframe();
+    if (tabIframeResizeTimer) { clearInterval(tabIframeResizeTimer); tabIframeResizeTimer = null; }
+
+    if (activeCfg.frame) {
+        const frame = document.getElementById(activeCfg.frame);
+        if (frame) {
+            if (!frame.getAttribute('src')) {
+                frame.onload = () => {
+                    resizeIframeById(activeCfg.frame);
+                    setTimeout(() => resizeIframeById(activeCfg.frame), 500);
+                };
+                frame.setAttribute('src', frame.getAttribute('data-src'));
+            } else {
+                resizeIframeById(activeCfg.frame);
+            }
+            tabIframeResizeTimer = setInterval(() => resizeIframeById(activeCfg.frame), 1000);
         }
-        if (arbResizeTimer) clearInterval(arbResizeTimer);
-        arbResizeTimer = setInterval(resizeArbitrageIframe, 1000);
-    } else {
-        if (arbResizeTimer) { clearInterval(arbResizeTimer); arbResizeTimer = null; }
-        if (typeof chartInstance !== 'undefined' && chartInstance) {
-            try { chartInstance.resize(); } catch (e) {}
-        }
+    } else if (typeof chartInstance !== 'undefined' && chartInstance) {
+        try { chartInstance.resize(); } catch (e) {}
     }
-    try { localStorage.setItem('cc_active_main_tab', tab); } catch (e) {}
+
+    try { localStorage.setItem('cc_active_main_tab', activeCfg.key); } catch (e) {}
 };
 
 window.addEventListener('DOMContentLoaded', () => {
     try {
         const savedTab = localStorage.getItem('cc_active_main_tab');
-        if (savedTab === 'arbitrage') window.switchMainTab('arbitrage');
+        if (savedTab === 'arbitrage' || savedTab === 'calendar') window.switchMainTab(savedTab);
     } catch (e) {}
 });

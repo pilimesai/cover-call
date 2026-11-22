@@ -1,0 +1,3 @@
+name = "tx-spread-live-proxy"
+main = "taifex-proxy.js"
+compatibility_date = "2026-01-01"

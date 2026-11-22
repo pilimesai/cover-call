@@ -5,17 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>槓桿收租術 | 台股主動型 ETF × 期貨 Covered Call 策略回測系統</title>
-    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=50">
-    <link rel="shortcut icon" href="favicon.ico?v=50">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=50">
-    <link rel="manifest" href="manifest.json?v=50">
+    <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png?v=51">
+    <link rel="shortcut icon" href="favicon.ico?v=51">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=51">
+    <link rel="manifest" href="manifest.json?v=51">
     <meta name="theme-color" content="#121826">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="槓桿收租術">
     <meta property="og:title" content="槓桿收租術 | 融資 × Covered Call 雙重奏">
-    <meta property="og:image" content="assets/app-banner.jpg?v=50">
-    <link rel="stylesheet" href="index.css?v=50">
+    <meta property="og:image" content="assets/app-banner.jpg?v=51">
+    <link rel="stylesheet" href="index.css?v=51">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +30,7 @@
     <header class="app-header">
         <div class="header-container">
             <div class="logo-area">
-                <img src="assets/app-banner.jpg?v=50" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視"
+                <img src="assets/app-banner.jpg?v=51" alt="槓桿收租術" class="app-logo-img" title="點擊放大檢視"
                     onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';">
                 <div class="logo-text">
                     <h1>台股主動型 ETF 搭配個股期貨之 Covered Call 策略回測系統</h1>
@@ -60,6 +60,9 @@
             <button type="button" role="tab" aria-selected="false" id="main-tab-btn-arb" class="main-tab-btn" onclick="switchMainTab('arbitrage')">
                 🎯 柴柴套利策略 (3-B / 3-A / 台積電期現)
             </button>
+            <button type="button" role="tab" aria-selected="false" id="main-tab-btn-cs" class="main-tab-btn" onclick="switchMainTab('calendar')">
+                📅 近遠月價差 (吃正二轉倉豆腐)
+            </button>
         </div>
     </div>
 
@@ -75,7 +78,7 @@
             <div class="app-hero-banner"
                 onclick="const m=document.getElementById('hero-banner-modal'); if(m) m.style.display='flex';"
                 title="點擊放大檢視">
-                <img src="assets/app-banner.jpg?v=50" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+                <img src="assets/app-banner.jpg?v=51" alt="槓桿收租術：融資 × Covered Call 雙重奏">
             </div>
             <div class="panel-header">
                 <h2>⚙️ 策略參數配置</h2>
@@ -724,15 +727,25 @@
         <iframe id="arbitrage-frame" data-src="./arbitrage/index.html" title="柴柴輝哥散戶套利策略計算機" class="arb-iframe"></iframe>
     </div>
 
+    <div id="tab-pane-calendar" class="arb-tab-pane hidden">
+        <div class="arb-toolbar">
+            <span class="arb-toolbar-title">📅 台指期跨月價差・進場決策（吃正二轉倉豆腐｜理論價差 × 安全邊際 × 籌碼與結算風控）</span>
+            <div class="arb-toolbar-actions">
+                <a href="./calendar-spread/index.html" target="_blank" rel="noopener" class="pm-btn pm-btn--ghost" style="text-decoration:none; display:inline-flex; align-items:center;">↗️ 獨立視窗開啟</a>
+            </div>
+        </div>
+        <iframe id="calendar-frame" data-src="./calendar-spread/index.html" title="台指期跨月價差進場決策工具" class="arb-iframe"></iframe>
+    </div>
+
     <footer class="app-footer">
         <p>© 2026 Antigravity Covered Call Optimizer | 數據源於 Yahoo Finance. 投資有風險，回測表現不代表未來收益。</p>
     </footer>
 
     <div id="hero-banner-modal" class="hero-banner-modal" onclick="this.style.display='none'">
-        <img src="assets/app-banner.jpg?v=50" alt="槓桿收租術：融資 × Covered Call 雙重奏">
+        <img src="assets/app-banner.jpg?v=51" alt="槓桿收租術：融資 × Covered Call 雙重奏">
     </div>
-    <script src="app.js?v=50"></script>
-    <script src="position_manager.js?v=50"></script>
+    <script src="app.js?v=51"></script>
+    <script src="position_manager.js?v=51"></script>
 </body>
 
 </html>

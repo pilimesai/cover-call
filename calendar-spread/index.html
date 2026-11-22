@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>台指期跨月價差 | 進場決策工具</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=15" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=15" />
+  <link rel="manifest" href="manifest.json?v=15" />
+  <meta name="theme-color" content="#121826" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="跨月價差" />
+  <meta property="og:title" content="台指期跨月價差（吃正二轉倉豆腐）進場決策工具" />
+  <link rel="stylesheet" href="index.css?v=15" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div>
+        <h1>台指期跨月價差・進場決策</h1>
+        <p class="subtitle">吃正二轉倉豆腐｜理論價差 × 安全邊際 × 籌碼與結算風控</p>
+      </div>
+      <div class="data-status" id="data-status">盤後資料載入中...</div>
+    </div>
+  </header>
+
+  <nav class="mobile-sticky" aria-label="手機即時狀態與快速導覽">
+    <a href="#sec-signal" class="live-mini-bar" id="live-mini-bar">
+      <span id="mini-signal-text">計算中...</span>
+      <span class="mini-jump">看結論 ↑</span>
+    </a>
+    <div class="quick-nav">
+      <a href="#sec-signal">🚦 結論</a>
+      <a href="#sec-inputs">✏️ 輸入</a>
+      <a href="#sec-factors">🛡️ 體檢</a>
+      <a href="#sec-exdiv">📅 除息</a>
+      <a href="#sec-checklist">✅ 清單</a>
+    </div>
+  </nav>
+
+  <main class="layout">
+    <!-- 左側（手機最上方）：結論儀表板 -->
+    <section class="col results" id="sec-signal">
+      <div id="signal-banner" class="signal-banner">
+        <div class="hero-top">
+          <div class="hero-verdict">
+            <span class="hero-dot" id="signal-dot" aria-hidden="true">🔴</span>
+            <div>
+              <div class="hero-title" id="signal-short">計算中...</div>
+              <div class="hero-sub-badge" id="signal-label">評估中</div>
+            </div>
+          </div>
+          <div class="hero-counts" id="hero-counts"></div>
+        </div>
+        <div class="signal-desc" id="action-summary"></div>
+        <div id="scale-up-banner" class="scale-up-banner hidden"></div>
+      </div>
+
+      <!-- 視覺化價差溫度計 -->
+      <div class="card gauge-card">
+        <div class="gauge-header">
+          <h2>⚖️ 價位便宜還是貴</h2>
+          <span class="gauge-plain" id="gauge-plain">--</span>
+        </div>
+        <div class="gauge-wrap">
+          <div class="gauge-pin" id="gauge-pin" style="left: 50%;">
+            <span class="gauge-pin-label" id="gauge-pin-label">市場 --</span>
+            <span class="gauge-pin-dot"></span>
+          </div>
+          <div class="gauge-track">
+            <div class="gauge-zone cheap"></div>
+            <div class="gauge-zone fair"></div>
+            <div class="gauge-zone pricey"></div>
+            <div class="gauge-center-tick"></div>
+            <div class="gauge-ma10-tick hidden" id="gauge-ma10-tick"></div>
+          </div>
+          <div class="gauge-ma10-row hidden" id="gauge-ma10-row">
+            <span class="gauge-ma10-tag" id="gauge-ma10-tag">10日均 --</span>
+          </div>
+          <div class="gauge-scale">
+            <span class="g-left">便宜折價・安全邊際</span>
+            <span class="g-mid" id="gauge-mid-label">理論合理價 --</span>
+            <span class="g-right">偏貴溢價・避免追高</span>
+          </div>
+        </div>
+        <div class="gauge-formula" id="gauge-formula">理論價 -- = 資金利息 -- − 預計除息 --</div>
+      </div>
+
+      <!-- 4 張重點指標卡 -->
+      <div class="metrics">
+        <div class="metric">
+          <div class="m-label">🎯 理論合理價差</div>
+          <div class="m-value" id="m-theory">--</div>
+          <div class="m-sub" id="m-theory-sub">--</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">⚖️ 折溢價落差</div>
+          <div class="m-value" id="m-disc">--</div>
+          <div class="m-sub" id="m-disc-sub">--</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">⏳ 結算倒數</div>
+          <div class="m-value-row">
+            <span class="m-value" id="m-days">--</span>
+            <span class="phase-pill" id="m-phase">--</span>
+          </div>
+          <div class="m-sub" id="m-days-sub">--</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">💰 預估損益／階梯停利</div>
+          <div class="m-value" id="m-profit">--</div>
+          <div class="m-sub" id="m-profit-sub">--</div>
+          <div class="m-ladder hidden" id="m-profit-ladder"></div>
+        </div>
+      </div>
+
+      <!-- 六大風控體檢表 -->
+      <div class="card" id="sec-factors">
+        <h2>🛡️ 六大風控體檢</h2>
+        <div id="checks-list" class="checks-list"></div>
+      </div>
+    </section>
+
+    <!-- 右側（手機下方）：輸入與操作區 -->
+    <section class="col inputs" id="sec-inputs">
+      <div id="sim-banner" class="sim-banner hidden">
+        <span id="sim-banner-text">🧪 目前為模擬情境</span>
+        <button type="button" class="btn-sim-exit" id="btn-exit-sim">切回今日實況</button>
+      </div>
+
+      <!-- 盤中即時報價卡片 -->
+      <div class="card live-card">
+        <div class="live-header">
+          <h2>⚡ 盤中即時報價（期交所）</h2>
+          <select id="live-session" class="live-session-select" aria-label="盤別">
+            <option value="auto">自動盤別</option>
+            <option value="day">日盤</option>
+            <option value="night">夜盤</option>
+          </select>
+        </div>
+
+        <div class="live-controls">
+          <label class="live-toggle">
+            <input type="checkbox" id="chk-live-poll" />
+            <span>⚡ 盤中即時 (15s)</span>
+          </label>
+          <button type="button" class="btn primary" id="btn-fetch-live">⚡ 立即抓盤中</button>
+          <button type="button" class="btn" id="btn-toggle-api">⚙️ 設定 API</button>
+        </div>
+
+        <div id="live-quote-box" class="live-quote-box hidden">
+          <div class="live-quote-head">
+            <span id="live-quote-name">--</span>
+            <span id="live-quote-time">--</span>
+          </div>
+          <div class="live-quote-grid">
+            <div class="kv">
+              <div class="k">跨月報價</div>
+              <div class="v" id="lq-spread">--</div>
+              <div class="s" id="lq-spread-sub">--</div>
+            </div>
+            <div class="kv">
+              <div class="k">委買 / 委賣</div>
+              <div class="v" id="lq-ba">--</div>
+              <div class="s" id="lq-ba-sub">--</div>
+            </div>
+            <div class="kv">
+              <div class="k">即時五檔價差</div>
+              <div class="v" id="lq-gap">--</div>
+            </div>
+            <div class="kv">
+              <div class="k">近月 / 遠月</div>
+              <div class="v" id="lq-legs">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="live-status-msg" class="live-status-msg muted">盤中即時報價連線中...</div>
+
+        <div id="live-api-panel" class="live-api-panel hidden">
+          <label>Cloudflare Worker 網址
+            <input type="url" inputmode="url" id="live-api-url" placeholder="https://tx-spread-live-proxy.<你的帳號>.workers.dev" />
+          </label>
+          <div class="btn-row">
+            <button type="button" class="btn primary" id="btn-save-api">儲存並抓取</button>
+            <button type="button" class="btn" id="btn-reset-api">重設預設網址</button>
+          </div>
+          <p class="hint">需先部署 <code>worker/taifex-proxy.js</code> 到免費 Cloudflare Worker（約 2 分鐘），網址會自動儲存在這支手機。</p>
+        </div>
+      </div>
+
+      <div class="card market-card">
+        <h2>📡 最新盤後資料</h2>
+        <div id="market-summary" class="market-summary muted">載入中...</div>
+        <div id="market-rate-line" class="hint"></div>
+        <div class="btn-row">
+          <button type="button" class="btn primary" id="btn-apply-market">套用盤後數據</button>
+          <button type="button" class="btn" id="btn-refresh-market">🔄 重新抓取</button>
+        </div>
+        <p class="hint">盤後資料為前一交易日結算價，盤中請手動修改下方的「市場即時價差」。</p>
+      </div>
+
+      <form id="eval-form" onsubmit="event.preventDefault();">
+        <div class="card">
+          <h2>✏️ 盤中核心數字</h2>
+          <div class="row">
+            <label>市場即時價差（遠月 − 近月）
+              <input type="number" inputmode="decimal" id="marketSpread" step="1" />
+              <span class="field-tip">券商複式單報價</span>
+            </label>
+            <label>近 10 日均價差 MA10
+              <input type="number" inputmode="decimal" id="ma10Spread" step="0.1" placeholder="選填" />
+              <span class="field-tip">≤ MA10 為回檔買點</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>投信淨多單（口・正二主力）
+              <input type="number" inputmode="numeric" id="trustNetLong" step="500" placeholder="選填" />
+              <span class="field-tip">盤後自動帶入</span>
+            </label>
+            <label>外資淨空單（口・反向賣壓）
+              <input type="number" inputmode="numeric" id="foreignNetShort" step="500" />
+              <span class="field-tip">投/外 ≥ 0.85 較佳</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>投信 20 日增減 (%)
+              <input type="number" inputmode="decimal" id="trustChange20dPct" step="0.1" placeholder="選填" />
+              <span class="field-tip">&gt;0% 豆腐變肥｜≤0% 縮水停加碼</span>
+            </label>
+            <label>大盤近 5 日漲跌幅 (%)
+              <input type="number" inputmode="decimal" id="taiex5dChangePct" step="0.1" placeholder="選填" />
+              <span class="field-tip">跌逾 3% 降黃燈｜跌逾 5% 亮紅燈</span>
+            </label>
+          </div>
+          <div class="field-single">
+            <label>五檔買賣價差（點）
+              <input type="number" inputmode="decimal" id="bidAskGap" step="1" min="0" />
+              <span class="field-tip">委賣 − 委買，≤ 5 點佳</span>
+            </label>
+          </div>
+          <label class="check crash-lock-check">
+            <input type="checkbox" id="crashWeekLocked" />
+            <span>本結算週（T-5 起）曾觸發 -5% 崩盤紅燈（整月停手鎖定）</span>
+          </label>
+
+          <div class="divider"></div>
+          <div class="sub-heading">下單規格與指數點位</div>
+          <div class="seg-wrap">
+            <span class="seg-label">商品規格</span>
+            <div class="seg-group" role="group" aria-label="商品規格">
+              <button type="button" class="seg-btn" data-contract="TMF">微台 TMF (10元)</button>
+              <button type="button" class="seg-btn active" data-contract="MTX">小台 MTX (50元)</button>
+              <button type="button" class="seg-btn" data-contract="TX">大台 TX (200元)</button>
+            </div>
+            <select id="contractType" class="visually-hidden" aria-hidden="true" tabindex="-1">
+              <option value="TMF">微台 TMF</option>
+              <option value="MTX" selected>小台 MTX</option>
+              <option value="TX">大台 TX</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>組數（口）
+              <input type="number" inputmode="numeric" id="contracts" min="1" />
+            </label>
+            <label>台指期點位
+              <input type="number" inputmode="decimal" id="indexLevel" step="10" />
+              <span class="field-tip">盤後／盤中自動帶入</span>
+            </label>
+          </div>
+          <div id="size-cut-note" class="size-cut-note hidden"></div>
+        </div>
+
+        <details class="card collapsible" id="advanced-panel">
+          <summary class="collapse-summary">
+            <span>⚙️ 進階設定（利率、模擬時間、假日結算日、自訂目標價）</span>
+            <span id="adv-badge" class="adv-badge hidden">已自訂</span>
+          </summary>
+          <div class="collapse-body">
+            <div class="row stack-sm">
+              <label>評估時間（空白＝現在）
+                <input type="datetime-local" id="evalDatetime" />
+              </label>
+              <label>近月結算日覆寫（遇假日）
+                <input type="date" id="nearSettlementOverride" />
+              </label>
+            </div>
+            <div class="row">
+              <label>無風險年利率 (%)
+                <input type="number" inputmode="decimal" id="annualRatePct" step="0.001" />
+              </label>
+              <label>自訂目標平倉價差
+                <input type="number" inputmode="decimal" id="targetExitSpread" step="1" placeholder="預設階梯 +40/+65" />
+              </label>
+            </div>
+            <label class="check">
+              <input type="checkbox" id="exDivDatesConfirmed" />
+              <span>主要權值股除息日均已公告（非除權息季保持勾選）</span>
+            </label>
+          </div>
+        </details>
+      </form>
+
+      <div class="card" id="sec-exdiv">
+        <div class="card-title-row">
+          <h2>📅 近遠月區間除權息預告（證交所）</h2>
+          <span class="count-pill" id="exdiv-count">-- 檔</span>
+        </div>
+        <div id="exdiv-window" class="muted"></div>
+        <div id="exdiv-list" class="exdiv-list"></div>
+        <p class="hint">已依證交所上市普通股發行股數與市值基值自動精算已公告成份股之蒸發點數並帶入理論價（ETF 與純除權不影響大盤）；6～7 月若有大型權值股尚未公告除息日，可於進階設定取消勾選「除息日均已公告」。</p>
+      </div>
+
+      <div class="card" id="sec-checklist">
+        <div class="card-title-row">
+          <h2>✅ 下單前實戰檢核清單</h2>
+          <span class="count-pill" id="checklist-progress">已完成 0 / 5</span>
+        </div>
+        <ul id="checklist" class="checklist"></ul>
+      </div>
+
+      <details class="card collapsible guide-card">
+        <summary class="collapse-summary">
+          <span>📖 30 秒看懂策略：公式、進場時機與 4 大紅線</span>
+        </summary>
+        <div class="collapse-body guide-body">
+          <p><strong>1. 雙軌價位判斷（理論價 ＋ 近 10 日均價差）</strong><br />
+            <code>理論跨月價差 = 資金成本（指數 × 年利率 × 結算間隔天數 ÷ 365） − 區間預計除息點數</code><br />
+            • <strong>價值折價買點</strong>：報價低於理論價，具絕對安全邊際。<br />
+            • <strong>回檔買點</strong>：正價差常態下若壓回至「近 10 日均價差（MA10）」以下，代表短線沒追高，也屬於安全卡位區。
+          </p>
+          <p><strong>2. 多空籌碼、投信 20 日趨勢、除權降口與超值加碼</strong><br />
+            ETF（正二＋高息 ETF）轉倉主力反映在「投信淨多單」，當 <strong>投信淨多 ÷ 外資淨空 ≥ 0.85</strong> 時買盤足以抗衡；系統同步追蹤<strong>投信淨多單較 20 日前增減</strong>（變肥＝推力強；縮水＝暫停 2 倍加碼）。於 <strong>6～7 月或預計除息 ≥ 150 點高峰</strong> 自動建議口數減半。綠燈、投信未縮水且報價壓回 <strong>≤ min(理論價, MA10)</strong> 時提醒可放大 <strong>2 倍口數</strong>（除權高峰仍維持減半上限，最多回到原設定口數）。
+          </p>
+          <p><strong>3. 期交所「虛擬第六檔」階梯預掛停利</strong><br />
+            台指期跨月價差 ROD 限價單會轉為單式盤口的「最佳衍生一檔（虛擬第六檔）」，<strong>撮合優先權高於一般單式限價單</strong>。建倉後建議直接以基準價（<code>max(理論價, MA10)</code>）預掛階梯 ROD 賣單等投信轉倉來撞：<strong>第 1 批 +40 點</strong>先鎖利、<strong>第 2 批 +65 點</strong>（或結算日 13:15 前平倉）。
+          </p>
+          <p><strong>4. 絕對不能碰的 4 個風控紅線</strong><br />
+            ① <strong>結算日 13:15 後</strong>：五檔稀疏滑價大，13:30 未平倉會留下純遠月多單裸露風險。<br />
+            ② <strong>短線過熱追高</strong>：同時高於理論價且超漲近 10 日均價差（超過動態過熱上限），或<strong>五檔跳空 ≥ 15 點</strong>。<br />
+            ③ <strong>外資籌碼壓制</strong>：投信買盤顯著不敵外資空單且缺乏折價保護。<br />
+            ④ <strong>大盤近 5 日急殺與崩盤月鎖定</strong>：加權指數近 5 日跌逾 <strong>3%</strong> 自動降為黃燈警戒、跌逾 <strong>5%</strong> 直接亮紅燈，且<strong>本結算週（T-5 起）曾觸發 -5% 紅燈</strong>即整月鎖定停手，避免股災短暫反彈後回頭接刀。
+          </p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="footer">本工具僅供輔助判斷，不構成投資建議。資料來源：期交所 OpenAPI、證交所。</footer>
+
+  <script src="engine.js?v=15"></script>
+  <script src="app.js?v=15"></script>
+</body>
+</html>

@@ -247,6 +247,7 @@
     let currentVolBC = 0.35;
     let marginHistoryBC = [];
     let latestTaiexBC = 36033;
+    let latestMonthlyExpiryBC = '';
 
     function normCdf(x) {
       const t = 1 / (1 + 0.2316419 * Math.abs(x));
@@ -323,12 +324,18 @@
       const tp75Pts = Math.round(debitPts + 0.75 * Math.max(0, widthPts - debitPts));
       const tp75NetNT = Math.round(lots * (tp75Pts - debitPts) * 50 - totalFees);
       const tp75RoiPct = maxCostNT > 0 ? ((tp75NetNT / maxCostNT) * 100).toFixed(1) : '0.0';
+      const dteVal = parseFloat(document.getElementById('in-dte-bc').value) || 20;
+      const ym = latestMonthlyExpiryBC ? latestMonthlyExpiryBC.slice(0, 7).replace('-', '') : '';
+      const contractTag = latestMonthlyExpiryBC
+        ? `TXO 月選 ${ym}（結算 ${latestMonthlyExpiryBC}）`
+        : 'TXO 月選（建議 15~30 天期）';
+      const shortDteWarn = dteVal < 12 ? ' <span class="text-[var(--warning)]">⚠️ 剩餘天數 &lt;12天，建議改選次月月選</span>' : '';
 
       document.getElementById('out-order-bc').innerHTML =
-        `<div class="text-[var(--foreground)] font-semibold">📌 進場複式單（1張送出｜借方價差，免保證金）</div>` +
+        `<div class="text-[var(--foreground)] font-semibold">📌 進場複式單（${contractTag}｜借方價差，免保證金）${shortDteWarn}</div>` +
         `<div class="text-[var(--success)]">買 ${k1} Call × ${lots}口 ＋ 賣 ${k2} Call × ${lots}口</div>` +
         `<div class="text-[var(--muted-foreground)] mb-2">委託價填淨付 <span class="text-[var(--foreground)] font-bold">+${debitPts}</span> 點（總投入 NT$${maxCostNT.toLocaleString()}，上限賺 NT$${maxProfitNT.toLocaleString()}）</div>` +
-        `<div class="border-t border-[var(--border)] pt-2 text-[var(--primary)] font-semibold">🎯 平倉停利建議（達標 75% 獲利即反手了結）</div>` +
+        `<div class="border-t border-[var(--border)] pt-2 text-[var(--primary)] font-semibold">🎯 平倉停利建議（同合約 ${ym || '月選'}｜達標 75% 獲利即反手了結）</div>` +
         `<div class="text-[var(--warning)]">賣 ${k1} Call × ${lots}口 ＋ 買 ${k2} Call × ${lots}口</div>` +
         `<div class="text-[var(--muted-foreground)]">當價差市價漲至 <span class="text-[var(--foreground)] font-bold">${tp75Pts}</span> 點（反彈至 ${k2.toLocaleString()} 附近）掛淨收 <span class="text-[var(--foreground)] font-bold">-${tp75Pts}</span> 點 ROD 平倉，實賺約 <span class="text-[var(--success)] font-bold">+NT$${tp75NetNT.toLocaleString()} (+${tp75RoiPct}%)</span>；未反彈則抱到結算或等下波加碼，絕不追繳。</div>`;
 
@@ -459,6 +466,7 @@
             const prev5 = arr[arr.length - 6];
             latestTaiexBC = Math.round(latest.taiex);
             currentVolBC = latest.taiex_vol || 0.35;
+            latestMonthlyExpiryBC = latest.expiry_date_monthly || '';
             ret5Pct = ((latest.taiex / prev5.taiex) - 1) * 100;
             document.getElementById('kpi-taiex-bc').textContent = latestTaiexBC.toLocaleString();
             document.getElementById('kpi-taiex-sub').textContent = `5日 ${ret5Pct >= 0 ? '+' : ''}${ret5Pct.toFixed(2)}% ｜ 波動率 ${(currentVolBC * 100).toFixed(1)}%`;

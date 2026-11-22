@@ -634,7 +634,7 @@
       const setsSumEl = document.getElementById('out-sets-summary-3b');
       if (setsSumEl) {
         const optType = dir === 'call' ? 'Call' : 'Put';
-        const expTag = latestMarket3B?.expiryWeekly ? `TXO 週三結算 ${latestMarket3B.expiryWeekly}` : 'TXO 週三結算';
+        const expTag = latestMarket3B?.expiryWeekly ? `TXO 當週週選｜結算 ${latestMarket3B.expiryWeekly}` : 'TXO 當週週選';
         const headerHtml = `<div class="text-[var(--foreground)] font-semibold">📌 建倉複式單 (${sets}組｜${expTag})｜總淨收 ${creditPts} 點</div>`;
         const lines = [];
         const closeLines = [];

@@ -42,9 +42,6 @@
         <button onclick="switchTab('tab-3a')" id="btn-tab-3a" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] transition">
           🎣 策略 3-A：連續 IOC 釣魚 (程式交易)
         </button>
-        <button onclick="switchTab('tab-4')" id="btn-tab-4" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] transition">
-          🛡️ 策略 4：台積電期現套利
-        </button>
       </div>
     </header>
 
@@ -501,9 +498,10 @@
     })();
 
     function switchTab(tabId) {
-      ['tab-3b', 'tab-3a', 'tab-4'].forEach(id => {
+      ['tab-3b', 'tab-3a'].forEach(id => {
         document.getElementById(id).classList.toggle('hidden', id !== tabId);
         const btn = document.getElementById('btn-' + id);
+        if (!btn) return;
         if (id === tabId) {
           btn.className = 'px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] transition';
         } else {
@@ -512,7 +510,6 @@
       });
       if (tabId === 'tab-3b') calc3B();
       if (tabId === 'tab-3a') calc3A();
-      if (tabId === 'tab-4') calc4();
     }
 
     function loadPreset3B(preset) {

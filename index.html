@@ -63,9 +63,6 @@
             <button type="button" role="tab" aria-selected="false" id="main-tab-btn-ioc" class="main-tab-btn" onclick="switchMainTab('ioc3a')">
                 🎣 連續 IOC 釣魚 (程式交易)
             </button>
-            <button type="button" role="tab" aria-selected="false" id="main-tab-btn-arb" class="main-tab-btn" onclick="switchMainTab('arbitrage')">
-                🛡️ 台積電期現套利
-            </button>
             <button type="button" role="tab" aria-selected="false" id="main-tab-btn-cs" class="main-tab-btn" onclick="switchMainTab('calendar')">
                 📅 近遠月價差
             </button>
@@ -729,24 +726,14 @@
                 <button type="button" class="pm-btn" id="btn-sync-3b-quote" onclick="syncQuotesToLimit3B()">🔄 帶入最新大盤指數</button>
             </div>
         </div>
-        <iframe id="limit3b-frame" data-src="./arbitrage/index.html?tab=tab-3b&embed=1&v=62" title="結算套利計算機" class="arb-iframe"></iframe>
+        <iframe id="limit3b-frame" data-src="./arbitrage/index.html?tab=tab-3b&embed=1&v=63" title="結算套利計算機" class="arb-iframe"></iframe>
     </div>
 
     <div id="tab-pane-ioc3a" class="arb-tab-pane hidden">
         <div class="arb-toolbar">
             <span class="arb-toolbar-title">🎣 連續 IOC 釣魚 (策略 3-A)：選擇權錯價偵測與程式交易預備分頁</span>
         </div>
-        <iframe id="ioc3a-frame" data-src="./arbitrage/index.html?tab=tab-3a&embed=1&v=62" title="連續 IOC 釣魚策略計算機" class="arb-iframe"></iframe>
-    </div>
-
-    <div id="tab-pane-arbitrage" class="arb-tab-pane hidden">
-        <div class="arb-toolbar">
-            <span class="arb-toolbar-title">🛡️ 策略 4：台積電 1 張配 5 口小股期正價差期現套利</span>
-            <div class="arb-toolbar-actions">
-                <button type="button" class="pm-btn" id="btn-sync-arb-quotes" onclick="syncQuotesToArbitrage()">🔄 帶入最新台積電現價</button>
-            </div>
-        </div>
-        <iframe id="arbitrage-frame" data-src="./arbitrage/index.html?tab=tab-4&embed=1&v=62" title="台積電期現套利計算機" class="arb-iframe"></iframe>
+        <iframe id="ioc3a-frame" data-src="./arbitrage/index.html?tab=tab-3a&embed=1&v=63" title="連續 IOC 釣魚策略計算機" class="arb-iframe"></iframe>
     </div>
 
     <div id="tab-pane-calendar" class="arb-tab-pane hidden">
@@ -760,7 +747,7 @@
     <div id="hero-banner-modal" class="hero-banner-modal" onclick="this.style.display='none'">
         <img src="assets/app-banner.jpg?v=58" alt="槓桿收租術：融資 × Covered Call 雙重奏">
     </div>
-    <script src="app.js?v=62"></script>
+    <script src="app.js?v=63"></script>
     <script src="position_manager.js?v=58"></script>
 </body>
 

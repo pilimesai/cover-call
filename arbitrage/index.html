@@ -100,26 +100,46 @@
             </div>
           </div>
 
-          <h2 class="text-sm font-bold border-b border-[var(--border)] pb-2 pt-2">⚙️ 2. 兩腿履約價與口數設定</h2>
+          <h2 class="text-sm font-bold border-b border-[var(--border)] pb-2 pt-2">⚙️ 2. 結構模式與履約價設定</h2>
+          <div>
+            <label class="block text-[var(--muted-foreground)] mb-1">🛡️ 選擇權風控結構模式</label>
+            <select id="in-struct-3b" onchange="onStructChange3B()" class="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-medium">
+              <option value="ratio_capped" selected>🛡️ 比例價差 ＋ 遠價外蓋子 (買 K3 封頂｜推薦)</option>
+              <option value="vertical_1_1">🔒 1:1 垂直價差 (風險完全鎖死｜最穩健)</option>
+              <option value="ratio_uncapped">⚡ 純比例價差 (無遠端蓋子｜需盯盤留厚保證金)</option>
+            </select>
+          </div>
+
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">買方保護腿履約價 (Buy K1)</label>
+              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-k1-3b">買方腿履約價 (Buy K1)</label>
               <input id="in-k1-3b" type="number" value="43000" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">買方口數 (N1)</label>
-              <input id="in-n1-3b" type="number" value="5" min="0" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-n1-3b">買方口數 (N1)</label>
+              <input id="in-n1-3b" type="number" value="5" min="0" step="1" oninput="onLegQtyChange3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">賣方收租腿履約價 (Sell K2)</label>
+              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-k2-3b">賣方收租腿履約價 (Sell K2)</label>
               <input id="in-k2-3b" type="number" value="43100" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">賣方口數 (N2)</label>
-              <input id="in-n2-3b" type="number" value="7" min="1" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-n2-3b">賣方口數 (N2)</label>
+              <input id="in-n2-3b" type="number" value="7" min="1" step="1" oninput="onLegQtyChange3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+
+          <div id="row-k3-3b" class="grid grid-cols-2 gap-3 p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div>
+              <label class="block text-[var(--primary)] font-medium mb-1">🛡️ 遠價外蓋子 (Buy K3 封頂)</label>
+              <input id="in-k3-3b" type="number" value="43500" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--card)] border border-[var(--border)] font-mono" />
+            </div>
+            <div>
+              <label class="block text-[var(--primary)] font-medium mb-1">蓋子口數 (N3 = N2−N1)</label>
+              <input id="in-n3-3b" type="number" value="2" min="0" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--card)] border border-[var(--border)] font-mono" />
             </div>
           </div>
 
@@ -157,6 +177,13 @@
               <div class="text-[var(--muted-foreground)]">甜蜜點最高淨利</div>
               <div id="out-peak-3b" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--</div>
               <div id="out-peak-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 col-span-2 sm:col-span-4 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="text-[var(--muted-foreground)]">🚨 極端單日 ±10% 漲/跌停鎖死時之帳面損益上限</div>
+                <div id="out-extreme-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+              </div>
+              <div id="out-extreme-3b" class="text-base font-mono font-bold text-[var(--warning)]">--</div>
             </div>
           </div>
 
@@ -400,31 +427,97 @@
       calc3B();
     }
 
-    function pnlAtIndex3B(S, dir, k1, n1, k2, n2, netCreditPts) {
-      let val1 = 0, val2 = 0;
+    function onStructChange3B() {
+      const mode = document.getElementById('in-struct-3b').value;
+      const dir = document.getElementById('in-dir-3b').value;
+      const k1El = document.getElementById('in-k1-3b');
+      const n1El = document.getElementById('in-n1-3b');
+      const k2El = document.getElementById('in-k2-3b');
+      const n2El = document.getElementById('in-n2-3b');
+      const k3El = document.getElementById('in-k3-3b');
+      const n3El = document.getElementById('in-n3-3b');
+      const rowK3 = document.getElementById('row-k3-3b');
+      const lblK1 = document.getElementById('lbl-k1-3b');
+      const lblK2 = document.getElementById('lbl-k2-3b');
+
+      const k1 = parseFloat(k1El.value) || 43000;
+      const k2 = parseFloat(k2El.value) || 43100;
+      const n2 = parseFloat(n2El.value) || 5;
+
+      if (mode === 'vertical_1_1') {
+        rowK3.style.display = 'none';
+        n3El.value = '0';
+        n1El.value = String(n2);
+        // 1:1 垂直價差：K2 (賣方收租) 應在內側，K1 (買方保護) 應在更外側
+        if (dir === 'call' && k1 < k2) {
+          k1El.value = String(k2 + 200);
+        } else if (dir === 'put' && k1 > k2) {
+          k1El.value = String(k2 - 200);
+        }
+        lblK1.textContent = '🔒 外側買方保護腿 (Buy K1)';
+        lblK2.textContent = '💰 內側賣方收租腿 (Sell K2)';
+      } else if (mode === 'ratio_capped') {
+        rowK3.style.display = 'grid';
+        const n1 = parseFloat(n1El.value) || 5;
+        if (n2 <= n1) n2El.value = String(n1 + 2);
+        const curN2 = parseFloat(n2El.value) || 7;
+        n3El.value = String(Math.max(0, curN2 - n1));
+        if (dir === 'call' && k1 > k2) { k1El.value = String(k2 - 100); }
+        else if (dir === 'put' && k1 < k2) { k1El.value = String(k2 + 100); }
+        k3El.value = String(dir === 'call' ? (parseFloat(k2El.value) + 400) : (parseFloat(k2El.value) - 400));
+        lblK1.textContent = '買方保護腿履約價 (Buy K1)';
+        lblK2.textContent = '賣方收租腿履約價 (Sell K2)';
+      } else {
+        rowK3.style.display = 'none';
+        n3El.value = '0';
+        lblK1.textContent = '買方保護腿履約價 (Buy K1)';
+        lblK2.textContent = '賣方收租腿履約價 (Sell K2)';
+      }
+      calc3B();
+    }
+
+    function onLegQtyChange3B() {
+      const mode = document.getElementById('in-struct-3b').value;
+      const n1 = parseFloat(document.getElementById('in-n1-3b').value) || 0;
+      const n2 = parseFloat(document.getElementById('in-n2-3b').value) || 1;
+      if (mode === 'vertical_1_1') {
+        document.getElementById('in-n1-3b').value = String(n2);
+      } else if (mode === 'ratio_capped') {
+        document.getElementById('in-n3-3b').value = String(Math.max(0, n2 - n1));
+      }
+      calc3B();
+    }
+
+    function pnlAtIndex3B(S, dir, k1, n1, k2, n2, netCreditPts, k3 = 0, n3 = 0) {
+      let val1 = 0, val2 = 0, val3 = 0;
       if (dir === 'call') {
         val1 = Math.max(0, S - k1) * n1;
         val2 = Math.max(0, S - k2) * n2;
+        val3 = n3 > 0 ? Math.max(0, S - k3) * n3 : 0;
       } else {
         val1 = Math.max(0, k1 - S) * n1;
         val2 = Math.max(0, k2 - S) * n2;
+        val3 = n3 > 0 ? Math.max(0, k3 - S) * n3 : 0;
       }
-      return netCreditPts + val1 - val2;
+      return netCreditPts + val1 + val3 - val2;
     }
 
     function calc3B() {
       const idx = parseFloat(document.getElementById('in-idx-3b').value) || 40000;
       const dir = document.getElementById('in-dir-3b').value;
+      const structMode = document.getElementById('in-struct-3b') ? document.getElementById('in-struct-3b').value : 'ratio_uncapped';
       const upPct = parseFloat(document.getElementById('in-up-pct').value) || 8.0;
       const dnPct = parseFloat(document.getElementById('in-dn-pct').value) || 9.7;
       const k1 = parseFloat(document.getElementById('in-k1-3b').value) || 43000;
       const n1 = parseFloat(document.getElementById('in-n1-3b').value) || 0;
       const k2 = parseFloat(document.getElementById('in-k2-3b').value) || 43100;
       const n2 = parseFloat(document.getElementById('in-n2-3b').value) || 1;
+      const k3 = parseFloat(document.getElementById('in-k3-3b')?.value) || 43500;
+      const n3 = structMode === 'ratio_capped' ? (parseFloat(document.getElementById('in-n3-3b')?.value) || 0) : 0;
       const creditPts = parseFloat(document.getElementById('in-credit-3b').value) || 0;
       const feePerLot = parseFloat(document.getElementById('in-fee-3b').value) || 20;
 
-      const totalLots = n1 + n2;
+      const totalLots = n1 + n2 + n3;
       const totalFees = totalLots * feePerLot;
       const baseNetNT = Math.round(creditPts * 50 - totalFees);
 
@@ -432,15 +525,32 @@
         ? Math.round(idx * (1 + upPct / 100))
         : Math.round(idx * (1 - dnPct / 100));
 
-      const peakPts = pnlAtIndex3B(k2, dir, k1, n1, k2, n2, creditPts);
+      const peakPts = pnlAtIndex3B(k2, dir, k1, n1, k2, n2, creditPts, k3, n3);
       const peakNetNT = Math.round(peakPts * 50 - totalFees);
 
       let beIdx = null;
       const stepTest = dir === 'call' ? 1 : -1;
       for (let s = k2; dir === 'call' ? s <= idx * 1.25 : s >= idx * 0.75; s += stepTest * 2) {
-        if (pnlAtIndex3B(s, dir, k1, n1, k2, n2, creditPts) < 0) {
+        if (pnlAtIndex3B(s, dir, k1, n1, k2, n2, creditPts, k3, n3) < 0) {
           beIdx = s;
           break;
+        }
+      }
+
+      // 極端 ±10% 漲/跌停鎖死帳面損益
+      const extremeIdx = Math.round(idx * (dir === 'call' ? 1.10 : 0.90));
+      const extremePts = pnlAtIndex3B(extremeIdx, dir, k1, n1, k2, n2, creditPts, k3, n3);
+      const extremeNetNT = Math.round(extremePts * 50 - totalFees);
+      const uncoveredShorts = Math.max(0, n2 - n1 - n3);
+      const extEl = document.getElementById('out-extreme-3b');
+      const extSubEl = document.getElementById('out-extreme-sub');
+      if (extEl && extSubEl) {
+        extEl.textContent = (extremeNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(extremeNetNT).toLocaleString();
+        extEl.style.color = uncoveredShorts === 0 ? (extremeNetNT >= 0 ? 'var(--success)' : 'var(--primary)') : 'var(--error)';
+        if (uncoveredShorts === 0) {
+          extSubEl.textContent = `🔒 風險已完全鎖死（無裸賣口數）｜就算單日±10%鎖死 (${extremeIdx.toLocaleString()}點)，最大虧損也不會擴大`;
+        } else {
+          extSubEl.textContent = `⚠️ 含 ${uncoveredShorts} 口無保護裸賣！若遇±10%鎖死 (${extremeIdx.toLocaleString()}點) 將嚴重虧損；建議改用 1:1 垂直價差或補買 K3 蓋子`;
         }
       }
 
@@ -478,10 +588,10 @@
         desc.textContent = `目前損益兩平點（${beIdx ? beIdx.toLocaleString() : '--'} 點）尚未超越單日理論極限（${limitIdx.toLocaleString()} 點），建議往更價外履約價移動或改用 1:1 垂直價差鎖死風險。`;
       }
 
-      drawChart3B(idx, limitIdx, beIdx, dir, k1, n1, k2, n2, creditPts);
+      drawChart3B(idx, limitIdx, beIdx, dir, k1, n1, k2, n2, creditPts, k3, n3);
     }
 
-    function drawChart3B(idx, limitIdx, beIdx, dir, k1, n1, k2, n2, creditPts) {
+    function drawChart3B(idx, limitIdx, beIdx, dir, k1, n1, k2, n2, creditPts, k3 = 0, n3 = 0) {
       const canvas = document.getElementById('canvas-3b');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -489,14 +599,14 @@
       const H = canvas.height;
       ctx.clearRect(0, 0, W, H);
 
-      const minS = dir === 'call' ? idx : Math.min(k1, k2, limitIdx) - 400;
-      const maxS = dir === 'call' ? Math.max(k1, k2, limitIdx, beIdx || k2) + 400 : idx;
+      const minS = dir === 'call' ? idx : Math.min(k1, k2, n3 > 0 ? k3 : k2, limitIdx) - 400;
+      const maxS = dir === 'call' ? Math.max(k1, k2, n3 > 0 ? k3 : k2, limitIdx, beIdx || k2) + 400 : idx;
 
       const pts = [];
       let minPnl = -100, maxPnl = 100;
       for (let i = 0; i <= 120; i++) {
         const s = minS + ((maxS - minS) * i) / 120;
-        const p = pnlAtIndex3B(s, dir, k1, n1, k2, n2, creditPts);
+        const p = pnlAtIndex3B(s, dir, k1, n1, k2, n2, creditPts, k3, n3);
         pts.push({ s, p });
         if (p < minPnl) minPnl = p;
         if (p > maxPnl) maxPnl = p;

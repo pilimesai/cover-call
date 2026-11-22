@@ -3570,6 +3570,7 @@ window.switchMainTab = function (tab) {
     const tabs = [
         { key: 'covercall', pane: 'tab-pane-covercall', btn: 'main-tab-btn-cc',  frame: null },
         { key: 'limit3b',   pane: 'tab-pane-limit3b',   btn: 'main-tab-btn-3b',  frame: 'limit3b-frame' },
+        { key: 'ioc3a',     pane: 'tab-pane-ioc3a',     btn: 'main-tab-btn-ioc', frame: 'ioc3a-frame' },
         { key: 'arbitrage', pane: 'tab-pane-arbitrage', btn: 'main-tab-btn-arb', frame: 'arbitrage-frame' },
         { key: 'calendar',  pane: 'tab-pane-calendar',  btn: 'main-tab-btn-cs',  frame: 'calendar-frame' },
     ];
@@ -3612,6 +3613,6 @@ window.switchMainTab = function (tab) {
 window.addEventListener('DOMContentLoaded', () => {
     try {
         const savedTab = localStorage.getItem('cc_active_main_tab');
-        if (savedTab === 'limit3b' || savedTab === 'arbitrage' || savedTab === 'calendar') window.switchMainTab(savedTab);
+        if (savedTab === 'limit3b' || savedTab === 'ioc3a' || savedTab === 'arbitrage' || savedTab === 'calendar') window.switchMainTab(savedTab);
     } catch (e) {}
 });

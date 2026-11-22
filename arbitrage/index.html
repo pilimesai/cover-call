@@ -165,7 +165,7 @@
               <input id="in-fee-3b" type="number" value="20" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
           </div>
-          <div id="out-sets-summary-3b" class="text-[var(--muted-foreground)] bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 font-mono">--</div>
+          <div id="out-sets-summary-3b" class="text-[var(--muted-foreground)] bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-2 font-mono space-y-1.5 leading-relaxed">--</div>
         </div>
 
         <div class="md:col-span-7 space-y-4">
@@ -638,8 +638,37 @@
       if (setsSumEl) {
         const optType = dir === 'call' ? 'Call' : 'Put';
         const expTag = latestMarket3B?.expiryWeekly ? `TXO 週三結算 ${latestMarket3B.expiryWeekly}` : 'TXO 週三結算';
-        const leg3Txt = n3 > 0 ? ` ｜ 買 ${k3} ${optType} × ${n3}口` : '';
-        setsSumEl.textContent = `📌 合計下單 (${sets}組｜${expTag})：買 ${k1} ${optType} × ${n1}口 ｜ 賣 ${k2} ${optType} × ${n2}口${leg3Txt} ｜ 總淨收 ${creditPts} 點`;
+        const headerHtml = `<div class="text-[var(--foreground)] font-semibold">📌 合計下單 (${sets}組｜${expTag})｜總淨收 ${creditPts} 點</div>`;
+        const lines = [];
+        if (structMode === 'vertical_1_1') {
+          const pairCnt = Math.min(n1, n2);
+          const margin1 = pairCnt * Math.abs(k1 - k2) * 50;
+          lines.push(`<div><span class="text-[var(--primary)] font-semibold">複式單（1張送出｜1:1 鎖死風險，保證金 NT$${margin1.toLocaleString()}）：</span>買 ${k1} ${optType} × ${n1}口 ＋ 賣 ${k2} ${optType} × ${n2}口</div>`);
+        } else {
+          const pair1 = Math.min(n1, n2);
+          if (pair1 > 0) {
+            const isK1Credit = (dir === 'call' && k1 > k2) || (dir === 'put' && k1 < k2);
+            const p1Note = isK1Credit
+              ? `信用價差，保證金 NT$${(pair1 * Math.abs(k1 - k2) * 50).toLocaleString()}`
+              : '買方價差，免保證金';
+            lines.push(`<div><span class="text-[var(--success)] font-semibold">複式單 ①（先送｜${p1Note}）：</span>買 ${k1} ${optType} × ${pair1}口 ＋ 賣 ${k2} ${optType} × ${pair1}口</div>`);
+          }
+          const remShort = Math.max(0, n2 - pair1);
+          const pair2 = Math.min(n3, remShort);
+          if (pair2 > 0) {
+            const margin2 = pair2 * Math.abs(k3 - k2) * 50;
+            lines.push(`<div><span class="text-[var(--primary)] font-semibold">複式單 ②（後送｜信用價差，保證金 NT$${margin2.toLocaleString()}）：</span>賣 ${k2} ${optType} × ${pair2}口 ＋ 買 ${k3} ${optType} × ${pair2}口</div>`);
+          }
+          const extraShort = Math.max(0, remShort - pair2);
+          if (extraShort > 0) {
+            lines.push(`<div class="text-[var(--warning)]">⚠️ 另含無保護裸賣：賣 ${k2} ${optType} × ${extraShort}口</div>`);
+          }
+          const extraBuy1 = Math.max(0, n1 - pair1);
+          if (extraBuy1 > 0) {
+            lines.push(`<div>額外買方：買 ${k1} ${optType} × ${extraBuy1}口</div>`);
+          }
+        }
+        setsSumEl.innerHTML = headerHtml + lines.join('');
       }
 
       const totalLots = n1 + n2 + n3;

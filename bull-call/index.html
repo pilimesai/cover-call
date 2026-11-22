@@ -320,10 +320,17 @@
       document.getElementById('out-roi-bc').textContent = `+${maxRoiPct}%`;
       document.getElementById('badge-roi-bc').textContent = `+${maxRoiPct}%`;
 
+      const tp75Pts = Math.round(debitPts + 0.75 * Math.max(0, widthPts - debitPts));
+      const tp75NetNT = Math.round(lots * (tp75Pts - debitPts) * 50 - totalFees);
+      const tp75RoiPct = maxCostNT > 0 ? ((tp75NetNT / maxCostNT) * 100).toFixed(1) : '0.0';
+
       document.getElementById('out-order-bc').innerHTML =
-        `<div class="text-[var(--foreground)] font-semibold">📌 複式單（1張送出｜借方價差，免保證金）</div>` +
+        `<div class="text-[var(--foreground)] font-semibold">📌 進場複式單（1張送出｜借方價差，免保證金）</div>` +
         `<div class="text-[var(--success)]">買 ${k1} Call × ${lots}口 ＋ 賣 ${k2} Call × ${lots}口</div>` +
-        `<div class="text-[var(--muted-foreground)]">委託價填淨付 <span class="text-[var(--foreground)] font-bold">+${debitPts}</span> 點（總投入 NT$${maxCostNT.toLocaleString()}，上限賺 NT$${maxProfitNT.toLocaleString()}）</div>`;
+        `<div class="text-[var(--muted-foreground)] mb-2">委託價填淨付 <span class="text-[var(--foreground)] font-bold">+${debitPts}</span> 點（總投入 NT$${maxCostNT.toLocaleString()}，上限賺 NT$${maxProfitNT.toLocaleString()}）</div>` +
+        `<div class="border-t border-[var(--border)] pt-2 text-[var(--primary)] font-semibold">🎯 平倉停利建議（達標 75% 獲利即反手了結）</div>` +
+        `<div class="text-[var(--warning)]">賣 ${k1} Call × ${lots}口 ＋ 買 ${k2} Call × ${lots}口</div>` +
+        `<div class="text-[var(--muted-foreground)]">當價差市價漲至 <span class="text-[var(--foreground)] font-bold">${tp75Pts}</span> 點（反彈至 ${k2.toLocaleString()} 附近）掛淨收 <span class="text-[var(--foreground)] font-bold">-${tp75Pts}</span> 點 ROD 平倉，實賺約 <span class="text-[var(--success)] font-bold">+NT$${tp75NetNT.toLocaleString()} (+${tp75RoiPct}%)</span>；未反彈則抱到結算或等下波加碼，絕不追繳。</div>`;
 
       drawPayoffBC(idx, k1, k2, debitPts, lots, totalFees);
     }

@@ -635,12 +635,14 @@
       if (setsSumEl) {
         const optType = dir === 'call' ? 'Call' : 'Put';
         const expTag = latestMarket3B?.expiryWeekly ? `TXO 週三結算 ${latestMarket3B.expiryWeekly}` : 'TXO 週三結算';
-        const headerHtml = `<div class="text-[var(--foreground)] font-semibold">📌 合計下單 (${sets}組｜${expTag})｜總淨收 ${creditPts} 點</div>`;
+        const headerHtml = `<div class="text-[var(--foreground)] font-semibold">📌 建倉複式單 (${sets}組｜${expTag})｜總淨收 ${creditPts} 點</div>`;
         const lines = [];
+        const closeLines = [];
         if (structMode === 'vertical_1_1') {
           const pairCnt = Math.min(n1, n2);
           const margin1 = pairCnt * Math.abs(k1 - k2) * 50;
-          lines.push(`<div><span class="text-[var(--primary)] font-semibold">複式單（1張送出｜1:1 鎖死風險，保證金 NT$${margin1.toLocaleString()}）：</span>買 ${k1} ${optType} × ${n1}口 ＋ 賣 ${k2} ${optType} × ${n2}口</div>`);
+          lines.push(`<div><span class="text-[var(--primary)] font-semibold">建倉（1張送出｜1:1 鎖死風險，保證金 NT$${margin1.toLocaleString()}）：</span>買 ${k1} ${optType} × ${n1}口 ＋ 賣 ${k2} ${optType} × ${n2}口</div>`);
+          closeLines.push(`<div><span class="text-[var(--warning)] font-semibold">提前平倉（反向 1 張）：</span>賣 ${k1} ${optType} × ${n1}口 ＋ 買 ${k2} ${optType} × ${n2}口（若未穿過 ${k2} 則不必平倉，等 13:30 歸零省手續費）</div>`);
         } else {
           const pair1 = Math.min(n1, n2);
           if (pair1 > 0) {
@@ -648,13 +650,13 @@
             const p1Note = isK1Credit
               ? `信用價差，保證金 NT$${(pair1 * Math.abs(k1 - k2) * 50).toLocaleString()}`
               : '買方價差，免保證金';
-            lines.push(`<div><span class="text-[var(--success)] font-semibold">複式單 ①（先送｜${p1Note}）：</span>買 ${k1} ${optType} × ${pair1}口 ＋ 賣 ${k2} ${optType} × ${pair1}口</div>`);
+            lines.push(`<div><span class="text-[var(--success)] font-semibold">建倉 ①（先送｜${p1Note}）：</span>買 ${k1} ${optType} × ${pair1}口 ＋ 賣 ${k2} ${optType} × ${pair1}口</div>`);
           }
           const remShort = Math.max(0, n2 - pair1);
           const pair2 = Math.min(n3, remShort);
           if (pair2 > 0) {
             const margin2 = pair2 * Math.abs(k3 - k2) * 50;
-            lines.push(`<div><span class="text-[var(--primary)] font-semibold">複式單 ②（後送｜信用價差，保證金 NT$${margin2.toLocaleString()}）：</span>賣 ${k2} ${optType} × ${pair2}口 ＋ 買 ${k3} ${optType} × ${pair2}口</div>`);
+            lines.push(`<div><span class="text-[var(--primary)] font-semibold">建倉 ②（後送｜信用價差，保證金 NT$${margin2.toLocaleString()}）：</span>賣 ${k2} ${optType} × ${pair2}口 ＋ 買 ${k3} ${optType} × ${pair2}口</div>`);
           }
           const extraShort = Math.max(0, remShort - pair2);
           if (extraShort > 0) {
@@ -664,8 +666,21 @@
           if (extraBuy1 > 0) {
             lines.push(`<div>額外買方：買 ${k1} ${optType} × ${extraBuy1}口</div>`);
           }
+
+          if (extraShort > 0) {
+            closeLines.push(`<div><span class="text-[var(--error)] font-semibold">平倉 ①（先補裸賣，降保證金）：</span>買回 ${k2} ${optType} × ${extraShort}口</div>`);
+          }
+          if (pair2 > 0) {
+            closeLines.push(`<div><span class="text-[var(--primary)] font-semibold">平倉 ${extraShort > 0 ? '②' : '①'}（先平信用價差，釋放保證金）：</span>買 ${k2} ${optType} × ${pair2}口 ＋ 賣 ${k3} ${optType} × ${pair2}口</div>`);
+          }
+          if (pair1 > 0) {
+            const stepNum = (extraShort > 0 ? 1 : 0) + (pair2 > 0 ? 1 : 0) + 1;
+            const icon = stepNum === 1 ? '①' : (stepNum === 2 ? '②' : '③');
+            closeLines.push(`<div><span class="text-[var(--success)] font-semibold">平倉 ${icon}（最後平買方價差）：</span>賣 ${k1} ${optType} × ${pair1}口 ＋ 買 ${k2} ${optType} × ${pair1}口</div>`);
+          }
         }
-        setsSumEl.innerHTML = headerHtml + lines.join('');
+        const closeHeader = `<div class="border-t border-[var(--border)] pt-1.5 mt-1.5 text-[var(--warning)] font-semibold">🎯 平倉／結算建議（常態週三 13:30 未穿價直接歸零免平倉；提前平倉順序如下）</div>`;
+        setsSumEl.innerHTML = headerHtml + lines.join('') + closeHeader + closeLines.join('');
       }
 
       const totalLots = n1 + n2 + n3;

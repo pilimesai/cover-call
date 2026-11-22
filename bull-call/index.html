@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>斷頭搶反彈｜大盤扣除 ETF 維持率追蹤 × Bull Call 價差策略</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --foreground: #f8fafc;
+      --muted-foreground: #94a3b8;
+      --primary: #3b82f6;
+      --primary-foreground: #ffffff;
+      --secondary: #334155;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-4 md:p-6 m-0 min-h-screen">
+  <div class="max-w-6xl mx-auto space-y-5">
+
+    <!-- Verdict Banner -->
+    <div id="verdict-bc" class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span id="dot-bc" class="text-base">⏳</span>
+          <span id="title-bc" class="text-base font-bold">正在載入 TWSE 融資維持率與大盤恐慌數據...</span>
+        </div>
+        <p id="desc-bc" class="text-xs text-[var(--muted-foreground)]"></p>
+      </div>
+      <div class="flex gap-3 text-right shrink-0">
+        <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+          <div class="text-xs text-[var(--muted-foreground)]">扣除 ETF 維持率</div>
+          <div id="badge-maint-bc" class="text-base font-mono font-bold">--%</div>
+        </div>
+        <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+          <div class="text-xs text-[var(--muted-foreground)]">Bull Call 最大報酬率</div>
+          <div id="badge-roi-bc" class="text-base font-mono font-bold text-[var(--success)]">--%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 Panic KPI Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground)]">📉 大盤扣除 ETF 融資維持率</div>
+        <div id="kpi-maint-bc" class="text-xl font-mono font-bold mt-1">--%</div>
+        <div id="kpi-maint-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">警戒線：&lt; 130%（萬箭齊發）</div>
+      </div>
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground)]">🔥 扣除 ETF 單日融資增減</div>
+        <div id="kpi-lots-bc" class="text-xl font-mono font-bold mt-1">--</div>
+        <div id="kpi-lots-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">大減 &gt; 2% 代表強制砍倉潮</div>
+      </div>
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground)]">⚠️ 破 130% 個股數 / 急殺斷頭數</div>
+        <div id="kpi-stocks-bc" class="text-xl font-mono font-bold mt-1">--</div>
+        <div id="kpi-stocks-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">僅統計普通股（已排除 00xxx ETF）</div>
+      </div>
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground)]">📊 大盤收盤 / 5日跌幅 / 波動率</div>
+        <div id="kpi-taiex-bc" class="text-xl font-mono font-bold mt-1">--</div>
+        <div id="kpi-taiex-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">--</div>
+      </div>
+    </div>
+
+    <!-- Margin Ratio Trend + History Table -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div class="lg:col-span-7 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold">📈 大盤扣除 ETF 融資維持率走勢（紅線 = 130% 斷頭線）</h2>
+          <span id="lbl-updated-bc" class="text-[11px] text-[var(--muted-foreground)] font-mono">--</span>
+        </div>
+        <canvas id="canvas-bc-maint" width="660" height="230" class="w-full rounded bg-[var(--background)] border border-[var(--border)]"></canvas>
+      </div>
+
+      <div class="lg:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+        <h2 class="text-sm font-bold">📋 近 8 日扣除 ETF 融資斷頭追蹤</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px] font-mono text-right">
+            <thead class="text-[var(--muted-foreground)] border-b border-[var(--border)]">
+              <tr>
+                <th class="py-1.5 text-left">日期</th>
+                <th class="py-1.5">維持率</th>
+                <th class="py-1.5">融資增減</th>
+                <th class="py-1.5">&lt;130%股數</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-bc-history" class="divide-y divide-[var(--border)]/60"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bull Call Spread Calculator -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+      <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3 text-xs">
+        <div class="flex items-center justify-between border-b border-[var(--border)] pb-2">
+          <h2 class="text-sm font-bold">🎯 Bull Call 價差（多頭買權價差）試算</h2>
+          <button type="button" onclick="applyRecommendedBC(true)" class="px-2 py-1 text-[11px] rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">
+            🎯 依最新收盤推薦
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[var(--muted-foreground)] mb-1">大盤指數（進場點位）</label>
+            <input id="in-idx-bc" type="number" value="36033" step="50" oninput="calcBC()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground)] mb-1">距月選結算天數 (DTE)</label>
+            <input id="in-dte-bc" type="number" value="20" min="1" max="45" step="1" oninput="estimateDebitBC(); calcBC()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[var(--success)] font-medium mb-1">買進腿 Buy K1（價平 ATM）</label>
+            <input id="in-k1-bc" type="number" value="36000" step="100" oninput="estimateDebitBC(); calcBC()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+          </div>
+          <div>
+            <label class="block text-[var(--primary)] font-medium mb-1">賣出腿 Sell K2（+5% 天花板）</label>
+            <input id="in-k2-bc" type="number" value="37800" step="100" oninput="estimateDebitBC(); calcBC()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+          </div>
+        </div>
+
+        <div class="flex gap-2 items-center">
+          <span class="text-[var(--muted-foreground)]">快速設定 K2 寬度：</span>
+          <button type="button" onclick="setSpreadWidthBC(0.03)" class="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]">+3%</button>
+          <button type="button" onclick="setSpreadWidthBC(0.05)" class="px-2 py-0.5 rounded bg-[var(--primary)]/20 border border-[var(--primary)]/50 text-[var(--primary)]">+5% (20年回測推薦)</button>
+          <button type="button" onclick="setSpreadWidthBC(0.07)" class="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]">+7%</button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2.5">
+          <div>
+            <label class="block text-[var(--primary)] font-medium mb-1">📦 口數 (N)</label>
+            <input id="in-lots-bc" type="number" value="1" min="1" step="1" oninput="calcBC()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--primary)] font-mono font-bold" />
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground)] mb-1">單口淨付點數</label>
+            <input id="in-debit-bc" type="number" value="650" step="10" oninput="calcBC()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+          </div>
+          <div>
+            <label class="block text-[var(--muted-foreground)] mb-1">單口手續費+稅</label>
+            <input id="in-fee-bc" type="number" value="20" step="1" oninput="calcBC()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+          </div>
+        </div>
+        <div id="out-bs-hint-bc" class="text-[11px] text-[var(--muted-foreground)]">--</div>
+
+        <div id="out-order-bc" class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-2.5 font-mono leading-relaxed">--</div>
+      </div>
+
+      <div class="md:col-span-7 space-y-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+            <div class="text-[var(--muted-foreground)]">投入本金 (最大虧損)</div>
+            <div id="out-cost-bc" class="text-base font-mono font-bold text-[var(--warning)] mt-1">--</div>
+            <div class="text-[11px] text-[var(--muted-foreground)] mt-0.5">買方價差免保證金/絕不追繳</div>
+          </div>
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+            <div class="text-[var(--muted-foreground)]">最大獲利 (≥ K2)</div>
+            <div id="out-max-bc" class="text-base font-mono font-bold text-[var(--success)] mt-1">--</div>
+            <div id="out-max-sub-bc" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">--</div>
+          </div>
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+            <div class="text-[var(--muted-foreground)]">損益兩平點</div>
+            <div id="out-be-bc" class="text-base font-mono font-bold mt-1">--</div>
+            <div id="out-be-sub-bc" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">--</div>
+          </div>
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+            <div class="text-[var(--muted-foreground)]">滿賺最大報酬率</div>
+            <div id="out-roi-bc" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--%</div>
+            <div class="text-[11px] text-[var(--muted-foreground)] mt-0.5">反彈至 K2 即鎖定最大報酬</div>
+          </div>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+          <div class="text-sm font-bold">📈 結算損益曲線（下檔損失封頂 × 上檔反彈翻倍區間）</div>
+          <canvas id="canvas-bc-payoff" width="600" height="200" class="w-full rounded bg-[var(--background)] border border-[var(--border)]"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 20Y Backtest Reference -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2 text-xs">
+      <h2 class="text-sm font-bold">📚 20 年歷史斷頭潮實測對照（2006–2026，N = 32 次恐慌急殺｜持有 20 個交易日）</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left font-mono">
+          <thead class="text-[var(--muted-foreground)] border-b border-[var(--border)]">
+            <tr>
+              <th class="py-1.5">搶反彈策略</th>
+              <th class="py-1.5 text-right">勝率</th>
+              <th class="py-1.5 text-right">平均報酬</th>
+              <th class="py-1.5 text-right">中位數報酬</th>
+              <th class="py-1.5 pl-4">實戰特徵</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[var(--border)]/60">
+            <tr class="text-[var(--success)] font-bold">
+              <td class="py-1.5">🥇 Bull Call 價差 (買 ATM ＋ 賣 +5% Call)</td>
+              <td class="py-1.5 text-right">59.4%</td>
+              <td class="py-1.5 text-right">+52.63%</td>
+              <td class="py-1.5 text-right">+144.91%</td>
+              <td class="py-1.5 pl-4 font-sans font-normal">恐慌回血爆發力冠軍，抗高 IV、虧損有限不追繳</td>
+            </tr>
+            <tr>
+              <td class="py-1.5">🥈 Bull Put 價差 (賣 ATM ＋ 買 -5% Put)</td>
+              <td class="py-1.5 text-right">75.0%</td>
+              <td class="py-1.5 text-right">+29.21%</td>
+              <td class="py-1.5 text-right">+64.29%</td>
+              <td class="py-1.5 pl-4 font-sans font-normal">勝率最高，低檔橫盤止跌也能穩賺</td>
+            </tr>
+            <tr>
+              <td class="py-1.5">單買 ATM Call</td>
+              <td class="py-1.5 text-right">56.2%</td>
+              <td class="py-1.5 text-right">+11.97%</td>
+              <td class="py-1.5 text-right">+30.99%</td>
+              <td class="py-1.5 pl-4 font-sans font-normal">入場成本高，容易被 IV 回落吃掉利潤</td>
+            </tr>
+            <tr>
+              <td class="py-1.5">微台/小台 3 倍做多</td>
+              <td class="py-1.5 text-right">65.6%</td>
+              <td class="py-1.5 text-right">+6.71%</td>
+              <td class="py-1.5 text-right">+15.82%</td>
+              <td class="py-1.5 pl-4 font-sans font-normal">需防 2008 級續殺造成保證金追繳</td>
+            </tr>
+            <tr class="text-[var(--error)]">
+              <td class="py-1.5">⛔ 單買 +5% 遠價外 Call 樂透</td>
+              <td class="py-1.5 text-right">28.1%</td>
+              <td class="py-1.5 text-right">-25.60%</td>
+              <td class="py-1.5 text-right">-80.81%</td>
+              <td class="py-1.5 pl-4 font-sans font-normal">勝率最低，看對小反彈依然常歸零</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let currentVolBC = 0.35;
+    let marginHistoryBC = [];
+    let latestTaiexBC = 36033;
+
+    function normCdf(x) {
+      const t = 1 / (1 + 0.2316419 * Math.abs(x));
+      const d = 0.3989423 * Math.exp(-x * x / 2);
+      const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+      return x > 0 ? 1 - p : p;
+    }
+
+    function bsCall(S, K, T, r, sigma) {
+      if (T <= 1e-6) return Math.max(0, S - K);
+      const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+      const d2 = d1 - sigma * Math.sqrt(T);
+      return S * normCdf(d1) - K * Math.exp(-r * T) * normCdf(d2);
+    }
+
+    function estimateDebitBC() {
+      const idx = parseFloat(document.getElementById('in-idx-bc').value) || 36000;
+      const k1 = parseFloat(document.getElementById('in-k1-bc').value) || 36000;
+      const k2 = parseFloat(document.getElementById('in-k2-bc').value) || 37800;
+      const dte = Math.max(1, parseFloat(document.getElementById('in-dte-bc').value) || 20);
+      const T = dte / 252;
+      const iv = Math.max(currentVolBC, 0.22);
+      const c1 = bsCall(idx, k1, T, 0.017, iv);
+      const c2 = bsCall(idx, k2, T, 0.017, iv);
+      const spreadPts = Math.max(10, Math.round(c1 - c2));
+      document.getElementById('in-debit-bc').value = String(spreadPts);
+      const hint = document.getElementById('out-bs-hint-bc');
+      if (hint) {
+        hint.textContent = `📐 BS 理論估算（IV=${(iv * 100).toFixed(1)}%, ${dte}天）：K1≈${Math.round(c1)}點 − K2≈${Math.round(c2)}點 = 淨付 ${spreadPts}點（請依券商實盤 Ask−Bid 修改）`;
+      }
+    }
+
+    function setSpreadWidthBC(pct) {
+      const idx = parseFloat(document.getElementById('in-idx-bc').value) || 36000;
+      const k1 = Math.round(idx / 100) * 100;
+      const k2 = Math.round((idx * (1 + pct)) / 100) * 100;
+      document.getElementById('in-k1-bc').value = String(k1);
+      document.getElementById('in-k2-bc').value = String(Math.max(k1 + 200, k2));
+      estimateDebitBC();
+      calcBC();
+    }
+
+    function applyRecommendedBC(resetIdx = true) {
+      if (resetIdx && latestTaiexBC > 0) {
+        document.getElementById('in-idx-bc').value = String(Math.round(latestTaiexBC));
+      }
+      setSpreadWidthBC(0.05);
+    }
+
+    function calcBC() {
+      const idx = parseFloat(document.getElementById('in-idx-bc').value) || 36000;
+      const k1 = parseFloat(document.getElementById('in-k1-bc').value) || 36000;
+      const k2 = parseFloat(document.getElementById('in-k2-bc').value) || 37800;
+      const lots = Math.max(1, parseInt(document.getElementById('in-lots-bc').value, 10) || 1);
+      const debitPts = Math.max(1, parseFloat(document.getElementById('in-debit-bc').value) || 650);
+      const feePerLot = parseFloat(document.getElementById('in-fee-bc').value) || 20;
+
+      const widthPts = Math.max(0, k2 - k1);
+      const totalFees = lots * 2 * feePerLot;
+      const maxCostNT = Math.round(lots * debitPts * 50 + totalFees);
+      const maxProfitNT = Math.round(lots * (widthPts - debitPts) * 50 - totalFees);
+      const maxRoiPct = maxCostNT > 0 ? ((maxProfitNT / maxCostNT) * 100).toFixed(1) : '0.0';
+      const beIdx = k1 + debitPts + (totalFees / (lots * 50));
+      const bePct = (((beIdx - idx) / idx) * 100).toFixed(2);
+
+      document.getElementById('out-cost-bc').textContent = 'NT$' + maxCostNT.toLocaleString();
+      document.getElementById('out-max-bc').textContent = (maxProfitNT >= 0 ? '+NT$' : '-NT$') + Math.abs(maxProfitNT).toLocaleString();
+      document.getElementById('out-max-sub-bc').textContent = `價差寬度 ${widthPts} 點 (K2=${k2.toLocaleString()})`;
+      document.getElementById('out-be-bc').textContent = Math.round(beIdx).toLocaleString() + ' 點';
+      document.getElementById('out-be-sub-bc').textContent = `需反彈 ${bePct > 0 ? '+' : ''}${bePct}% 回本`;
+      document.getElementById('out-roi-bc').textContent = `+${maxRoiPct}%`;
+      document.getElementById('badge-roi-bc').textContent = `+${maxRoiPct}%`;
+
+      document.getElementById('out-order-bc').innerHTML =
+        `<div class="text-[var(--foreground)] font-semibold">📌 複式單（1張送出｜借方價差，免保證金）</div>` +
+        `<div class="text-[var(--success)]">買 ${k1} Call × ${lots}口 ＋ 賣 ${k2} Call × ${lots}口</div>` +
+        `<div class="text-[var(--muted-foreground)]">委託價填淨付 <span class="text-[var(--foreground)] font-bold">+${debitPts}</span> 點（總投入 NT$${maxCostNT.toLocaleString()}，上限賺 NT$${maxProfitNT.toLocaleString()}）</div>`;
+
+      drawPayoffBC(idx, k1, k2, debitPts, lots, totalFees);
+    }
+
+    function drawPayoffBC(idx, k1, k2, debitPts, lots, totalFees) {
+      const canvas = document.getElementById('canvas-bc-payoff');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const minS = Math.min(idx * 0.92, k1 - 800);
+      const maxS = Math.max(k2 + 800, idx * 1.10);
+      const pts = [];
+      let minP = 0, maxP = 1000;
+      for (let i = 0; i <= 100; i++) {
+        const s = minS + ((maxS - minS) * i) / 100;
+        const val = Math.max(0, s - k1) - Math.max(0, s - k2) - debitPts;
+        const nt = val * 50 * lots - totalFees;
+        pts.push({ s, nt });
+        if (nt < minP) minP = nt;
+        if (nt > maxP) maxP = nt;
+      }
+
+      const padL = 56, padR = 16, padT = 18, padB = 24;
+      const toX = s => padL + ((s - minS) / (maxS - minS)) * (W - padL - padR);
+      const toY = p => padT + ((maxP - p) / (maxP - minP || 1)) * (H - padT - padB);
+
+      const y0 = toY(0);
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, y0);
+      ctx.lineTo(W - padR, y0);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      pts.forEach((pt, i) => {
+        const x = toX(pt.s), y = toY(pt.nt);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '11px monospace';
+      ctx.fillText('0', 34, y0 + 4);
+      ctx.fillText(`+${Math.round(maxP / 1000)}k`, 8, padT + 8);
+      ctx.fillText(`${Math.round(minP / 1000)}k`, 8, H - padB);
+      ctx.fillText(`${Math.round(k1)}`, toX(k1) - 18, H - 6);
+      ctx.fillText(`${Math.round(k2)}`, toX(k2) - 18, H - 6);
+    }
+
+    function drawMaintChartBC(history) {
+      const canvas = document.getElementById('canvas-bc-maint');
+      if (!canvas || !history.length) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const data = history.slice(-35);
+      const vals = data.map(r => r.ex_etf_maint_ratio).filter(v => v != null);
+      const minV = Math.min(122, ...vals) - 2;
+      const maxV = Math.max(175, ...vals) + 2;
+
+      const padL = 44, padR = 16, padT = 18, padB = 24;
+      const toX = i => padL + (i / Math.max(1, data.length - 1)) * (W - padL - padR);
+      const toY = v => padT + ((maxV - v) / (maxV - minV || 1)) * (H - padT - padB);
+
+      // 130% Danger Line
+      const y130 = toY(130);
+      ctx.strokeStyle = '#ef4444';
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padL, y130);
+      ctx.lineTo(W - padR, y130);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '11px monospace';
+      ctx.fillText('130% 斷頭線', padL + 6, y130 - 5);
+
+      // 140% Warning Line
+      const y140 = toY(140);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padL, y140);
+      ctx.lineTo(W - padR, y140);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Maint line
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      data.forEach((row, i) => {
+        if (row.ex_etf_maint_ratio == null) return;
+        const x = toX(i), y = toY(row.ex_etf_maint_ratio);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '11px monospace';
+      ctx.fillText(`${Math.round(maxV)}%`, 6, padT + 8);
+      ctx.fillText(`${Math.round(minV)}%`, 6, H - padB);
+      if (data.length) {
+        ctx.fillText(data[0].date.slice(5), padL, H - 6);
+        ctx.fillText(data[data.length - 1].date.slice(5), W - 46, H - 6);
+      }
+    }
+
+    (async function initBullCallPage() {
+      try {
+        const [rMargin, rData] = await Promise.all([
+          fetch('../data/panic_margin.json?v=' + Date.now(), { cache: 'no-store' }),
+          fetch('../data/data.json?v=' + Date.now(), { cache: 'no-store' })
+        ]);
+        let ret5Pct = 0;
+        if (rData.ok) {
+          const arr = await rData.json();
+          if (arr.length > 5) {
+            const latest = arr[arr.length - 1];
+            const prev5 = arr[arr.length - 6];
+            latestTaiexBC = Math.round(latest.taiex);
+            currentVolBC = latest.taiex_vol || 0.35;
+            ret5Pct = ((latest.taiex / prev5.taiex) - 1) * 100;
+            document.getElementById('kpi-taiex-bc').textContent = latestTaiexBC.toLocaleString();
+            document.getElementById('kpi-taiex-sub').textContent = `5日 ${ret5Pct >= 0 ? '+' : ''}${ret5Pct.toFixed(2)}% ｜ 波動率 ${(currentVolBC * 100).toFixed(1)}%`;
+            document.getElementById('in-dte-bc').value = String(Math.max(5, latest.days_to_expiry_monthly || 20));
+          }
+        }
+        if (rMargin.ok) {
+          const pm = await rMargin.json();
+          marginHistoryBC = pm.history || [];
+          const lat = pm.latest || marginHistoryBC[marginHistoryBC.length - 1];
+          if (lat) {
+            const maint = lat.ex_etf_maint_ratio;
+            const chg = lat.ex_etf_lots_chg;
+            const chgPct = lat.ex_etf_lots_chg_pct;
+            document.getElementById('lbl-updated-bc').textContent = `資料日：${lat.date}`;
+            document.getElementById('badge-maint-bc').textContent = maint != null ? `${maint.toFixed(2)}%` : '--%';
+            document.getElementById('kpi-maint-bc').textContent = maint != null ? `${maint.toFixed(2)}%` : '--%';
+            document.getElementById('kpi-maint-bc').style.color = maint < 130 ? 'var(--error)' : (maint < 142 ? 'var(--warning)' : 'var(--success)');
+            document.getElementById('badge-maint-bc').style.color = maint < 130 ? 'var(--error)' : (maint < 142 ? 'var(--warning)' : 'var(--success)');
+
+            document.getElementById('kpi-lots-bc').textContent = `${chg >= 0 ? '+' : ''}${chg.toLocaleString()} 張`;
+            document.getElementById('kpi-lots-bc').style.color = chgPct <= -2 ? 'var(--error)' : 'var(--foreground)';
+            document.getElementById('kpi-lots-sub').textContent = `單日變動 ${chgPct >= 0 ? '+' : ''}${chgPct.toFixed(2)}%（總融資 ${lat.ex_etf_lots.toLocaleString()} 張）`;
+            document.getElementById('kpi-stocks-bc').textContent = `${lat.below_130_stocks} / ${lat.panic_cut_stocks} 家`;
+
+            const isBelow130 = maint != null && maint < 130;
+            const isPanicCut = chgPct <= -2.0 || lat.below_130_stocks >= 150 || ret5Pct <= -7.0;
+            const dot = document.getElementById('dot-bc');
+            const title = document.getElementById('title-bc');
+            const desc = document.getElementById('desc-bc');
+
+            if (isBelow130) {
+              dot.textContent = '🔴';
+              title.textContent = '極端斷頭訊號觸發：大盤扣除 ETF 維持率已跌破 130%！';
+              desc.textContent = `最新 (${lat.date}) 扣除 ETF 維持率降至 ${maint.toFixed(2)}%，單日融資 ${chg.toLocaleString()} 張 (${chgPct.toFixed(2)}%)，適合分 2~3 批啟動月選 Bull Call 價差搶反彈。`;
+            } else if (isPanicCut || (maint != null && maint < 142)) {
+              dot.textContent = '🟡';
+              title.textContent = '萬箭齊發斷頭警戒：融資急減洗盤中（接近 130% 警戒區）';
+              desc.textContent = `最新 (${lat.date}) 扣除 ETF 維持率 ${maint ? maint.toFixed(2) + '%' : '--'}，單日融資大減 ${chg.toLocaleString()} 張 (${chgPct.toFixed(2)}%)，有 ${lat.below_130_stocks} 檔個股落入 <130% 追繳區，可備妥資金分批卡位 Bull Call 價差。`;
+            } else {
+              dot.textContent = '🟢';
+              title.textContent = '常態區：扣除 ETF 維持率仍高於 142%，尚未見極端斷頭潮';
+              desc.textContent = `最新 (${lat.date}) 扣除 ETF 維持率為 ${maint ? maint.toFixed(2) + '%' : '--'}，尚未觸及 <130% 黃金抄底門檻，建議耐心等待急殺出量洗盤後再啟動。`;
+            }
+
+            const tbody = document.getElementById('tbody-bc-history');
+            tbody.innerHTML = marginHistoryBC.slice(-8).reverse().map(r => {
+              const mc = r.ex_etf_maint_ratio < 130 ? 'text-[var(--error)] font-bold' : (r.ex_etf_maint_ratio < 142 ? 'text-[var(--warning)]' : '');
+              const lc = r.ex_etf_lots_chg_pct <= -2 ? 'text-[var(--error)]' : (r.ex_etf_lots_chg < 0 ? 'text-[var(--warning)]' : 'text-[var(--success)]');
+              return `<tr>
+                <td class="py-1 text-left text-[var(--muted-foreground)]">${r.date.slice(5)}</td>
+                <td class="py-1 ${mc}">${r.ex_etf_maint_ratio != null ? r.ex_etf_maint_ratio.toFixed(2) + '%' : '--'}</td>
+                <td class="py-1 ${lc}">${r.ex_etf_lots_chg >= 0 ? '+' : ''}${r.ex_etf_lots_chg.toLocaleString()} (${r.ex_etf_lots_chg_pct >= 0 ? '+' : ''}${r.ex_etf_lots_chg_pct.toFixed(1)}%)</td>
+                <td class="py-1">${r.below_130_stocks} 家</td>
+              </tr>`;
+            }).join('');
+
+            drawMaintChartBC(marginHistoryBC);
+          }
+        }
+      } catch (e) {
+        console.warn('Init bull call page err:', e);
+      }
+      applyRecommendedBC(true);
+    })();
+  </script>
+</body>
+</html>

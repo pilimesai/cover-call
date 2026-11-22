@@ -665,6 +665,22 @@
     calc3B();
     calc3A();
     calc4();
+
+    (function applyEmbedMode() {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('tab');
+      const embed = params.get('embed');
+      if (embed === '1') {
+        const hdr = document.querySelector('header');
+        if (hdr) hdr.style.display = 'none';
+      } else if (embed === 'other') {
+        const b3b = document.getElementById('btn-tab-3b');
+        if (b3b) b3b.style.display = 'none';
+      }
+      if (t && typeof switchTab === 'function') {
+        switchTab(t);
+      }
+    })();
   </script>
 </body>
 </html>

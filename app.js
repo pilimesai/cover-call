@@ -3515,6 +3515,29 @@ function resizeArbitrageIframe() {
     resizeIframeById('arbitrage-frame');
 }
 
+window.syncQuotesToLimit3B = function () {
+    const frame = document.getElementById('limit3b-frame');
+    if (!frame || !rawData || rawData.length === 0) return;
+    const latest = rawData[rawData.length - 1];
+    try {
+        const win = frame.contentWindow;
+        const doc = frame.contentDocument || (win && win.document);
+        if (!doc) return;
+        const idxEl = doc.getElementById('in-idx-3b');
+        if (idxEl && latest.taiex > 0) {
+            idxEl.value = String(Math.round(latest.taiex));
+            if (typeof win.calc3B === 'function') win.calc3B();
+        }
+        const btn = document.getElementById('btn-sync-3b-quote');
+        if (btn) {
+            const old = btn.textContent;
+            btn.textContent = `✅ 已帶入大盤 ${Math.round(latest.taiex).toLocaleString()}`;
+            setTimeout(() => { btn.textContent = old; }, 2500);
+        }
+        resizeIframeById('limit3b-frame');
+    } catch (e) { console.warn('Sync to 3-B iframe failed:', e); }
+};
+
 window.syncQuotesToArbitrage = function () {
     const frame = document.getElementById('arbitrage-frame');
     if (!frame || !rawData || rawData.length === 0) return;
@@ -3536,7 +3559,7 @@ window.syncQuotesToArbitrage = function () {
         const btn = document.getElementById('btn-sync-arb-quotes');
         if (btn) {
             const old = btn.textContent;
-            btn.textContent = `✅ 已帶入大盤 ${Math.round(latest.taiex).toLocaleString()} / 台積電 ${latest.tsmc}`;
+            btn.textContent = `✅ 已帶入台積電 ${latest.tsmc}`;
             setTimeout(() => { btn.textContent = old; }, 2500);
         }
         resizeArbitrageIframe();
@@ -3545,7 +3568,8 @@ window.syncQuotesToArbitrage = function () {
 
 window.switchMainTab = function (tab) {
     const tabs = [
-        { key: 'covercall', pane: 'tab-pane-covercall', btn: 'main-tab-btn-cc', frame: null },
+        { key: 'covercall', pane: 'tab-pane-covercall', btn: 'main-tab-btn-cc',  frame: null },
+        { key: 'limit3b',   pane: 'tab-pane-limit3b',   btn: 'main-tab-btn-3b',  frame: 'limit3b-frame' },
         { key: 'arbitrage', pane: 'tab-pane-arbitrage', btn: 'main-tab-btn-arb', frame: 'arbitrage-frame' },
         { key: 'calendar',  pane: 'tab-pane-calendar',  btn: 'main-tab-btn-cs',  frame: 'calendar-frame' },
     ];
@@ -3588,6 +3612,6 @@ window.switchMainTab = function (tab) {
 window.addEventListener('DOMContentLoaded', () => {
     try {
         const savedTab = localStorage.getItem('cc_active_main_tab');
-        if (savedTab === 'arbitrage' || savedTab === 'calendar') window.switchMainTab(savedTab);
+        if (savedTab === 'limit3b' || savedTab === 'arbitrage' || savedTab === 'calendar') window.switchMainTab(savedTab);
     } catch (e) {}
 });

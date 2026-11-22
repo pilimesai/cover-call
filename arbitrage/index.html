@@ -482,6 +482,7 @@
           latestMarket3B = {
             close,
             date: latest.date || '',
+            expiryWeekly: latest.expiry_date_weekly || '',
             txAfter: latest.tx_after_market,
             txAfterSpread: latest.tx_after_spread,
             txAfterDate: latest.tx_after_date || ''
@@ -635,8 +636,10 @@
 
       const setsSumEl = document.getElementById('out-sets-summary-3b');
       if (setsSumEl) {
-        const leg3Txt = n3 > 0 ? ` ｜ 買 ${k3} × ${n3}口` : '';
-        setsSumEl.textContent = `📌 合計下單 (${sets}組)：買 ${k1} × ${n1}口 ｜ 賣 ${k2} × ${n2}口${leg3Txt} ｜ 總淨收 ${creditPts} 點`;
+        const optType = dir === 'call' ? 'Call' : 'Put';
+        const expTag = latestMarket3B?.expiryWeekly ? `TXO 週三結算 ${latestMarket3B.expiryWeekly}` : 'TXO 週三結算';
+        const leg3Txt = n3 > 0 ? ` ｜ 買 ${k3} ${optType} × ${n3}口` : '';
+        setsSumEl.textContent = `📌 合計下單 (${sets}組｜${expTag})：買 ${k1} ${optType} × ${n1}口 ｜ 賣 ${k2} ${optType} × ${n2}口${leg3Txt} ｜ 總淨收 ${creditPts} 點`;
       }
 
       const totalLots = n1 + n2 + n3;

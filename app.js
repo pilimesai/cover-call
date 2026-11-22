@@ -3492,3 +3492,91 @@ function startIntradayAutoPolling() {
         }
     }, 15000);
 }
+
+
+// ─────────────────────────────────────────────────────────────
+// 🗂️ 主分頁切換 (分頁一：Covered Call / 分頁二：柴柴套利策略)
+// ─────────────────────────────────────────────────────────────
+let arbResizeTimer = null;
+
+function resizeArbitrageIframe() {
+    const frame = document.getElementById('arbitrage-frame');
+    if (!frame) return;
+    try {
+        const doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+        if (doc && doc.documentElement) {
+            const h = Math.max(doc.body ? doc.body.scrollHeight : 0, doc.documentElement.scrollHeight);
+            if (h > 300) frame.style.height = (h + 24) + 'px';
+        }
+    } catch (e) { /* ignore */ }
+}
+
+window.syncQuotesToArbitrage = function () {
+    const frame = document.getElementById('arbitrage-frame');
+    if (!frame || !rawData || rawData.length === 0) return;
+    const latest = rawData[rawData.length - 1];
+    try {
+        const win = frame.contentWindow;
+        const doc = frame.contentDocument || (win && win.document);
+        if (!doc) return;
+        const idxEl = doc.getElementById('in-idx-3b');
+        if (idxEl && latest.taiex > 0) {
+            idxEl.value = String(Math.round(latest.taiex));
+            if (typeof win.calc3B === 'function') win.calc3B();
+        }
+        const tsmcSpotEl = doc.getElementById('in-spot-4') || doc.getElementById('in-stock-4');
+        if (tsmcSpotEl && latest.tsmc > 0) {
+            tsmcSpotEl.value = String(latest.tsmc);
+            if (typeof win.calc4 === 'function') win.calc4();
+        }
+        const btn = document.getElementById('btn-sync-arb-quotes');
+        if (btn) {
+            const old = btn.textContent;
+            btn.textContent = `✅ 已帶入大盤 ${Math.round(latest.taiex).toLocaleString()} / 台積電 ${latest.tsmc}`;
+            setTimeout(() => { btn.textContent = old; }, 2500);
+        }
+        resizeArbitrageIframe();
+    } catch (e) { console.warn('Sync to arbitrage iframe failed:', e); }
+};
+
+window.switchMainTab = function (tab) {
+    const paneCC = document.getElementById('tab-pane-covercall');
+    const paneArb = document.getElementById('tab-pane-arbitrage');
+    const btnCC = document.getElementById('main-tab-btn-cc');
+    const btnArb = document.getElementById('main-tab-btn-arb');
+    if (!paneCC || !paneArb) return;
+
+    const isArb = tab === 'arbitrage';
+    paneCC.classList.toggle('hidden', isArb);
+    paneArb.classList.toggle('hidden', !isArb);
+    if (btnCC) { btnCC.classList.toggle('active', !isArb); btnCC.setAttribute('aria-selected', String(!isArb)); }
+    if (btnArb) { btnArb.classList.toggle('active', isArb); btnArb.setAttribute('aria-selected', String(isArb)); }
+
+    if (isArb) {
+        const frame = document.getElementById('arbitrage-frame');
+        if (frame && !frame.getAttribute('src')) {
+            frame.onload = () => {
+                resizeArbitrageIframe();
+                setTimeout(resizeArbitrageIframe, 500);
+            };
+            frame.setAttribute('src', frame.getAttribute('data-src') || './arbitrage/index.html');
+        } else {
+            resizeArbitrageIframe();
+        }
+        if (arbResizeTimer) clearInterval(arbResizeTimer);
+        arbResizeTimer = setInterval(resizeArbitrageIframe, 1000);
+    } else {
+        if (arbResizeTimer) { clearInterval(arbResizeTimer); arbResizeTimer = null; }
+        if (typeof chartInstance !== 'undefined' && chartInstance) {
+            try { chartInstance.resize(); } catch (e) {}
+        }
+    }
+    try { localStorage.setItem('cc_active_main_tab', tab); } catch (e) {}
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+    try {
+        const savedTab = localStorage.getItem('cc_active_main_tab');
+        if (savedTab === 'arbitrage') window.switchMainTab('arbitrage');
+    } catch (e) {}
+});

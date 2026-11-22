@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>柴柴輝哥散戶套利｜進場決策與損益試算系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --foreground: #f8fafc;
+      --muted-foreground: #94a3b8;
+      --primary: #3b82f6;
+      --primary-foreground: #ffffff;
+      --secondary: #334155;
+      --secondary-foreground: #e2e8f0;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-4 md:p-6 m-0 min-h-screen">
+  <div class="max-w-5xl mx-auto space-y-5">
+    <!-- Header -->
+    <header class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 text-xs font-semibold rounded bg-[var(--primary)] text-[var(--primary-foreground)]">實戰量化工具</span>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight">柴柴輝哥散戶套利｜進場決策與損益試算系統</h1>
+        </div>
+        <p class="text-xs text-[var(--muted-foreground)] mt-1">
+          專為散戶打造：選擇權結算日極限價差（策略 3-B）× 連續 IOC 錯價釣魚（策略 3-A）× 台積電 1 張配 5 口小股期正價差套利（策略 4）
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        <button onclick="switchTab('tab-3b')" id="btn-tab-3b" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] transition">
+          🎯 策略 3-B：結算極限套利
+        </button>
+        <button onclick="switchTab('tab-3a')" id="btn-tab-3a" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] transition">
+          🎣 策略 3-A：連續 IOC 釣魚
+        </button>
+        <button onclick="switchTab('tab-4')" id="btn-tab-4" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] transition">
+          🛡️ 策略 4：台積電期現套利
+        </button>
+      </div>
+    </header>
+
+    <!-- ==================== TAB 3-B: 結算日漲跌停極限套利 ==================== -->
+    <section id="tab-3b" class="space-y-4">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span class="text-[var(--muted-foreground)] font-medium">📌 一鍵載入柴柴輝哥貼文真實案例：</span>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="loadPreset3B('20261117_call')" class="px-2.5 py-1 rounded border border-[var(--border)] hover:bg-[var(--secondary)] transition">
+            2026/11/17 買權比例價差（大盤 40092｜買 43000C×5 賣 43100C×7 收 48 點）
+          </button>
+          <button onclick="loadPreset3B('20261106_put')" class="px-2.5 py-1 rounded border border-[var(--border)] hover:bg-[var(--secondary)] transition">
+            2026/11/06 賣權極限收租（大盤 41574｜地板 37540 賣 37600P-37400P）
+          </button>
+        </div>
+      </div>
+
+      <div id="verdict-3b" class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span id="dot-3b" class="text-base">🟢</span>
+            <span id="title-3b" class="text-base font-bold">極高勝率準套利（損益兩平點超越單日理論極限）</span>
+          </div>
+          <p id="desc-3b" class="text-xs text-[var(--muted-foreground)]"></p>
+        </div>
+        <div class="flex gap-3 text-right shrink-0">
+          <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-xs text-[var(--muted-foreground)]">不動保底淨收</div>
+            <div id="badge-net-3b" class="text-sm font-mono font-bold text-[var(--success)]">+NT$2,400</div>
+          </div>
+          <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-xs text-[var(--muted-foreground)]">甜蜜區最大獲利</div>
+            <div id="badge-max-3b" class="text-sm font-mono font-bold text-[var(--primary)]">+NT$27,400</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3.5 text-xs">
+          <h2 class="text-sm font-bold border-b border-[var(--border)] pb-2">✏️ 1. 大盤與單日漲跌停極限設定</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">前日大盤收盤指數</label>
+              <input id="in-idx-3b" type="number" value="40092" step="10" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">操作方向與結構</label>
+              <select id="in-dir-3b" onchange="calc3B()" class="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)]">
+                <option value="call">上方天花板（CALL 比例/垂直價差）</option>
+                <option value="put">下方地板（PUT 垂直/比例價差）</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">單日極限上漲係數 (%)</label>
+              <input id="in-up-pct" type="number" value="8.0" step="0.1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <span class="text-[var(--muted-foreground)] block mt-0.5">考量金融傳產不全面漲停約 8%</span>
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">單日極限下跌係數 (%)</label>
+              <input id="in-dn-pct" type="number" value="9.7" step="0.1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <span class="text-[var(--muted-foreground)] block mt-0.5">全面跌停取整約 9.5%~9.7%</span>
+            </div>
+          </div>
+
+          <h2 class="text-sm font-bold border-b border-[var(--border)] pb-2 pt-2">⚙️ 2. 兩腿履約價與口數設定</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">買方保護腿履約價 (Buy K1)</label>
+              <input id="in-k1-3b" type="number" value="43000" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">買方口數 (N1)</label>
+              <input id="in-n1-3b" type="number" value="5" min="0" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">賣方收租腿履約價 (Sell K2)</label>
+              <input id="in-k2-3b" type="number" value="43100" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">賣方口數 (N2)</label>
+              <input id="in-n2-3b" type="number" value="7" min="1" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">整體建倉淨收總點數 (點)</label>
+              <input id="in-credit-3b" type="number" value="48" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <span class="text-[var(--muted-foreground)] block mt-0.5">全部賣方收點 − 全部買方付點</span>
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">單口手續費+稅 (NT$)</label>
+              <input id="in-fee-3b" type="number" value="20" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+        </div>
+
+        <div class="md:col-span-7 space-y-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">隔日理論極限邊界</div>
+              <div id="out-limit-3b" class="text-base font-mono font-bold mt-1">--</div>
+              <div id="out-limit-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">真實損益兩平點</div>
+              <div id="out-be-3b" class="text-base font-mono font-bold mt-1">--</div>
+              <div id="out-be-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">常態結算保底淨利</div>
+              <div id="out-base-3b" class="text-base font-mono font-bold text-[var(--success)] mt-1">--</div>
+              <div id="out-base-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">扣手續費後實拿</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">甜蜜點最高淨利</div>
+              <div id="out-peak-3b" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--</div>
+              <div id="out-peak-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+          </div>
+
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold">📈 結算日到期損益剖面圖（Payoff Diagram）</span>
+              <span id="chart-legend-3b" class="text-[var(--muted-foreground)] font-mono"></span>
+            </div>
+            <canvas id="canvas-3b" width="560" height="210" class="w-full h-48 rounded bg-[var(--background)] border border-[var(--border)]"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3-A: 連續 IOC 錯價釣魚 ==================== -->
+    <section id="tab-3a" class="hidden space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3.5 text-xs">
+          <div class="flex items-center justify-between border-b border-[var(--border)] pb-2">
+            <h2 class="text-sm font-bold">🎣 連續 IOC 錯價價差參數</h2>
+            <div class="flex gap-1.5">
+              <button onclick="loadPreset3A('night')" class="px-2 py-0.5 rounded border border-[var(--border)] hover:bg-[var(--secondary)]">11/11 凌晨 1 點單</button>
+              <button onclick="loadPreset3A('monday')" class="px-2 py-0.5 rounded border border-[var(--border)] hover:bg-[var(--secondary)]">06/06 週一 500 點間距</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">履約價間距 (點)</label>
+              <select id="in-width-3a" onchange="calc3A()" class="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono">
+                <option value="50" selected>50 點（週選密集檔）</option>
+                <option value="100">100 點</option>
+                <option value="200">200 點</option>
+                <option value="500">500 點（大波段防禦）</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">IOC 委託限價 (點/組)</label>
+              <input id="in-cost-3a" type="number" value="1" min="0.5" step="0.5" oninput="calc3A()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">釣中成交組數 (組)</label>
+              <input id="in-sets-3a" type="number" value="4" min="1" step="1" oninput="calc3A()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">穿價目標平倉價差 (點/組)</label>
+              <input id="in-target-3a" type="number" value="49" min="1" step="1" oninput="calc3A()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[var(--muted-foreground)] mb-1">單口來回手續費+稅 (NT$/口，1組=2口)</label>
+            <input id="in-fee-3a" type="number" value="20" min="0" step="1" oninput="calc3A()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+          </div>
+        </div>
+
+        <div class="md:col-span-7 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-4 text-xs">
+          <h2 class="text-sm font-bold border-b border-[var(--border)] pb-2">📊 風報比與期望值試算結果</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <div class="text-[var(--muted-foreground)]">最大鎖死總虧損</div>
+              <div id="out-maxloss-3a" class="text-base font-mono font-bold text-[var(--error)] mt-1">--</div>
+              <div class="text-[var(--muted-foreground)] mt-0.5">含權利金+進場手續費</div>
+            </div>
+            <div class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <div class="text-[var(--muted-foreground)]">穿價平倉總淨利</div>
+              <div id="out-netwin-3a" class="text-base font-mono font-bold text-[var(--success)] mt-1">--</div>
+              <div class="text-[var(--muted-foreground)] mt-0.5">已扣除雙邊成本與稅</div>
+            </div>
+            <div class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <div class="text-[var(--muted-foreground)]">真實淨風報比</div>
+              <div id="out-rr-3a" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--</div>
+              <div class="text-[var(--muted-foreground)] mt-0.5">賺賠倍數比</div>
+            </div>
+            <div class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <div class="text-[var(--muted-foreground)]">損益平衡勝率門檻</div>
+              <div id="out-be-rate-3a" class="text-base font-mono font-bold mt-1">--</div>
+              <div class="text-[var(--muted-foreground)] mt-0.5">長期正期望值所需勝率</div>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-1.5 leading-relaxed">
+            <div class="font-bold">💡 柴柴輝哥連續 IOC 實戰提醒：</div>
+            <p class="text-[var(--muted-foreground)]" id="note-3a"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: 台積電 1張現股 + 空 5口小股期 ==================== -->
+    <section id="tab-4" class="hidden space-y-4">
+      <div id="verdict-4" class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span id="dot-4" class="text-base">🟢</span>
+            <span id="title-4" class="text-base font-bold">正價差套利空間充裕（顯著優於定存無風險利率）</span>
+          </div>
+          <p id="desc-4" class="text-xs text-[var(--muted-foreground)]"></p>
+        </div>
+        <div class="flex gap-3 text-right shrink-0">
+          <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-xs text-[var(--muted-foreground)]">對鎖總股數 / 小股期口數</div>
+            <div id="badge-hedged-4" class="text-sm font-mono font-bold">1,000 股 ↔ 空 5 口 QFF</div>
+          </div>
+          <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-xs text-[var(--muted-foreground)]">預估全年套利淨利</div>
+            <div id="badge-annual-4" class="text-sm font-mono font-bold text-[var(--success)]">+NT$96,000</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3 text-xs">
+          <h2 class="text-sm font-bold border-b border-[var(--border)] pb-2">✏️ 台積電（2330）期現套利參數</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">持有台積電現股 (張)</label>
+              <input id="in-lots-4" type="number" value="1" min="1" step="1" oninput="calc4()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <span class="text-[var(--muted-foreground)] block mt-0.5">1 張 = 搭空 5 口小台積電</span>
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">台積電現股價格 S (元)</label>
+              <input id="in-spot-4" type="number" value="1000" step="5" oninput="calc4()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">小台積電股期價格 F (元)</label>
+              <input id="in-fut-4" type="number" value="1010" step="1" oninput="calc4()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <span class="text-[var(--muted-foreground)] block mt-0.5">2026/7/6 起股期 1 元一跳</span>
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">預估全年累積轉倉價差 (元)</label>
+              <input id="in-yr-spread-4" type="number" value="100" step="5" oninput="calc4()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <span class="text-[var(--muted-foreground)] block mt-0.5">輝哥 2026/04 實測 100~110 元</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">期貨保證金準備倍數 (倍)</label>
+              <input id="in-margin-mult-4" type="number" value="3.0" min="1.5" max="5.0" step="0.5" oninput="calc4()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <span class="text-[var(--muted-foreground)] block mt-0.5">原始保證金 13.5% × 倍數</span>
+            </div>
+            <div>
+              <label class="block text-[var(--muted-foreground)] mb-1">定存無風險年利率 (%)</label>
+              <input id="in-rf-4" type="number" value="1.7" step="0.1" oninput="calc4()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+            </div>
+          </div>
+        </div>
+
+        <div class="md:col-span-7 space-y-4 text-xs">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">當月期現正價差</div>
+              <div id="out-cur-spread-4" class="text-base font-mono font-bold mt-1">--</div>
+              <div id="out-cur-net-4" class="text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">總投入資金 (現+期)</div>
+              <div id="out-cap-4" class="text-base font-mono font-bold mt-1">--</div>
+              <div id="out-cap-sub-4" class="text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">全年套利年化報酬</div>
+              <div id="out-roi-4" class="text-base font-mono font-bold text-[var(--success)] mt-1">--</div>
+              <div id="out-excess-4" class="text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">免補錢抗漲上限</div>
+              <div id="out-safe-price-4" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--</div>
+              <div id="out-safe-pct-4" class="text-[var(--muted-foreground)] mt-0.5">--</div>
+            </div>
+          </div>
+
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold">🚀 延伸組合：柴柴輝哥「0050 正 2 優化三步架構」（以 300 萬多頭曝險為例）</h3>
+              <span class="px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--secondary-foreground)] font-mono">2026/04/13 教學文</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <div class="font-bold text-[var(--primary)]">第一步：0050 股期替代正 2</div>
+                <p class="text-[var(--muted-foreground)] mt-1">用 <strong>100 萬保證金</strong>建立等值 300 萬 0050 股期多頭，免除正 2 內扣與震盪耗損，釋放 <strong>200 萬現金</strong>。</p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <div class="font-bold text-[var(--success)]">第二步：台積電期現套利</div>
+                <p class="text-[var(--muted-foreground)] mt-1">拿釋放資金買 <strong>1 張台積電＋空 5 口小台積電</strong>，每年無方向風險穩收 <strong id="step2-profit">約 9.6 萬元</strong> 期現價差。</p>
+              </div>
+              <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <div class="font-bold text-[var(--warning)]">第三步：Covered Call 收租</div>
+                <p class="text-[var(--muted-foreground)] mt-1">在 300 萬多頭部位上方<strong>賣出 2 口價外 Call</strong>，震盪盤每月再多收權利金現金流補血。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      ['tab-3b', 'tab-3a', 'tab-4'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== tabId);
+        const btn = document.getElementById('btn-' + id);
+        if (id === tabId) {
+          btn.className = 'px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] transition';
+        } else {
+          btn.className = 'px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] transition';
+        }
+      });
+      if (tabId === 'tab-3b') calc3B();
+      if (tabId === 'tab-3a') calc3A();
+      if (tabId === 'tab-4') calc4();
+    }
+
+    function loadPreset3B(preset) {
+      if (preset === '20261117_call') {
+        document.getElementById('in-idx-3b').value = 40092;
+        document.getElementById('in-dir-3b').value = 'call';
+        document.getElementById('in-up-pct').value = 8.0;
+        document.getElementById('in-k1-3b').value = 43000;
+        document.getElementById('in-n1-3b').value = 5;
+        document.getElementById('in-k2-3b').value = 43100;
+        document.getElementById('in-n2-3b').value = 7;
+        document.getElementById('in-credit-3b').value = 48;
+      } else if (preset === '20261106_put') {
+        document.getElementById('in-idx-3b').value = 41574;
+        document.getElementById('in-dir-3b').value = 'put';
+        document.getElementById('in-dn-pct').value = 9.7;
+        document.getElementById('in-k1-3b').value = 37400;
+        document.getElementById('in-n1-3b').value = 5;
+        document.getElementById('in-k2-3b').value = 37600;
+        document.getElementById('in-n2-3b').value = 5;
+        document.getElementById('in-credit-3b').value = 60;
+      }
+      calc3B();
+    }
+
+    function pnlAtIndex3B(S, dir, k1, n1, k2, n2, netCreditPts) {
+      let val1 = 0, val2 = 0;
+      if (dir === 'call') {
+        val1 = Math.max(0, S - k1) * n1;
+        val2 = Math.max(0, S - k2) * n2;
+      } else {
+        val1 = Math.max(0, k1 - S) * n1;
+        val2 = Math.max(0, k2 - S) * n2;
+      }
+      return netCreditPts + val1 - val2;
+    }
+
+    function calc3B() {
+      const idx = parseFloat(document.getElementById('in-idx-3b').value) || 40000;
+      const dir = document.getElementById('in-dir-3b').value;
+      const upPct = parseFloat(document.getElementById('in-up-pct').value) || 8.0;
+      const dnPct = parseFloat(document.getElementById('in-dn-pct').value) || 9.7;
+      const k1 = parseFloat(document.getElementById('in-k1-3b').value) || 43000;
+      const n1 = parseFloat(document.getElementById('in-n1-3b').value) || 0;
+      const k2 = parseFloat(document.getElementById('in-k2-3b').value) || 43100;
+      const n2 = parseFloat(document.getElementById('in-n2-3b').value) || 1;
+      const creditPts = parseFloat(document.getElementById('in-credit-3b').value) || 0;
+      const feePerLot = parseFloat(document.getElementById('in-fee-3b').value) || 20;
+
+      const totalLots = n1 + n2;
+      const totalFees = totalLots * feePerLot;
+      const baseNetNT = Math.round(creditPts * 50 - totalFees);
+
+      const limitIdx = dir === 'call'
+        ? Math.round(idx * (1 + upPct / 100))
+        : Math.round(idx * (1 - dnPct / 100));
+
+      const peakPts = pnlAtIndex3B(k2, dir, k1, n1, k2, n2, creditPts);
+      const peakNetNT = Math.round(peakPts * 50 - totalFees);
+
+      let beIdx = null;
+      const stepTest = dir === 'call' ? 1 : -1;
+      for (let s = k2; dir === 'call' ? s <= idx * 1.25 : s >= idx * 0.75; s += stepTest * 2) {
+        if (pnlAtIndex3B(s, dir, k1, n1, k2, n2, creditPts) < 0) {
+          beIdx = s;
+          break;
+        }
+      }
+
+      document.getElementById('out-limit-3b').textContent = limitIdx.toLocaleString() + ' 點';
+      document.getElementById('out-limit-sub').textContent = dir === 'call' ? `單日極限 +${upPct}%` : `單日極限 -${dnPct}%`;
+
+      if (beIdx) {
+        const bePct = (((beIdx - idx) / idx) * 100).toFixed(2);
+        document.getElementById('out-be-3b').textContent = beIdx.toLocaleString() + ' 點';
+        document.getElementById('out-be-sub').textContent = `需單日變動 ${bePct > 0 ? '+' : ''}${bePct}%`;
+      } else {
+        document.getElementById('out-be-3b').textContent = '無破局點';
+        document.getElementById('out-be-sub').textContent = '全區間正報酬';
+      }
+
+      document.getElementById('out-base-3b').textContent = (baseNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(baseNetNT).toLocaleString();
+      document.getElementById('out-peak-3b').textContent = (peakNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(peakNetNT).toLocaleString();
+      document.getElementById('out-peak-sub').textContent = `結算在 ${k2.toLocaleString()} 點時 (${peakPts} 點)`;
+
+      document.getElementById('badge-net-3b').textContent = (baseNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(baseNetNT).toLocaleString();
+      document.getElementById('badge-max-3b').textContent = (peakNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(peakNetNT).toLocaleString();
+
+      const isSafe = !beIdx || (dir === 'call' ? beIdx >= limitIdx : beIdx <= limitIdx);
+      const dot = document.getElementById('dot-3b');
+      const title = document.getElementById('title-3b');
+      const desc = document.getElementById('desc-3b');
+
+      if (isSafe && creditPts > 0) {
+        dot.textContent = '🟢';
+        title.textContent = '符合柴柴輝哥「結算極限準套利」條件（損益兩平點在理論極限之外）';
+        desc.textContent = `前日收盤 ${idx.toLocaleString()} 點，隔日理論極限結算價約 ${limitIdx.toLocaleString()} 點，而本策略要到 ${beIdx ? beIdx.toLocaleString() + ' 點' : '極端外'} 才會開始虧損。不動先收 ${creditPts} 點（扣成本實拿 NT$${baseNetNT.toLocaleString()}）。`;
+      } else {
+        dot.textContent = '🟡';
+        title.textContent = '注意：損益兩平點位於理論極限內，具方向性曝險';
+        desc.textContent = `目前損益兩平點（${beIdx ? beIdx.toLocaleString() : '--'} 點）尚未超越單日理論極限（${limitIdx.toLocaleString()} 點），建議往更價外履約價移動或改用 1:1 垂直價差鎖死風險。`;
+      }
+
+      drawChart3B(idx, limitIdx, beIdx, dir, k1, n1, k2, n2, creditPts);
+    }
+
+    function drawChart3B(idx, limitIdx, beIdx, dir, k1, n1, k2, n2, creditPts) {
+      const canvas = document.getElementById('canvas-3b');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const minS = dir === 'call' ? idx : Math.min(k1, k2, limitIdx) - 400;
+      const maxS = dir === 'call' ? Math.max(k1, k2, limitIdx, beIdx || k2) + 400 : idx;
+
+      const pts = [];
+      let minPnl = -100, maxPnl = 100;
+      for (let i = 0; i <= 120; i++) {
+        const s = minS + ((maxS - minS) * i) / 120;
+        const p = pnlAtIndex3B(s, dir, k1, n1, k2, n2, creditPts);
+        pts.push({ s, p });
+        if (p < minPnl) minPnl = p;
+        if (p > maxPnl) maxPnl = p;
+      }
+
+      const padL = 48, padR = 20, padT = 22, padB = 28;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      const toX = s => padL + ((s - minS) / (maxS - minS)) * plotW;
+      const toY = p => padT + ((maxPnl - p) / (maxPnl - minPnl || 1)) * plotH;
+
+      const y0 = toY(0);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, y0);
+      ctx.lineTo(W - padR, y0);
+      ctx.stroke();
+
+      const xLim = toX(limitIdx);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(xLim, padT);
+      ctx.lineTo(xLim, H - padB);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '11px monospace';
+      ctx.fillText(`理論極限 ${limitIdx}`, Math.min(W - 110, Math.max(padL + 4, xLim - 40)), padT + 12);
+
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      pts.forEach((pt, i) => {
+        const x = toX(pt.s);
+        const y = toY(pt.p);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '11px monospace';
+      ctx.fillText('0點', 12, y0 + 4);
+      ctx.fillText(`${Math.round(maxPnl)}點`, 6, padT + 8);
+      ctx.fillText(`${Math.round(minS)}`, padL, H - 8);
+      ctx.fillText(`${Math.round(maxS)}`, W - padR - 42, H - 8);
+      document.getElementById('chart-legend-3b').textContent = `橘色虛線 = 隔日理論漲跌停極限 (${limitIdx} 點)`;
+    }
+
+    function loadPreset3A(type) {
+      if (type === 'night') {
+        document.getElementById('in-width-3a').value = '50';
+        document.getElementById('in-cost-3a').value = 1;
+        document.getElementById('in-sets-3a').value = 4;
+        document.getElementById('in-target-3a').value = 49;
+      } else {
+        document.getElementById('in-width-3a').value = '500';
+        document.getElementById('in-cost-3a').value = 45;
+        document.getElementById('in-sets-3a').value = 2;
+        document.getElementById('in-target-3a').value = 450;
+      }
+      calc3A();
+    }
+
+    function calc3A() {
+      const width = parseFloat(document.getElementById('in-width-3a').value) || 50;
+      const costPts = parseFloat(document.getElementById('in-cost-3a').value) || 1;
+      const sets = parseFloat(document.getElementById('in-sets-3a').value) || 1;
+      const targetPts = Math.min(width, parseFloat(document.getElementById('in-target-3a').value) || (width - 1));
+      const feePerLot = parseFloat(document.getElementById('in-fee-3a').value) || 20;
+
+      const entryFees = sets * 2 * feePerLot;
+      const roundTripFees = sets * 4 * feePerLot;
+
+      const maxLossNT = Math.round(costPts * sets * 50 + entryFees);
+      const grossWinPts = (targetPts - costPts) * sets;
+      const netWinNT = Math.round(grossWinPts * 50 - roundTripFees);
+      const rr = (netWinNT / Math.max(1, maxLossNT)).toFixed(1);
+      const beRate = ((1 / (1 + parseFloat(rr))) * 100).toFixed(1);
+
+      document.getElementById('out-maxloss-3a').textContent = '-NT$' + maxLossNT.toLocaleString();
+      document.getElementById('out-netwin-3a').textContent = '+NT$' + netWinNT.toLocaleString();
+      document.getElementById('out-rr-3a').textContent = `1 : ${rr}`;
+      document.getElementById('out-be-rate-3a').textContent = `${beRate}%`;
+
+      document.getElementById('note-3a').textContent =
+        `以間距 ${width} 點、掛單 ${costPts} 點計算，成交 ${sets} 組最多只會虧損 NT$${maxLossNT.toLocaleString()}（權利金歸零）；一旦隔日行情穿價至 ${targetPts} 點平倉，扣除雙邊手續費後實拿 +NT$${netWinNT.toLocaleString()}。這意味著就算釣中 40 次裡面有 38 次歸零、只要有 2 次穿價就能倒賺！`;
+    }
+
+    function calc4() {
+      const lots = parseFloat(document.getElementById('in-lots-4').value) || 1;
+      const spot = parseFloat(document.getElementById('in-spot-4').value) || 1000;
+      const fut = parseFloat(document.getElementById('in-fut-4').value) || 1010;
+      const yrSpread = parseFloat(document.getElementById('in-yr-spread-4').value) || 100;
+      const marginMult = parseFloat(document.getElementById('in-margin-mult-4').value) || 3.0;
+      const rfPct = parseFloat(document.getElementById('in-rf-4').value) || 1.7;
+
+      const shares = lots * 1000;
+      const qffLots = lots * 5;
+      const spotCapital = shares * spot;
+      const initMargin = spotCapital * 0.135;
+      const futCapital = Math.round(initMargin * marginMult);
+      const totalCapital = spotCapital + futCapital;
+
+      const curSpread = fut - spot;
+      const monthlyRollCost = qffLots * 55;
+      const curMonthNetNT = Math.round(curSpread * shares - monthlyRollCost);
+
+      const annualGrossNT = yrSpread * shares;
+      const annualCostNT = monthlyRollCost * 12 + Math.round(spotCapital * 0.001425 * 0.28);
+      const annualNetNT = Math.round(annualGrossNT - annualCostNT);
+      const annualRoiPct = ((annualNetNT / totalCapital) * 100).toFixed(2);
+      const excessPct = (parseFloat(annualRoiPct) - rfPct).toFixed(2);
+
+      const maintenanceMargin = initMargin * 1.0;
+      const bufferCash = Math.max(0, futCapital - maintenanceMargin);
+      const maxPriceRise = Math.floor(bufferCash / shares);
+      const safeSpotPrice = spot + maxPriceRise;
+      const safeRisePct = ((maxPriceRise / spot) * 100).toFixed(1);
+
+      document.getElementById('badge-hedged-4').textContent = `${shares.toLocaleString()} 股 ↔ 空 ${qffLots} 口小台積電`;
+      document.getElementById('badge-annual-4').textContent = (annualNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(annualNetNT).toLocaleString();
+
+      document.getElementById('out-cur-spread-4').textContent = `${curSpread >= 0 ? '+' : ''}${curSpread} 元/股`;
+      document.getElementById('out-cur-net-4').textContent = `單月扣成本實拿 NT$${curMonthNetNT.toLocaleString()}`;
+      document.getElementById('out-cap-4').textContent = `NT$${(totalCapital / 10000).toFixed(1)} 萬`;
+      document.getElementById('out-cap-sub-4').textContent = `現股 ${(spotCapital / 10000).toFixed(0)}萬 + 保證金 ${(futCapital / 10000).toFixed(1)}萬`;
+      document.getElementById('out-roi-4').textContent = `${annualRoiPct}%`;
+      document.getElementById('out-excess-4').textContent = `超越定存 +${excessPct}%`;
+      document.getElementById('out-safe-price-4').textContent = `${safeSpotPrice.toLocaleString()} 元`;
+      document.getElementById('out-safe-pct-4').textContent = `可抗急漲 +${safeRisePct}% 免補錢`;
+      document.getElementById('step2-profit').textContent = `約 ${(annualNetNT / 10000).toFixed(1)} 萬元`;
+
+      const dot = document.getElementById('dot-4');
+      const title = document.getElementById('title-4');
+      const desc = document.getElementById('desc-4');
+
+      if (parseFloat(excessPct) >= 1.5 && curSpread >= 2) {
+        dot.textContent = '🟢';
+        title.textContent = `值得進場套利（年化淨報酬 ${annualRoiPct}%，超越定存 +${excessPct}%）`;
+        desc.textContent = `買進 ${lots} 張台積電現股並同步放空 ${qffLots} 口小型台積電股期（1口=200股），多空 100% 對鎖。現股長抱不賣可省下 0.3% 證交稅，僅期貨端每月跨月轉倉，全年預估實拿 NT$${annualNetNT.toLocaleString()}。`;
+      } else {
+        dot.textContent = '🔴';
+        title.textContent = `套利空間不足（扣除定存 ${rfPct}% 後超額報酬僅 ${excessPct}%）`;
+        desc.textContent = `符合柴柴輝哥 2024/03/11 原則：「扣除定存利率與交易成本後若只剩不到 1%，超難賺不如放棄」，建議等待市場過熱、正價差擴大至單月 5 元以上再進場鎖單。`;
+      }
+    }
+
+    window.addEventListener('resize', calc3B);
+    calc3B();
+    calc3A();
+    calc4();
+  </script>
+</body>
+</html>

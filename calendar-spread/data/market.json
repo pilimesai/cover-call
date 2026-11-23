@@ -1,20 +1,16 @@
 {
- "generated_at": "2026-11-22T10:09:44+08:00",
+ "generated_at": "2026-11-23T23:00:30+08:00",
  "errors": [],
  "tx": {
-  "date": "20261120",
+  "date": "20261123",
   "near_month": "202612",
   "far_month": "202701",
-  "near_price": 35800.0,
-  "far_price": 35933.0,
-  "spread": 133.0,
-  "ma10_spread": 124.1,
+  "near_price": 36659.0,
+  "far_price": 36786.0,
+  "spread": 127.0,
+  "ma10_spread": 129.3,
   "ma10_days": 10,
   "recent_spreads": [
-   {
-    "date": "2026-11-09",
-    "spread": 75.0
-   },
    {
     "date": "2026-11-10",
     "spread": 66.0
@@ -50,41 +46,41 @@
    {
     "date": "2026-11-20",
     "spread": 133.0
+   },
+   {
+    "date": "2026-11-23",
+    "spread": 127.0
    }
   ]
  },
  "foreign": {
-  "date": "20261120",
-  "oi_net": -97863,
-  "net_short": 97863
+  "date": "20261123",
+  "oi_net": -103432,
+  "net_short": 103432
  },
  "trust": {
-  "date": "20261120",
-  "oi_net": 87599,
-  "net_long": 87599,
-  "prev_20d_date": "2026-10-21",
-  "prev_20d_net_long": 83778,
-  "change_20d": 3821,
-  "change_20d_pct": 4.56,
+  "date": "20261123",
+  "oi_net": 93565,
+  "net_long": 93565,
+  "prev_20d_date": "2026-10-22",
+  "prev_20d_net_long": 83601,
+  "change_20d": 9964,
+  "change_20d_pct": 11.92,
   "trend_days": 20
  },
  "rate": {
-  "date": "2026-11-20",
+  "date": "2026-11-23",
   "source": "銀行公會 TAIBOR 1個月期",
   "taibor_1m": 1.604,
   "annual_rate_pct": 1.604
  },
  "taiex": {
-  "date": "2026-11-20",
-  "close": 36033.29,
-  "base_date": "2026-11-13",
-  "base_close": 43675.12,
-  "change_5d_pct": -17.5,
+  "date": "2026-11-23",
+  "close": 36811.89,
+  "base_date": "2026-11-16",
+  "base_close": 41040.08,
+  "change_5d_pct": -10.3,
   "recent_5d_changes": [
-   {
-    "date": "2026-11-16",
-    "change_5d_pct": -1.49
-   },
    {
     "date": "2026-11-17",
     "change_5d_pct": -6.13
@@ -100,34 +96,20 @@
    {
     "date": "2026-11-20",
     "change_5d_pct": -17.5
+   },
+   {
+    "date": "2026-11-23",
+    "change_5d_pct": -10.3
    }
   ]
  },
  "exdiv_meta": {
-  "taiex_close": 36033.29,
+  "taiex_close": 36811.89,
   "total_market_cap_t": 118.165,
-  "divisor_b": 3.2793,
+  "divisor_b": 3.21,
   "constituent_count": 1096
  },
  "exdiv": [
-  {
-   "date": "2026-11-19",
-   "code": "01007T",
-   "name": "兆豐國泰R2",
-   "type": "息",
-   "cash_dividend": 0.215313,
-   "is_constituent": false,
-   "impact_points": 0.0
-  },
-  {
-   "date": "2026-11-19",
-   "code": "6924",
-   "name": "榮惠-KY創",
-   "type": "權",
-   "cash_dividend": 0.0,
-   "is_constituent": true,
-   "impact_points": 0.0
-  },
   {
    "date": "2026-11-20",
    "code": "0051",
@@ -198,7 +180,7 @@
    "type": "息",
    "cash_dividend": 2.6,
    "is_constituent": true,
-   "impact_points": 0.064
+   "impact_points": 0.065
   },
   {
    "date": "2026-11-26",
@@ -225,7 +207,7 @@
    "type": "息",
    "cash_dividend": 0.5,
    "is_constituent": true,
-   "impact_points": 0.081
+   "impact_points": 0.082
   },
   {
    "date": "2026-12-01",
@@ -297,7 +279,7 @@
    "type": "息",
    "cash_dividend": 0.624652,
    "is_constituent": true,
-   "impact_points": 0.038
+   "impact_points": 0.039
   },
   {
    "date": "2026-12-04",
@@ -315,7 +297,7 @@
    "type": "息",
    "cash_dividend": 0.199892,
    "is_constituent": true,
-   "impact_points": 0.014
+   "impact_points": 0.015
   },
   {
    "date": "2026-12-04",
@@ -324,7 +306,7 @@
    "type": "息",
    "cash_dividend": 0.141372,
    "is_constituent": true,
-   "impact_points": 0.035
+   "impact_points": 0.036
   },
   {
    "date": "2026-12-07",
@@ -336,13 +318,40 @@
    "impact_points": 0.0
   },
   {
+   "date": "2026-12-08",
+   "code": "00400A",
+   "name": "主動國泰動能高息",
+   "type": "息",
+   "cash_dividend": null,
+   "is_constituent": false,
+   "impact_points": 0.0
+  },
+  {
+   "date": "2026-12-08",
+   "code": "4414",
+   "name": "如興",
+   "type": "息",
+   "cash_dividend": 0.00915,
+   "is_constituent": true,
+   "impact_points": 0.001
+  },
+  {
+   "date": "2026-12-08",
+   "code": "6277",
+   "name": "宏正",
+   "type": "息",
+   "cash_dividend": 2.3,
+   "is_constituent": true,
+   "impact_points": 0.086
+  },
+  {
    "date": "2026-12-21",
    "code": "1817",
    "name": "凱撒衛",
    "type": "息",
    "cash_dividend": 1.8,
    "is_constituent": true,
-   "impact_points": 0.04
+   "impact_points": 0.041
   },
   {
    "date": "2026-12-30",
@@ -351,7 +360,7 @@
    "type": "息",
    "cash_dividend": 1.9,
    "is_constituent": true,
-   "impact_points": 0.086
+   "impact_points": 0.088
   }
  ]
 }

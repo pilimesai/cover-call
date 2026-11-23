@@ -119,15 +119,18 @@ def fetch_recent_spreads(near_month: str, far_month: str) -> dict:
             by_date.setdefault(dt, {})[ym] = p
 
     recent = []
+    latest_csv = None
     for dt in sorted(by_date):
         quotes = by_date[dt]
         if near_month in quotes and far_month in quotes:
-            recent.append(
-                {
-                    "date": dt,
-                    "spread": round(quotes[far_month] - quotes[near_month], 2),
-                }
-            )
+            sp = round(quotes[far_month] - quotes[near_month], 2)
+            recent.append({"date": dt, "spread": sp})
+            latest_csv = {
+                "date": dt.replace("-", ""),
+                "near_price": quotes[near_month],
+                "far_price": quotes[far_month],
+                "spread": sp,
+            }
 
     recent = recent[-10:]
     if not recent:
@@ -138,6 +141,7 @@ def fetch_recent_spreads(near_month: str, far_month: str) -> dict:
         "ma10_spread": ma10,
         "ma10_days": len(recent),
         "recent_spreads": recent,
+        "latest_csv": latest_csv,
     }
 
 
@@ -163,10 +167,7 @@ def fetch_institutional() -> tuple[dict, dict]:
 
 def fetch_trust_trend(latest_date_str: str | None = None, latest_net_long: int | None = None) -> dict:
     """抓取期交所近 50 個日曆日三大法人台指期歷史資料，計算投信淨多單近 20 個交易日增減趨勢。"""
-    if latest_date_str and re.fullmatch(r"\d{8}", str(latest_date_str).strip()):
-        end_d = datetime.strptime(str(latest_date_str).strip(), "%Y%m%d").date()
-    else:
-        end_d = datetime.now(TPE).date()
+    end_d = datetime.now(TPE).date()
     start_d = end_d - timedelta(days=50)
     body = urllib.parse.urlencode(
         {
@@ -187,17 +188,23 @@ def fetch_trust_trend(latest_date_str: str | None = None, latest_net_long: int |
         raise RuntimeError("期交所投信歷史資料回傳非 CSV 格式")
 
     by_date: dict[str, int] = {}
+    foreign_by_date: dict[str, int] = {}
     for row in csv.reader(io.StringIO(txt)):
         if len(row) < 14:
             continue
-        if row[1].strip() != "臺股期貨" or row[2].strip() != "投信":
+        if row[1].strip() != "臺股期貨":
             continue
+        ident = row[2].strip()
         raw_dt = row[0].strip().replace("/", "-")
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw_dt):
             continue
         oi_val = to_num(row[13])
-        if oi_val is not None:
+        if oi_val is None:
+            continue
+        if ident == "投信":
             by_date[raw_dt] = max(0, int(oi_val))
+        elif ident == "外資及陸資":
+            foreign_by_date[raw_dt] = int(oi_val)
 
     series = [{"date": d, "net_long": by_date[d]} for d in sorted(by_date)]
     if latest_date_str and re.fullmatch(r"\d{8}", str(latest_date_str).strip()) and latest_net_long is not None:
@@ -214,12 +221,24 @@ def fetch_trust_trend(latest_date_str: str | None = None, latest_net_long: int |
     trend_days = len(series) - 1 - prev_idx
     change_20d = cur_item["net_long"] - base_item["net_long"]
     change_20d_pct = round((change_20d / base_item["net_long"]) * 100, 2) if base_item["net_long"] > 0 else None
+    latest_f_dt = max(foreign_by_date) if foreign_by_date else None
+    latest_f_net = foreign_by_date[latest_f_dt] if latest_f_dt else None
     return {
         "prev_20d_date": base_item["date"],
         "prev_20d_net_long": base_item["net_long"],
         "change_20d": change_20d,
         "change_20d_pct": change_20d_pct,
         "trend_days": trend_days,
+        "_latest_trust": {
+            "date": cur_item["date"].replace("-", ""),
+            "oi_net": cur_item["net_long"],
+            "net_long": cur_item["net_long"],
+        },
+        "_latest_foreign": {
+            "date": latest_f_dt.replace("-", ""),
+            "oi_net": latest_f_net,
+            "net_short": max(0, -latest_f_net),
+        } if latest_f_dt else None,
     }
 
 
@@ -438,6 +457,9 @@ def main() -> int:
         tx_data = fetch_tx()
         try:
             ma_info = fetch_recent_spreads(tx_data["near_month"], tx_data["far_month"])
+            latest_csv = ma_info.pop("latest_csv", None)
+            if latest_csv and latest_csv["date"] > str(tx_data.get("date") or ""):
+                tx_data.update(latest_csv)
             tx_data.update(ma_info)
         except Exception as exc:
             result["errors"].append(f"tx_ma10: {exc}")
@@ -455,6 +477,12 @@ def main() -> int:
         foreign_data, trust_data = fetch_institutional()
         try:
             trust_trend = fetch_trust_trend(trust_data.get("date"), trust_data.get("net_long"))
+            latest_f = trust_trend.pop("_latest_foreign", None)
+            latest_t = trust_trend.pop("_latest_trust", None)
+            if latest_f and latest_f["date"] > str(foreign_data.get("date") or ""):
+                foreign_data = latest_f
+            if latest_t and latest_t["date"] > str(trust_data.get("date") or ""):
+                trust_data.update(latest_t)
             trust_data.update(trust_trend)
         except Exception as exc:
             result["errors"].append(f"trust_trend: {exc}")

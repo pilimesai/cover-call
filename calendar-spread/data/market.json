@@ -1,6 +1,8 @@
 {
- "generated_at": "2026-11-23T23:00:30+08:00",
- "errors": [],
+ "generated_at": "2026-11-24T04:21:08+08:00",
+ "errors": [
+  "trust_trend: 期交所投信歷史資料回傳非 CSV 格式"
+ ],
  "tx": {
   "date": "20261123",
   "near_month": "202612",
@@ -54,14 +56,14 @@
   ]
  },
  "foreign": {
-  "date": "20261123",
-  "oi_net": -103432,
-  "net_short": 103432
+  "date": "20261120",
+  "oi_net": -97863,
+  "net_short": 97863
  },
  "trust": {
-  "date": "20261123",
-  "oi_net": 93565,
-  "net_long": 93565,
+  "date": "20261120",
+  "oi_net": 87599,
+  "net_long": 87599,
   "prev_20d_date": "2026-10-22",
   "prev_20d_net_long": 83601,
   "change_20d": 9964,

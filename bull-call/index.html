@@ -103,7 +103,11 @@
         <div class="flex items-center justify-between gap-2 border-b border-[var(--border)] pb-2">
           <h2 class="text-sm font-bold">🎯 Bull Call 價差試算</h2>
           <div class="flex items-center gap-1.5 shrink-0">
-            <button id="btn-live-bc" type="button" onclick="applyRecommendedBC(false)" class="px-2 py-1 text-[11px] whitespace-nowrap rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">
+            <label class="flex items-center gap-1 text-[11px] text-[var(--success)] cursor-pointer select-none" title="每 15 秒自動抓取鉅亨網即時大盤指數">
+              <input id="chk-live-bc" type="checkbox" checked class="accent-[var(--success)]" />
+              <span>⚡ 15s即時</span>
+            </label>
+            <button id="btn-live-bc" type="button" onclick="fetchLiveAndRecommendBC()" class="px-2 py-1 text-[11px] whitespace-nowrap rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">
               🎯 依即時指數推薦
             </button>
             <button id="btn-rec-bc" type="button" onclick="refreshAndRecommendBC()" class="px-2 py-1 text-[11px] whitespace-nowrap rounded bg-[var(--background)] text-[var(--muted-foreground)] border border-[var(--border)] hover:border-[var(--primary)] transition" title="重新抓取最新盤後收盤與維持率">
@@ -302,6 +306,43 @@
         document.getElementById('in-idx-bc').value = String(Math.round(latestTaiexBC));
       }
       setSpreadWidthBC(currentWidthPctBC || 0.05);
+    }
+
+    async function fetchLiveCnyesBC() {
+      const url = `https://ws.api.cnyes.com/ws/api/v1/quote/quotes/TWS:TSE01:INDEX,TWF:TXF:FUTURES?column=I&_=${Date.now()}`;
+      const resp = await fetch(url, { cache: 'no-store' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const j = await resp.json();
+      const items = j && Array.isArray(j.data) ? j.data : [];
+      const qTaiex = items.find(it => it && it['0'] === 'TWS:TSE01:INDEX');
+      const qTxf = items.find(it => it && it['0'] === 'TWF:TXF:FUTURES');
+      if (!qTaiex || !(Number(qTaiex['6']) > 0)) return false;
+
+      const liveIdx = Math.round(Number(qTaiex['6']));
+      const chg = Number(qTaiex['11'] || 0);
+      const ts = Number(qTaiex['200007'] || 0);
+      const tStr = ts > 0 ? new Date(ts * 1000).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Taipei' }) : '';
+      const txfTxt = (qTxf && Number(qTxf['6']) > 0) ? ` ｜ 期貨 ${Math.round(Number(qTxf['6'])).toLocaleString()}` : '';
+
+      latestTaiexBC = liveIdx;
+      document.getElementById('in-idx-bc').value = String(liveIdx);
+      document.getElementById('kpi-taiex-bc').textContent = liveIdx.toLocaleString();
+      document.getElementById('kpi-taiex-sub').textContent = `⚡ 即時 ${chg >= 0 ? '+' : ''}${chg.toFixed(0)}${txfTxt}${tStr ? ` (${tStr})` : ''}`;
+      applyRecommendedBC(false);
+      return true;
+    }
+
+    async function fetchLiveAndRecommendBC() {
+      const btn = document.getElementById('btn-live-bc');
+      if (btn) btn.textContent = '⏳ 抓取即時...';
+      try {
+        const ok = await fetchLiveCnyesBC();
+        if (btn) btn.textContent = ok ? `⚡ ${latestTaiexBC.toLocaleString()}` : '⚠️ 改用目前輸入';
+      } catch (e) {
+        applyRecommendedBC(false);
+        if (btn) btn.textContent = '⚠️ 抓取失敗';
+      }
+      if (btn) setTimeout(() => { btn.textContent = '🎯 依即時指數推薦'; }, 2200);
     }
 
     async function refreshAndRecommendBC() {
@@ -552,7 +593,12 @@
 
     (async function initBullCallPage() {
       await loadMarketDataBC();
-      applyRecommendedBC(true);
+      try { await fetchLiveCnyesBC(); } catch (e) { applyRecommendedBC(true); }
+      setInterval(async () => {
+        const chk = document.getElementById('chk-live-bc');
+        if (!chk || !chk.checked || (typeof document.hidden !== 'undefined' && document.hidden)) return;
+        try { await fetchLiveCnyesBC(); } catch (e) {}
+      }, 15000);
     })();
   </script>
 </body>

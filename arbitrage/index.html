@@ -680,15 +680,19 @@
           entryDateTxt = `${y}-${pm}-${pday} (週${dowNames[prevD.getDay()]})`;
         }
         const expTag = latestMarket3B?.expiryWeekly ? `TXO ${contractCode}｜結算 ${latestMarket3B.expiryWeekly}` : `TXO ${contractCode}`;
+        const perShortPts = (creditPts / Math.max(1, n2)).toFixed(2).replace(/\.00$/, '');
+        const creditSummary = structMode === 'vertical_1_1'
+          ? `App 單口價差 ${perShortPts} 點（${n2}口總淨收 ${creditPts} 點）`
+          : `單組 ${baseCreditPts} 點（${sets}組總淨收 ${creditPts} 點｜每賣1口均收 ${perShortPts} 點）`;
         const headerHtml =
-          `<div class="text-[var(--foreground)] font-semibold">📌 建倉複式單 (${sets}組｜${expTag})｜總淨收 ${creditPts} 點</div>` +
+          `<div class="text-[var(--foreground)] font-semibold">📌 建倉複式單 (${sets}組｜${expTag})｜${creditSummary}</div>` +
           `<div class="text-[11px] text-[var(--primary)]">⏰ 建議建倉時間：${entryDateTxt} 日盤尾盤 13:30 ~ 13:45（依日盤收盤鎖定隔日漲跌停極限）</div>`;
         const lines = [];
         const closeLines = [];
         if (structMode === 'vertical_1_1') {
           const pairCnt = Math.min(n1, n2);
           const margin1 = pairCnt * Math.abs(k1 - k2) * 50;
-          lines.push(`<div><span class="text-[var(--primary)] font-semibold">建倉（1張送出｜1:1 鎖死風險，保證金 NT$${margin1.toLocaleString()}）：</span>買 ${k1} ${optType} × ${n1}口 ＋ 賣 ${k2} ${optType} × ${n2}口</div>`);
+          lines.push(`<div><span class="text-[var(--primary)] font-semibold">建倉（1張送出｜App 單口價填 ${perShortPts} 點，${n2}口共 ${creditPts} 點，保證金 NT$${margin1.toLocaleString()}）：</span>買 ${k1} ${optType} × ${n1}口 ＋ 賣 ${k2} ${optType} × ${n2}口</div>`);
           closeLines.push(`<div><span class="text-[var(--warning)] font-semibold">提前平倉（反向 1 張）：</span>賣 ${k1} ${optType} × ${n1}口 ＋ 買 ${k2} ${optType} × ${n2}口（若未穿過 ${k2} 則不必平倉，等 13:30 歸零省手續費）</div>`);
         } else {
           const pair1 = Math.min(n1, n2);

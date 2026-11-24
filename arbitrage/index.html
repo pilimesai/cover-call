@@ -822,6 +822,13 @@
       }
 
       document.getElementById('out-base-3b').textContent = (baseNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(baseNetNT).toLocaleString();
+      const baseRangeEl = document.getElementById('out-base-sub');
+      if (baseRangeEl) {
+        const safeBound = dir === 'call' ? Math.min(k1, k2) : Math.max(k1, k2);
+        baseRangeEl.textContent = dir === 'call'
+          ? `結算 ≤ ${safeBound.toLocaleString()} 點（扣費實拿）`
+          : `結算 ≥ ${safeBound.toLocaleString()} 點（扣費實拿）`;
+      }
       document.getElementById('out-peak-3b').textContent = (peakNetNT >= 0 ? '+NT$' : '-NT$') + Math.abs(peakNetNT).toLocaleString();
       document.getElementById('out-peak-sub').textContent = `結算在 ${k2.toLocaleString()} 點時 (${peakPts} 點)`;
 

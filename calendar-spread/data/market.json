@@ -1,22 +1,16 @@
 {
- "generated_at": "2026-11-24T04:21:08+08:00",
- "errors": [
-  "trust_trend: 期交所投信歷史資料回傳非 CSV 格式"
- ],
+ "generated_at": "2026-11-24T22:53:04+08:00",
+ "errors": [],
  "tx": {
-  "date": "20261123",
+  "date": "20261124",
   "near_month": "202612",
   "far_month": "202701",
-  "near_price": 36659.0,
-  "far_price": 36786.0,
-  "spread": 127.0,
-  "ma10_spread": 129.3,
+  "near_price": 40324.0,
+  "far_price": 40464.0,
+  "spread": 140.0,
+  "ma10_spread": 136.7,
   "ma10_days": 10,
   "recent_spreads": [
-   {
-    "date": "2026-11-10",
-    "spread": 66.0
-   },
    {
     "date": "2026-11-11",
     "spread": 85.0
@@ -52,41 +46,41 @@
    {
     "date": "2026-11-23",
     "spread": 127.0
+   },
+   {
+    "date": "2026-11-24",
+    "spread": 140.0
    }
   ]
  },
  "foreign": {
-  "date": "20261120",
-  "oi_net": -97863,
-  "net_short": 97863
+  "date": "20261124",
+  "oi_net": -103182,
+  "net_short": 103182
  },
  "trust": {
-  "date": "20261120",
-  "oi_net": 87599,
-  "net_long": 87599,
-  "prev_20d_date": "2026-10-22",
-  "prev_20d_net_long": 83601,
-  "change_20d": 9964,
-  "change_20d_pct": 11.92,
+  "date": "20261124",
+  "oi_net": 98014,
+  "net_long": 98014,
+  "prev_20d_date": "2026-10-27",
+  "prev_20d_net_long": 85052,
+  "change_20d": 12962,
+  "change_20d_pct": 15.24,
   "trend_days": 20
  },
  "rate": {
-  "date": "2026-11-23",
+  "date": "2026-11-24",
   "source": "銀行公會 TAIBOR 1個月期",
   "taibor_1m": 1.604,
   "annual_rate_pct": 1.604
  },
  "taiex": {
-  "date": "2026-11-23",
-  "close": 36811.89,
-  "base_date": "2026-11-16",
-  "base_close": 41040.08,
-  "change_5d_pct": -10.3,
+  "date": "2026-11-24",
+  "close": 40122.35,
+  "base_date": "2026-11-17",
+  "base_close": 40092.11,
+  "change_5d_pct": 0.08,
   "recent_5d_changes": [
-   {
-    "date": "2026-11-17",
-    "change_5d_pct": -6.13
-   },
    {
     "date": "2026-11-18",
     "change_5d_pct": -9.18
@@ -102,61 +96,20 @@
    {
     "date": "2026-11-23",
     "change_5d_pct": -10.3
+   },
+   {
+    "date": "2026-11-24",
+    "change_5d_pct": 0.08
    }
   ]
  },
  "exdiv_meta": {
-  "taiex_close": 36811.89,
-  "total_market_cap_t": 118.165,
-  "divisor_b": 3.21,
-  "constituent_count": 1096
+  "taiex_close": 40122.35,
+  "total_market_cap_t": 120.745,
+  "divisor_b": 3.0094,
+  "constituent_count": 1097
  },
  "exdiv": [
-  {
-   "date": "2026-11-20",
-   "code": "0051",
-   "name": "元大中型100",
-   "type": "息",
-   "cash_dividend": 4.5,
-   "is_constituent": false,
-   "impact_points": 0.0
-  },
-  {
-   "date": "2026-11-20",
-   "code": "0055",
-   "name": "元大MSCI金融",
-   "type": "息",
-   "cash_dividend": 2.7,
-   "is_constituent": false,
-   "impact_points": 0.0
-  },
-  {
-   "date": "2026-11-20",
-   "code": "00771",
-   "name": "元大US高息特別股",
-   "type": "息",
-   "cash_dividend": 0.21,
-   "is_constituent": false,
-   "impact_points": 0.0
-  },
-  {
-   "date": "2026-11-20",
-   "code": "00850",
-   "name": "元大臺灣ESG永續",
-   "type": "息",
-   "cash_dividend": 1.0,
-   "is_constituent": false,
-   "impact_points": 0.0
-  },
-  {
-   "date": "2026-11-20",
-   "code": "4562",
-   "name": "穎漢",
-   "type": "權",
-   "cash_dividend": 0.0,
-   "is_constituent": true,
-   "impact_points": 0.0
-  },
   {
    "date": "2026-11-24",
    "code": "00901",
@@ -182,14 +135,14 @@
    "type": "息",
    "cash_dividend": 2.6,
    "is_constituent": true,
-   "impact_points": 0.065
+   "impact_points": 0.07
   },
   {
    "date": "2026-11-26",
    "code": "009817",
    "name": "國泰日本不動產",
    "type": "息",
-   "cash_dividend": null,
+   "cash_dividend": 0.33,
    "is_constituent": false,
    "impact_points": 0.0
   },
@@ -209,7 +162,7 @@
    "type": "息",
    "cash_dividend": 0.5,
    "is_constituent": true,
-   "impact_points": 0.082
+   "impact_points": 0.088
   },
   {
    "date": "2026-12-01",
@@ -281,7 +234,7 @@
    "type": "息",
    "cash_dividend": 0.624652,
    "is_constituent": true,
-   "impact_points": 0.039
+   "impact_points": 0.042
   },
   {
    "date": "2026-12-04",
@@ -299,7 +252,7 @@
    "type": "息",
    "cash_dividend": 0.199892,
    "is_constituent": true,
-   "impact_points": 0.015
+   "impact_points": 0.016
   },
   {
    "date": "2026-12-04",
@@ -308,7 +261,7 @@
    "type": "息",
    "cash_dividend": 0.141372,
    "is_constituent": true,
-   "impact_points": 0.036
+   "impact_points": 0.038
   },
   {
    "date": "2026-12-07",
@@ -344,7 +297,7 @@
    "type": "息",
    "cash_dividend": 2.3,
    "is_constituent": true,
-   "impact_points": 0.086
+   "impact_points": 0.091
   },
   {
    "date": "2026-12-21",
@@ -353,7 +306,7 @@
    "type": "息",
    "cash_dividend": 1.8,
    "is_constituent": true,
-   "impact_points": 0.041
+   "impact_points": 0.043
   },
   {
    "date": "2026-12-30",
@@ -362,7 +315,7 @@
    "type": "息",
    "cash_dividend": 1.9,
    "is_constituent": true,
-   "impact_points": 0.088
+   "impact_points": 0.094
   }
  ]
 }

@@ -2,10 +2,9 @@ name: Update Historical Data
 
 on:
   schedule:
-    # Run at 16:25, 18:25, 20:25 Taiwan time (08:25, 10:25, 12:25 UTC) Mon-Fri
-    # Taiwan market closes at 13:30, TAIFEX publishes post-market settlement at ~15:00.
-    # Non-zero minutes avoid GitHub Actions congestion at top of the hour.
-    - cron: '25 8,10,12 * * 1-5'
+    # Run at 16:25, 18:25, 20:25, 21:25 Taiwan time (08:25, 10:25, 12:25, 13:25 UTC) Mon-Fri
+    # Taiwan market closes at 13:30, TAIFEX publishes post-market settlement at ~15:00, TWSE margin ~20:30.
+    - cron: '25 8,10,12,13 * * 1-5'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:

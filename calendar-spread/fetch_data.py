@@ -524,6 +524,15 @@ def main() -> int:
         if "exdiv_meta" in old:
             result["exdiv_meta"] = old["exdiv_meta"]
 
+    def norm_date(d) -> str:
+        return re.sub(r"[^0-9]", "", str(d or ""))
+
+    for sec in ("tx", "foreign", "trust", "rate", "taiex"):
+        old_d = norm_date((old.get(sec) or {}).get("date"))
+        new_d = norm_date((result.get(sec) or {}).get("date"))
+        if old_d and new_d and old_d > new_d:
+            result[sec] = old[sec]
+
     if (
         OUT.exists()
         and len(result["errors"]) < 5

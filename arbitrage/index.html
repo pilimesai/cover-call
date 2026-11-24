@@ -693,7 +693,7 @@
           const pairCnt = Math.min(n1, n2);
           const margin1 = pairCnt * Math.abs(k1 - k2) * 50;
           lines.push(`<div><span class="text-[var(--primary)] font-semibold">建倉（1張送出｜App 單口價填 ${perShortPts} 點，${n2}口共 ${creditPts} 點，保證金 NT$${margin1.toLocaleString()}）：</span>買 ${k1} ${optType} × ${n1}口 ＋ 賣 ${k2} ${optType} × ${n2}口</div>`);
-          closeLines.push(`<div><span class="text-[var(--warning)] font-semibold">提前平倉（反向 1 張）：</span>賣 ${k1} ${optType} × ${n1}口 ＋ 買 ${k2} ${optType} × ${n2}口（若未穿過 ${k2} 則不必平倉，等 13:30 歸零省手續費）</div>`);
+          closeLines.push(`<div><span class="text-[var(--warning)] font-semibold">提前平倉（反向 1 張）：</span>賣 ${k1} ${optType} × ${n1}口 ＋ 買 ${k2} ${optType} × ${n2}口</div>`);
         } else {
           const pair1 = Math.min(n1, n2);
           if (pair1 > 0) {
@@ -730,7 +730,19 @@
             closeLines.push(`<div><span class="text-[var(--success)] font-semibold">平倉 ${icon}（最後平買方價差）：</span>賣 ${k1} ${optType} × ${pair1}口 ＋ 買 ${k2} ${optType} × ${pair1}口</div>`);
           }
         }
-        const closeHeader = `<div class="border-t border-[var(--border)] pt-1.5 mt-1.5 text-[var(--warning)] font-semibold">🎯 平倉／結算建議（常態週三 13:30 未穿價直接歸零免平倉；提前平倉順序如下）</div>`;
+        const warnIdx = dir === 'call' ? (k2 - 400) : (k2 + 400);
+        const normalRule = dir === 'call'
+          ? `結算 ≤ ${k2.toLocaleString()} 點直接歸零免平倉（省手續費）`
+          : `結算 ≥ ${k2.toLocaleString()} 點直接歸零免平倉（省手續費）`;
+        const earlyTrigger = dir === 'call'
+          ? `① 盤中急拉衝破 ${warnIdx.toLocaleString()} 點逼近 ${k2.toLocaleString()} 時提前止損；② 價差縮至 ≤0.3 點且急需釋放保證金`
+          : `① 盤中急殺跌破 ${warnIdx.toLocaleString()} 點逼近 ${k2.toLocaleString()} 時提前止損；② 價差縮至 ≤0.3 點且急需釋放保證金`;
+        const peakHint = structMode !== 'vertical_1_1'
+          ? `；③ 盤中剛好衝進 ${k2.toLocaleString()} 甜蜜區可提前鎖定尖峰暴利`
+          : '';
+        const closeHeader =
+          `<div class="border-t border-[var(--border)] pt-1.5 mt-1.5 text-[var(--warning)] font-semibold">🎯 平倉／結算建議（常態週三 13:30 ${normalRule}）</div>` +
+          `<div class="text-[11px] text-[var(--muted-foreground)]">⏱️ 提前平倉時機：${earlyTrigger}${peakHint}</div>`;
         setsSumEl.innerHTML = headerHtml + lines.join('') + closeHeader + closeLines.join('');
       }
 

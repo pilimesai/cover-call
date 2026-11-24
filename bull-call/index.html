@@ -297,22 +297,33 @@
       setSpreadWidthBC(currentWidthPctBC || 0.05);
     }
 
+    function isTaipeiDaySession() {
+      const tw = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+      const mins = tw.getHours() * 60 + tw.getMinutes();
+      return mins >= 525 && mins <= 828; // 08:45 ~ 13:48
+    }
+
     function applySharedQuoteBC(q) {
-      if (!q || !(Number(q.taiex) > 0)) return false;
-      const liveIdx = Math.round(Number(q.taiex));
-      const chg = Number(q.taiexChange || 0);
+      if (!q || !(Number(q.taiex) > 0 || Number(q.txNear) > 0)) return false;
+      const isDay = isTaipeiDaySession();
+      const useTxNear = !isDay && Number(q.txNear) > 0;
+      const liveIdx = Math.round(Number(useTxNear ? q.txNear : q.taiex));
+      const chg = Number(useTxNear ? (q.txChange || 0) : (q.taiexChange || 0));
       if (q.taiexVol > 0) currentVolBC = Number(q.taiexVol);
       if (q.expiryMonthly) latestMonthlyExpiryBC = q.expiryMonthly;
       if (q.daysToExpiryMonthly > 0) {
         const dteEl = document.getElementById('in-dte-bc');
         if (dteEl && !dteEl.dataset.edited) dteEl.value = String(Math.max(5, q.daysToExpiryMonthly));
       }
-      const txfTxt = q.txNear ? ` ｜ 期貨 ${Math.round(Number(q.txNear)).toLocaleString()}` : '';
+      const modeTag = useTxNear ? '夜盤期貨' : '日盤加權';
+      const otherTxt = useTxNear && q.taiex > 0
+        ? ` ｜ 日盤收 ${Math.round(Number(q.taiex)).toLocaleString()}`
+        : (q.txNear ? ` ｜ 期貨 ${Math.round(Number(q.txNear)).toLocaleString()}` : '');
       const tStr = q.quoteTime ? ` (${q.quoteTime})` : '';
       latestTaiexBC = liveIdx;
       document.getElementById('in-idx-bc').value = String(liveIdx);
       document.getElementById('kpi-taiex-bc').textContent = liveIdx.toLocaleString();
-      document.getElementById('kpi-taiex-sub').textContent = `⚡ 共享即時 ${chg >= 0 ? '+' : ''}${chg.toFixed(0)}${txfTxt}${tStr}`;
+      document.getElementById('kpi-taiex-sub').textContent = `⚡ ${modeTag} ${chg >= 0 ? '+' : ''}${chg.toFixed(0)}${otherTxt}${tStr}`;
       applyRecommendedBC(false);
       return true;
     }

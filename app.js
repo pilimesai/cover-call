@@ -3363,6 +3363,24 @@ function updateLiveStatusBadge(rec) {
     const txHtml = txVal ? ` ｜ 期 ${Math.round(txVal).toLocaleString()}` : '';
     const timeTag = rec.live_quote_time ? ` (${rec.date.slice(5)} ${rec.live_quote_time.slice(0, 5)})` : ` (${rec.date})`;
     dataStatusBadge.innerHTML = `<span class="dot green"></span> 加權 ${taiexVal}${chgHtml}${txHtml}${timeTag}`;
+
+    // 共享盤中即時報價給所有子策略分頁（結算套利 / 斷頭搶反彈 / 近遠月價差）
+    const sharedQuote = {
+        taiex: Number(rec.taiex) || 0,
+        taiexChange: Number(rec.taiex_change || 0),
+        txNear: Number(rec.tx_after_market || rec.tx_futures || 0) || null,
+        txChange: Number(rec.tx_after_spread || 0),
+        quoteTime: rec.live_quote_time ? rec.live_quote_time.slice(0, 5) : '',
+        date: rec.date || '',
+        updatedAt: Date.now()
+    };
+    window.__SHARED_LIVE_QUOTE__ = sharedQuote;
+    ['limit3b-frame', 'bullcall-frame', 'calendar-frame'].forEach(fid => {
+        const f = document.getElementById(fid);
+        if (f && f.contentWindow) {
+            try { f.contentWindow.postMessage({ type: 'SHARED_LIVE_QUOTE', payload: sharedQuote }, '*'); } catch (e) {}
+        }
+    });
 }
 
 async function syncRealtimeIntradayQuotes() {
@@ -3596,6 +3614,9 @@ window.switchMainTab = function (tab) {
                 frame.onload = () => {
                     resizeIframeById(activeCfg.frame);
                     setTimeout(() => resizeIframeById(activeCfg.frame), 500);
+                    if (window.__SHARED_LIVE_QUOTE__ && frame.contentWindow) {
+                        try { frame.contentWindow.postMessage({ type: 'SHARED_LIVE_QUOTE', payload: window.__SHARED_LIVE_QUOTE__ }, '*'); } catch (e) {}
+                    }
                 };
                 frame.setAttribute('src', frame.getAttribute('data-src'));
             } else {

@@ -308,7 +308,37 @@
       setSpreadWidthBC(currentWidthPctBC || 0.05);
     }
 
-    async function fetchLiveCnyesBC() {
+    function applySharedQuoteBC(q) {
+      if (!q || !(Number(q.taiex) > 0)) return false;
+      const liveIdx = Math.round(Number(q.taiex));
+      const chg = Number(q.taiexChange || 0);
+      const txfTxt = q.txNear ? ` ｜ 期貨 ${Math.round(Number(q.txNear)).toLocaleString()}` : '';
+      const tStr = q.quoteTime ? ` (${q.quoteTime})` : '';
+      latestTaiexBC = liveIdx;
+      document.getElementById('in-idx-bc').value = String(liveIdx);
+      document.getElementById('kpi-taiex-bc').textContent = liveIdx.toLocaleString();
+      document.getElementById('kpi-taiex-sub').textContent = `⚡ 共享即時 ${chg >= 0 ? '+' : ''}${chg.toFixed(0)}${txfTxt}${tStr}`;
+      applyRecommendedBC(false);
+      return true;
+    }
+
+    window.addEventListener('message', (ev) => {
+      const chk = document.getElementById('chk-live-bc');
+      if (chk && !chk.checked) return;
+      if (ev?.data?.type === 'SHARED_LIVE_QUOTE' && ev.data.payload) {
+        applySharedQuoteBC(ev.data.payload);
+      }
+    });
+
+    async function fetchLiveCnyesBC(forceDirect = false) {
+      if (!forceDirect) {
+        try {
+          const shared = window.parent && window.parent !== window && window.parent.__SHARED_LIVE_QUOTE__;
+          if (shared && shared.taiex > 0 && (Date.now() - (shared.updatedAt || 0)) < 45000) {
+            return applySharedQuoteBC(shared);
+          }
+        } catch (e) {}
+      }
       const url = `https://ws.api.cnyes.com/ws/api/v1/quote/quotes/TWS:TSE01:INDEX,TWF:TXF:FUTURES?column=I&_=${Date.now()}`;
       const resp = await fetch(url, { cache: 'no-store' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);

@@ -507,6 +507,18 @@
       }
     }
 
+    window.addEventListener('message', (ev) => {
+      if (ev?.data?.type === 'SHARED_LIVE_QUOTE' && ev.data.payload && ev.data.payload.taiex > 0) {
+        const q = ev.data.payload;
+        const mktEl = document.getElementById('out-market-3b');
+        if (mktEl) {
+          const txfTxt = q.txNear ? ` ｜ 期貨 ${Math.round(q.txNear).toLocaleString()}` : '';
+          const tStr = q.quoteTime ? ` (${q.quoteTime})` : '';
+          mktEl.textContent = `⚡ 主頁共享即時：加權 ${Math.round(q.taiex).toLocaleString()} 點${txfTxt}${tStr}`;
+        }
+      }
+    });
+
     loadLatestMarket3B();
 
     function switchTab(tabId) {

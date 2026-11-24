@@ -712,6 +712,22 @@
       render();
       return true;
     } catch (err) {
+      let shared = null;
+      try { shared = window.parent && window.parent !== window ? window.parent.__SHARED_LIVE_QUOTE__ : null; } catch (_) {}
+      if (shared && (shared.txNear > 0 || shared.taiex > 0)) {
+        const px = Math.round(shared.txNear || shared.taiex);
+        $("indexLevel").value = px;
+        $("evalDatetime").value = "";
+        const t = shared.quoteTime || "--:--";
+        $("data-status").textContent = `⚡ 主頁共享即時 ${t}（僅近月）`;
+        $("data-status").className = "data-status ok";
+        setLiveStatus(
+          `期交所遠月即時暫無回應，已自動套用主頁共享近月即時價 ${px.toLocaleString()}（近遠月價差保留原值，盤中可手動微調）`,
+          "ok"
+        );
+        render();
+        return true;
+      }
       setLiveStatus(`即時抓取失敗（原輸入保留不動）：${err.message || err}`, "err");
       return false;
     } finally {
@@ -734,6 +750,20 @@
       fetchLiveQuote({ silent: true });
     }, POLL_INTERVAL_MS);
   }
+
+  window.addEventListener("message", (ev) => {
+    if (ev?.data?.type === "SHARED_LIVE_QUOTE" && ev.data.payload && !hasLiveQuote) {
+      const shared = ev.data.payload;
+      const px = Math.round(shared.txNear || shared.taiex || 0);
+      if (px > 0) {
+        $("indexLevel").value = px;
+        const t = shared.quoteTime || "--:--";
+        $("data-status").textContent = `⚡ 主頁共享即時 ${t}（僅近月）`;
+        $("data-status").className = "data-status ok";
+        render();
+      }
+    }
+  });
 
   function initLiveConfig() {
     const params = new URLSearchParams(window.location.search);

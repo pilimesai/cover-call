@@ -660,7 +660,16 @@
       if (setsSumEl) {
         const optType = dir === 'call' ? 'Call' : 'Put';
         const expTag = latestMarket3B?.expiryWeekly ? `TXO 當週週選｜結算 ${latestMarket3B.expiryWeekly}` : 'TXO 當週週選';
-        const headerHtml = `<div class="text-[var(--foreground)] font-semibold">📌 建倉複式單 (${sets}組｜${expTag})｜總淨收 ${creditPts} 點</div>`;
+        let entryDateTxt = '週二';
+        if (latestMarket3B?.expiryWeekly && /^\d{4}-\d{2}-\d{2}$/.test(latestMarket3B.expiryWeekly)) {
+          const d = new Date(latestMarket3B.expiryWeekly + 'T00:00:00');
+          d.setDate(d.getDate() - 1);
+          const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+          entryDateTxt = `${y}-${m}-${day} (週二)`;
+        }
+        const headerHtml =
+          `<div class="text-[var(--foreground)] font-semibold">📌 建倉複式單 (${sets}組｜${expTag})｜總淨收 ${creditPts} 點</div>` +
+          `<div class="text-[11px] text-[var(--primary)]">⏰ 建議建倉時間：${entryDateTxt} 日盤尾盤 13:30 ~ 13:45（依日盤收盤鎖定隔日漲跌停極限）</div>`;
         const lines = [];
         const closeLines = [];
         if (structMode === 'vertical_1_1') {

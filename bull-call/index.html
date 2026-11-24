@@ -173,7 +173,7 @@
           <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <div class="text-[var(--muted-foreground)]">滿賺最大報酬率</div>
             <div id="out-roi-bc" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--%</div>
-            <div class="text-[11px] text-[var(--muted-foreground)] mt-0.5">反彈至 K2 即鎖定最大報酬</div>
+            <div id="out-roi-sub-bc" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">建議 ≥ +120% 才進場</div>
           </div>
         </div>
 
@@ -355,8 +355,22 @@
       document.getElementById('out-max-sub-bc').textContent = `價差寬度 ${widthPts} 點 (K2=${k2.toLocaleString()})`;
       document.getElementById('out-be-bc').textContent = Math.round(beIdx).toLocaleString() + ' 點';
       document.getElementById('out-be-sub-bc').textContent = `需反彈 ${bePct > 0 ? '+' : ''}${bePct}% 回本`;
-      document.getElementById('out-roi-bc').textContent = `+${maxRoiPct}%`;
+      const maxRoiNum = maxCostNT > 0 ? (maxProfitNT / maxCostNT) * 100 : 0;
+      const maxBuyPts = Math.floor(widthPts * 0.45);
+      const roiEl = document.getElementById('out-roi-bc');
+      const roiSubEl = document.getElementById('out-roi-sub-bc');
+      roiEl.textContent = `+${maxRoiPct}%`;
       document.getElementById('badge-roi-bc').textContent = `+${maxRoiPct}%`;
+      if (maxRoiNum >= 120) {
+        roiEl.style.color = 'var(--success)';
+        if (roiSubEl) roiSubEl.textContent = `✅ 達標 (≥120% 值得進場｜建議淨付 ≤${maxBuyPts}點)`;
+      } else if (maxRoiNum >= 100) {
+        roiEl.style.color = 'var(--warning)';
+        if (roiSubEl) roiSubEl.textContent = `🟡 偏貴 (需 ≥120%｜建議壓回 ≤${maxBuyPts}點)`;
+      } else {
+        roiEl.style.color = 'var(--error)';
+        if (roiSubEl) roiSubEl.textContent = `⛔ 太貴不追 (<100%｜須低於 ${maxBuyPts}點)`;
+      }
 
       const tp75Pts = Math.round(debitPts + 0.75 * Math.max(0, widthPts - debitPts));
       const tp75NetNT = Math.round(lots * (tp75Pts - debitPts) * 50 - totalFees);

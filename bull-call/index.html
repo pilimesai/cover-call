@@ -372,7 +372,8 @@
         `<div class="text-[var(--foreground)] font-semibold">📌 進場複式單（${contractTag}｜借方價差，免保證金）${shortDteWarn}</div>` +
         `<div class="text-[11px] text-[var(--primary)]">⏰ 建議建倉時間：扣除 ETF 維持率 &lt;130% 亮紅燈後，日盤 09:00 後或 13:00 ~ 13:35 掛中間價分批進場</div>` +
         `<div class="text-[var(--success)]">買 ${k1} Call × ${lots}口 ＋ 賣 ${k2} Call × ${lots}口</div>` +
-        `<div class="text-[var(--muted-foreground)] mb-2">委託價填 App 單口淨付 <span class="text-[var(--foreground)] font-bold">+${debitPts}</span> 點（${lots}口總淨付 <span class="text-[var(--foreground)] font-bold">${debitPts * lots}</span> 點｜總投入 NT$${maxCostNT.toLocaleString()}，上限賺 NT$${maxProfitNT.toLocaleString()}）</div>` +
+        `<div class="text-[var(--muted-foreground)]">委託價填 App 單口淨付 <span class="text-[var(--foreground)] font-bold">+${debitPts}</span> 點（${lots}口總淨付 <span class="text-[var(--foreground)] font-bold">${debitPts * lots}</span> 點｜總投入 NT$${maxCostNT.toLocaleString()}，上限賺 NT$${maxProfitNT.toLocaleString()}）</div>` +
+        `<div class="text-[11px] text-[var(--success)] mb-2">📈 獲利條件：結算價 <span class="font-bold">&gt; ${Math.round(beIdx).toLocaleString()} 點</span> 開始獲利（需反彈 ${bePct > 0 ? '+' : ''}${bePct}%）｜<span class="font-bold">≥ ${k2.toLocaleString()} 點</span> 賺滿上限 +NT$${maxProfitNT.toLocaleString()}</div>` +
         `<div class="border-t border-[var(--border)] pt-2 text-[var(--primary)] font-semibold">🎯 平倉停利建議（同合約 ${ym || '月選'}｜達標 75% 獲利即反手了結）</div>` +
         `<div class="text-[var(--warning)]">賣 ${k1} Call × ${lots}口 ＋ 買 ${k2} Call × ${lots}口</div>` +
         `<div class="text-[var(--muted-foreground)]">當單口價差漲至 <span class="text-[var(--foreground)] font-bold">${tp75Pts}</span> 點（${lots}口總計 ${tp75Pts * lots} 點｜反彈至 ${k2.toLocaleString()} 附近）掛淨收 <span class="text-[var(--foreground)] font-bold">-${tp75Pts}</span> 點 ROD 平倉，實賺約 <span class="text-[var(--success)] font-bold">+NT$${tp75NetNT.toLocaleString()} (+${tp75RoiPct}%)</span>；未反彈則抱到結算或等下波加碼，絕不追繳。</div>`;

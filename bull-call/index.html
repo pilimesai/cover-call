@@ -158,7 +158,7 @@
           <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <div class="text-[var(--muted-foreground)]">投入本金 (最大虧損)</div>
             <div id="out-cost-bc" class="text-base font-mono font-bold text-[var(--warning)] mt-1">--</div>
-            <div class="text-[11px] text-[var(--muted-foreground)] mt-0.5">買方價差免保證金/絕不追繳</div>
+            <div id="out-cost-sub-bc" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">買方價差免保證金/絕不追繳</div>
           </div>
           <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <div class="text-[var(--muted-foreground)]">最大獲利 (≥ K2)</div>
@@ -350,9 +350,14 @@
       const beIdx = k1 + debitPts + (totalFees / (lots * 50));
       const bePct = (((beIdx - idx) / idx) * 100).toFixed(2);
 
+      const netProfitPtsPerLot = Math.max(0, widthPts - debitPts);
       document.getElementById('out-cost-bc').textContent = 'NT$' + maxCostNT.toLocaleString();
+      const costSubEl = document.getElementById('out-cost-sub-bc');
+      if (costSubEl) {
+        costSubEl.textContent = `單口 ${debitPts} 點（${lots}口共 ${debitPts * lots} 點）｜免保證金`;
+      }
       document.getElementById('out-max-bc').textContent = (maxProfitNT >= 0 ? '+NT$' : '-NT$') + Math.abs(maxProfitNT).toLocaleString();
-      document.getElementById('out-max-sub-bc').textContent = `價差寬度 ${widthPts} 點 (K2=${k2.toLocaleString()})`;
+      document.getElementById('out-max-sub-bc').textContent = `單口賺 ${netProfitPtsPerLot} 點（${lots}口共 ${netProfitPtsPerLot * lots} 點｜K2=${k2.toLocaleString()}）`;
       document.getElementById('out-be-bc').textContent = Math.round(beIdx).toLocaleString() + ' 點';
       document.getElementById('out-be-sub-bc').textContent = `需反彈 ${bePct > 0 ? '+' : ''}${bePct}% 回本`;
       const maxRoiNum = maxCostNT > 0 ? (maxProfitNT / maxCostNT) * 100 : 0;
@@ -390,7 +395,7 @@
         `<div class="text-[11px] text-[var(--success)] mb-2">📈 獲利條件：結算價 <span class="font-bold">&gt; ${Math.round(beIdx).toLocaleString()} 點</span> 開始獲利（需反彈 ${bePct > 0 ? '+' : ''}${bePct}%）｜<span class="font-bold">≥ ${k2.toLocaleString()} 點</span> 賺滿上限 +NT$${maxProfitNT.toLocaleString()}</div>` +
         `<div class="border-t border-[var(--border)] pt-2 text-[var(--primary)] font-semibold">🎯 平倉停利建議（同合約 ${ym || '月選'}｜達標 75% 獲利即反手了結）</div>` +
         `<div class="text-[var(--warning)]">賣 ${k1} Call × ${lots}口 ＋ 買 ${k2} Call × ${lots}口</div>` +
-        `<div class="text-[var(--muted-foreground)]">當單口價差漲至 <span class="text-[var(--foreground)] font-bold">${tp75Pts}</span> 點（${lots}口總計 ${tp75Pts * lots} 點｜反彈至 ${k2.toLocaleString()} 附近）掛淨收 <span class="text-[var(--foreground)] font-bold">-${tp75Pts}</span> 點 ROD 平倉，實賺約 <span class="text-[var(--success)] font-bold">+NT$${tp75NetNT.toLocaleString()} (+${tp75RoiPct}%)</span>；未反彈則抱到結算或等下波加碼，絕不追繳。</div>`;
+        `<div class="text-[var(--muted-foreground)]">當單口價差漲至 <span class="text-[var(--foreground)] font-bold">${tp75Pts}</span> 點（${lots}口總計 ${tp75Pts * lots} 點｜反彈至 ${k2.toLocaleString()} 附近）掛淨收 <span class="text-[var(--foreground)] font-bold">-${tp75Pts}</span> 點 IOC 限價平倉，實賺約 <span class="text-[var(--success)] font-bold">+NT$${tp75NetNT.toLocaleString()} (+${tp75RoiPct}%)</span>；未反彈則抱到結算或等下波加碼，絕不追繳。</div>`;
 
       drawPayoffBC(idx, k1, k2, debitPts, lots, totalFees);
     }

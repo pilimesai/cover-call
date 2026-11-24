@@ -71,9 +71,7 @@
         <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3.5 text-xs">
           <div class="flex items-center justify-between border-b border-[var(--border)] pb-2">
             <h2 class="text-sm font-bold">✏️ 1. 大盤與單日漲跌停極限設定</h2>
-            <button id="btn-rec-3b" type="button" onclick="refreshAndRecommend3B()" class="px-2 py-1 text-[11px] whitespace-nowrap shrink-0 font-medium rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">
-              🎯 依最新收盤自動推薦點位
-            </button>
+            <span class="text-[11px] text-[var(--success)] font-mono whitespace-nowrap">⚡ 共享主頁即時大盤</span>
           </div>
           <div id="out-market-3b" class="text-[11px] text-[var(--muted-foreground)] bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 font-mono">
             📡 正在載入最新收盤與期貨夜盤數據...
@@ -467,59 +465,62 @@
       } catch (e) {}
     })();
 
-    async function loadLatestMarket3B() {
-      const mktEl = document.getElementById('out-market-3b');
-      try {
-        const r = await fetch('../data/data.json?v=' + Date.now(), { cache: 'no-store' });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const arr = await r.json();
-        if (Array.isArray(arr) && arr.length > 0) {
-          const latest = arr[arr.length - 1];
-          const close = Math.round(latest.taiex);
-          latestMarket3B = {
-            close,
-            date: latest.date || '',
-            expiryWeekly: latest.expiry_date_weekly || '',
-            txAfter: latest.tx_after_market,
-            txAfterSpread: latest.tx_after_spread,
-            txAfterDate: latest.tx_after_date || ''
-          };
-          if (mktEl) {
-            const afterTxt = typeof latest.tx_after_market === 'number'
-              ? ` ｜ 夜盤 ${Math.round(latest.tx_after_market).toLocaleString()} (${latest.tx_after_spread >= 0 ? '+' : ''}${Math.round(latest.tx_after_spread || 0)})`
-              : '';
-            mktEl.textContent = `📡 最新收盤 (${latestMarket3B.date})：${close.toLocaleString()} 點${afterTxt}`;
-          }
-          applyRecommendedStrikes3B(true);
-        }
-      } catch (e) {
-        if (mktEl) mktEl.textContent = '⚠️ 無法自動載入最新收盤價，請手動輸入前日大盤收盤指數';
-      }
-    }
+    let hasSyncedShared3B = false;
 
-    async function refreshAndRecommend3B() {
-      const btn = document.getElementById('btn-rec-3b');
-      if (btn) btn.textContent = '⏳ 更新中...';
-      await loadLatestMarket3B();
-      if (btn) {
-        btn.textContent = latestMarket3B?.close ? `✅ 已更新 (${latestMarket3B.close.toLocaleString()})` : '✅ 已重算';
-        setTimeout(() => { btn.textContent = '🎯 依最新收盤自動推薦點位'; }, 2200);
+    function applySharedQuote3B(q) {
+      if (!q || !(Number(q.taiex) > 0)) return false;
+      const close = Math.round(Number(q.taiex));
+      latestMarket3B = {
+        close,
+        date: q.date || '',
+        expiryWeekly: q.expiryWeekly || '',
+        txAfter: q.txNear,
+        txAfterSpread: q.txChange,
+      };
+      const mktEl = document.getElementById('out-market-3b');
+      if (mktEl) {
+        const txfTxt = q.txNear ? ` ｜ 期貨 ${Math.round(Number(q.txNear)).toLocaleString()}` : '';
+        const tStr = q.quoteTime ? ` (${q.quoteTime})` : '';
+        mktEl.textContent = `⚡ 主頁共享即時：加權 ${close.toLocaleString()} 點${txfTxt}${tStr}`;
       }
+      if (!hasSyncedShared3B) {
+        hasSyncedShared3B = true;
+        applyRecommendedStrikes3B(true);
+      }
+      return true;
     }
 
     window.addEventListener('message', (ev) => {
-      if (ev?.data?.type === 'SHARED_LIVE_QUOTE' && ev.data.payload && ev.data.payload.taiex > 0) {
-        const q = ev.data.payload;
-        const mktEl = document.getElementById('out-market-3b');
-        if (mktEl) {
-          const txfTxt = q.txNear ? ` ｜ 期貨 ${Math.round(q.txNear).toLocaleString()}` : '';
-          const tStr = q.quoteTime ? ` (${q.quoteTime})` : '';
-          mktEl.textContent = `⚡ 主頁共享即時：加權 ${Math.round(q.taiex).toLocaleString()} 點${txfTxt}${tStr}`;
-        }
+      if (ev?.data?.type === 'SHARED_LIVE_QUOTE' && ev.data.payload) {
+        applySharedQuote3B(ev.data.payload);
       }
     });
 
-    loadLatestMarket3B();
+    (async function initMarket3B() {
+      try {
+        const shared = window.parent && window.parent !== window && window.parent.__SHARED_LIVE_QUOTE__;
+        if (shared && applySharedQuote3B(shared)) return;
+      } catch (e) {}
+      // Standalone fallback when opened outside main index.html
+      const mktEl = document.getElementById('out-market-3b');
+      try {
+        const r = await fetch('../data/data.json?v=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return;
+        const arr = await r.json();
+        if (Array.isArray(arr) && arr.length > 0) {
+          const latest = arr[arr.length - 1];
+          applySharedQuote3B({
+            taiex: latest.taiex,
+            date: latest.date,
+            expiryWeekly: latest.expiry_date_weekly,
+            txNear: latest.tx_after_market || latest.tx_futures,
+            txChange: latest.tx_after_spread,
+          });
+        }
+      } catch (e) {
+        if (mktEl) mktEl.textContent = '⚠️ 請等待主頁大盤同步或手動輸入指數';
+      }
+    })();
 
     function switchTab(tabId) {
       ['tab-3b', 'tab-3a'].forEach(id => {

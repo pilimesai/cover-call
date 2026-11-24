@@ -813,71 +813,7 @@
       btn.addEventListener("click", () => {
         syncContractButtons(btn.dataset.contract);
         render();
-        if (liveApiUrl && ($("chk-live-poll").checked || hasLiveQuote)) {
-          fetchLiveQuote({ silent: true });
-        }
       });
-    });
-
-    $("live-session").addEventListener("change", () => {
-      if (liveApiUrl && ($("chk-live-poll").checked || hasLiveQuote)) {
-        fetchLiveQuote({ silent: true });
-      }
-    });
-
-    $("btn-fetch-live").addEventListener("click", () => fetchLiveQuote({ silent: false }));
-    $("btn-toggle-api").addEventListener("click", () => {
-      $("live-api-panel").classList.toggle("hidden");
-    });
-    $("btn-save-api").addEventListener("click", async () => {
-      const nextUrl = normalizeApiUrl($("live-api-url").value);
-      if (nextUrl && isSelfOrInvalidApiUrl(nextUrl)) {
-        setLiveStatus("請輸入有效的 Cloudflare Worker 網址（*.workers.dev），不可填入 github.io 靜態頁網址。", "err");
-        return;
-      }
-      liveApiUrl = nextUrl;
-      $("live-api-url").value = liveApiUrl;
-      try {
-        if (liveApiUrl) localStorage.setItem(API_STORAGE_KEY, liveApiUrl);
-        else localStorage.removeItem(API_STORAGE_KEY);
-      } catch (_) { }
-      if (!liveApiUrl) {
-        setLiveStatus("已清除 API 網址。", "muted");
-        return;
-      }
-      $("live-api-panel").classList.add("hidden");
-      await fetchLiveQuote({ silent: false });
-    });
-    $("btn-reset-api").addEventListener("click", async () => {
-      try { localStorage.removeItem(API_STORAGE_KEY); } catch (_) {}
-      liveApiUrl = DEFAULT_LIVE_API_URL;
-      $("live-api-url").value = liveApiUrl;
-      $("live-api-panel").classList.add("hidden");
-      await fetchLiveQuote({ silent: false });
-    });
-
-    $("chk-live-poll").addEventListener("change", () => {
-      const on = $("chk-live-poll").checked;
-      try { localStorage.setItem(POLL_STORAGE_KEY, on ? "1" : "0"); } catch (_) { }
-      if (on) {
-        if (!liveApiUrl) {
-          $("chk-live-poll").checked = false;
-          try { localStorage.setItem(POLL_STORAGE_KEY, "0"); } catch (_) { }
-          $("live-api-panel").classList.remove("hidden");
-          setLiveStatus("請先設定 Cloudflare Worker 網址，才能開啟 15 秒自動更新。", "err");
-          return;
-        }
-        fetchLiveQuote({ silent: false });
-        startLivePolling();
-      } else {
-        stopLivePolling();
-      }
-    });
-
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && $("chk-live-poll").checked && liveApiUrl && !$("evalDatetime").value) {
-        fetchLiveQuote({ silent: true });
-      }
     });
 
     $("btn-apply-market").addEventListener("click", applyMarket);
@@ -890,10 +826,8 @@
       $("nearSettlementOverride").value = "";
       if (market) applyMarket();
       else render();
-      if (liveApiUrl) await fetchLiveQuote({ silent: true });
     });
 
-    const { shouldAutoFetch } = initLiveConfig();
     render();
     await fetchMarket();
     if (!saved && market) {
@@ -903,11 +837,17 @@
       render();
     }
 
-    if (shouldAutoFetch) {
-      await fetchLiveQuote({ silent: false });
-    }
-    if ($("chk-live-poll").checked && liveApiUrl) {
-      startLivePolling();
-    }
+    // 同步主頁共享之即時大盤／台指期近月報價
+    try {
+      const shared = window.parent && window.parent !== window ? window.parent.__SHARED_LIVE_QUOTE__ : null;
+      if (shared && (shared.txNear > 0 || shared.taiex > 0)) {
+        const px = Math.round(shared.txNear || shared.taiex);
+        $("indexLevel").value = px;
+        const t = shared.quoteTime || "--:--";
+        $("data-status").textContent = `⚡ 主頁共享即時 ${t}（近月）`;
+        $("data-status").className = "data-status ok";
+        render();
+      }
+    } catch (_) { }
   });
 })();

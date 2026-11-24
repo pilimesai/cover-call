@@ -3365,9 +3365,16 @@ function updateLiveStatusBadge(rec) {
     dataStatusBadge.innerHTML = `<span class="dot green"></span> 加權 ${taiexVal}${chgHtml}${txHtml}${timeTag}`;
 
     // 共享盤中即時報價給所有子策略分頁（結算套利 / 斷頭搶反彈 / 近遠月價差）
+    const prev5Rec = (rawData && rawData.length > 5) ? rawData[rawData.length - 6] : null;
+    const ret5Pct = (prev5Rec && prev5Rec.taiex > 0) ? ((Number(rec.taiex) / Number(prev5Rec.taiex) - 1) * 100) : 0;
     const sharedQuote = {
         taiex: Number(rec.taiex) || 0,
         taiexChange: Number(rec.taiex_change || 0),
+        taiexVol: Number(rec.taiex_vol || 0.35),
+        ret5Pct,
+        expiryWeekly: rec.expiry_date_weekly || '',
+        expiryMonthly: rec.expiry_date_monthly || '',
+        daysToExpiryMonthly: Number(rec.days_to_expiry_monthly || 20),
         txNear: Number(rec.tx_after_market || rec.tx_futures || 0) || null,
         txChange: Number(rec.tx_after_spread || 0),
         quoteTime: rec.live_quote_time ? rec.live_quote_time.slice(0, 5) : '',

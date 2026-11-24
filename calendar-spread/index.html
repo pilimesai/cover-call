@@ -130,69 +130,8 @@
         <button type="button" class="btn-sim-exit" id="btn-exit-sim">切回今日實況</button>
       </div>
 
-      <!-- 盤中即時報價卡片 -->
-      <div class="card live-card">
-        <div class="live-header">
-          <h2>⚡ 盤中即時報價（期交所）</h2>
-          <select id="live-session" class="live-session-select" aria-label="盤別">
-            <option value="auto">自動盤別</option>
-            <option value="day">日盤</option>
-            <option value="night">夜盤</option>
-          </select>
-        </div>
-
-        <div class="live-controls">
-          <label class="live-toggle">
-            <input type="checkbox" id="chk-live-poll" />
-            <span>⚡ 盤中即時 (15s)</span>
-          </label>
-          <button type="button" class="btn primary" id="btn-fetch-live">⚡ 立即抓盤中</button>
-          <button type="button" class="btn" id="btn-toggle-api">⚙️ 設定 API</button>
-        </div>
-
-        <div id="live-quote-box" class="live-quote-box hidden">
-          <div class="live-quote-head">
-            <span id="live-quote-name">--</span>
-            <span id="live-quote-time">--</span>
-          </div>
-          <div class="live-quote-grid">
-            <div class="kv">
-              <div class="k">跨月報價</div>
-              <div class="v" id="lq-spread">--</div>
-              <div class="s" id="lq-spread-sub">--</div>
-            </div>
-            <div class="kv">
-              <div class="k">委買 / 委賣</div>
-              <div class="v" id="lq-ba">--</div>
-              <div class="s" id="lq-ba-sub">--</div>
-            </div>
-            <div class="kv">
-              <div class="k">即時五檔價差</div>
-              <div class="v" id="lq-gap">--</div>
-            </div>
-            <div class="kv">
-              <div class="k">近月 / 遠月</div>
-              <div class="v" id="lq-legs">--</div>
-            </div>
-          </div>
-        </div>
-
-        <div id="live-status-msg" class="live-status-msg muted">盤中即時報價連線中...</div>
-
-        <div id="live-api-panel" class="live-api-panel hidden">
-          <label>Cloudflare Worker 網址
-            <input type="url" inputmode="url" id="live-api-url" placeholder="https://tx-spread-live-proxy.<你的帳號>.workers.dev" />
-          </label>
-          <div class="btn-row">
-            <button type="button" class="btn primary" id="btn-save-api">儲存並抓取</button>
-            <button type="button" class="btn" id="btn-reset-api">重設預設網址</button>
-          </div>
-          <p class="hint">需先部署 <code>worker/taifex-proxy.js</code> 到免費 Cloudflare Worker（約 2 分鐘），網址會自動儲存在這支手機。</p>
-        </div>
-      </div>
-
       <div class="card market-card">
-        <h2>📡 最新盤後資料</h2>
+        <h2>📡 最新盤後資料（即時大盤與主頁共享）</h2>
         <div id="market-summary" class="market-summary muted">載入中...</div>
         <div id="market-rate-line" class="hint"></div>
         <div class="btn-row">
@@ -351,6 +290,6 @@
   <footer class="footer">本工具僅供輔助判斷，不構成投資建議。資料來源：期交所 OpenAPI、證交所。</footer>
 
   <script src="engine.js?v=15"></script>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

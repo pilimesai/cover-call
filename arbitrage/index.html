@@ -766,13 +766,33 @@
           entryDateTxt = `${y}-${pm}-${pday} (週${dowNames[prevD.getDay()]})`;
         }
         const expTag = latestMarket3B?.expiryWeekly ? `TXO ${contractCode}｜結算 ${latestMarket3B.expiryWeekly}` : `TXO ${contractCode}`;
-        const perShortPts = (creditPts / Math.max(1, n2)).toFixed(2).replace(/\.00$/, '');
+        const perShortNum = creditPts / Math.max(1, n2);
+        const perShortPts = perShortNum.toFixed(2).replace(/\.00$/, '');
+        const spreadW = Math.abs(k1 - k2);
+        const feePairPts = (2 * feePerLot) / 50;
+        let recMinPts = 4.0;
+        if (structMode === 'vertical_1_1') {
+          if (spreadW <= 50) recMinPts = 3.0;
+          else if (spreadW <= 100) recMinPts = 4.0;
+          else if (spreadW <= 200) recMinPts = 5.0;
+          else recMinPts = Math.ceil((spreadW * 0.02 + feePairPts) * 2) / 2;
+        } else {
+          recMinPts = 3.5;
+        }
+        const meatOk = perShortNum >= recMinPts;
+        const meatBadge = meatOk
+          ? `<span class="text-[var(--success)] font-bold">✅ 達標推薦建倉</span>`
+          : `<span class="text-[var(--error)] font-bold">⛔ 沒肉，建議跳過</span>`;
+        const meatLine = structMode === 'vertical_1_1'
+          ? `<div class="text-[11px] text-[var(--muted-foreground)]">🥩 有肉門檻：${spreadW}點寬度建議 App 單口淨收 <span class="text-[var(--foreground)] font-bold">≥ ${recMinPts} 點</span>（目前 ${perShortPts} 點 ${meatBadge}）</div>`
+          : `<div class="text-[11px] text-[var(--muted-foreground)]">🥩 有肉門檻：建議平均每賣1口淨收 <span class="text-[var(--foreground)] font-bold">≥ ${recMinPts} 點</span>（單組 ≥ 25 點｜目前 ${perShortPts} 點 ${meatBadge}）</div>`;
         const creditSummary = structMode === 'vertical_1_1'
           ? `App 單口價差 ${perShortPts} 點（${n2}口總淨收 ${creditPts} 點）`
           : `單組 ${baseCreditPts} 點（${sets}組總淨收 ${creditPts} 點｜每賣1口均收 ${perShortPts} 點）`;
         const headerHtml =
           `<div class="text-[var(--foreground)] font-semibold">📌 建倉複式單 (${sets}組｜${expTag})｜${creditSummary}</div>` +
-          `<div class="text-[11px] text-[var(--primary)]">⏰ 建議建倉時間：${entryDateTxt} 日盤尾盤 13:30 ~ 13:45（依日盤收盤鎖定隔日漲跌停極限）</div>`;
+          `<div class="text-[11px] text-[var(--primary)]">⏰ 建議建倉時間：${entryDateTxt} 日盤尾盤 13:30 ~ 13:45（依日盤收盤鎖定隔日漲跌停極限）</div>` +
+          meatLine;
         const lines = [];
         const closeLines = [];
         if (structMode === 'vertical_1_1') {

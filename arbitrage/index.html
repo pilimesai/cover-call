@@ -67,6 +67,61 @@
         </div>
       </div>
 
+      <!-- 結算前一日：機率≈0 極限點位速查看板 -->
+      <div class="bg-[var(--card)] border border-[var(--primary)]/40 rounded-xl p-4 space-y-3 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-[var(--foreground)]">🎯 結算前一日｜「機率 ≈ 0」極限點位速查</span>
+            <span id="badge-next-exp-3b" class="px-2 py-0.5 text-[11px] font-mono rounded bg-[var(--primary)]/20 text-[var(--primary)]">--</span>
+          </div>
+          <span class="text-[11px] text-[var(--muted-foreground)]">依「前日日盤加權收盤」鎖定隔日 ±10% 漲跌停物理極限（週二看 W 週選、週四看 F 週選）</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- CALL 天花板 -->
+          <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-[var(--error)]">📈 上方天花板（Sell Call 機率 ≈ 0）</span>
+              <span id="zp-call-abs" class="text-[11px] font-mono text-[var(--muted-foreground)]">絕對漲停 +10%：--</span>
+            </div>
+            <div class="flex items-baseline justify-between font-mono">
+              <div>
+                <span class="text-[var(--muted-foreground)]">實務 +8.0% 賣出門檻：</span>
+                <span id="zp-call-k2" class="text-base font-bold text-[var(--foreground)]">--</span>
+              </div>
+              <span class="text-[11px] text-[var(--muted-foreground)]">50點寬保證金 NT$2,500/口</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+              <span class="text-[11px] text-[var(--muted-foreground)]">一鍵套用 1:1 垂直價差：</span>
+              <button type="button" onclick="applyZeroProbPreset3B('call', 50)" class="px-2 py-0.5 rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">50點 (2.5k/口)</button>
+              <button type="button" onclick="applyZeroProbPreset3B('call', 100)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--primary)] transition">100點 (5k/口)</button>
+              <button type="button" onclick="applyZeroProbPreset3B('call', 200)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--primary)] transition">200點 (10k/口)</button>
+            </div>
+          </div>
+
+          <!-- PUT 地板 -->
+          <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-[var(--success)]">📉 下方地板（Sell Put 機率 ≈ 0）</span>
+              <span id="zp-put-abs" class="text-[11px] font-mono text-[var(--muted-foreground)]">絕對跌停 -10%：--</span>
+            </div>
+            <div class="flex items-baseline justify-between font-mono">
+              <div>
+                <span class="text-[var(--muted-foreground)]">實務 -9.0% 賣出門檻：</span>
+                <span id="zp-put-k2" class="text-base font-bold text-[var(--foreground)]">--</span>
+              </div>
+              <span class="text-[11px] text-[var(--muted-foreground)]">50點寬保證金 NT$2,500/口</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+              <span class="text-[11px] text-[var(--muted-foreground)]">一鍵套用 1:1 垂直價差：</span>
+              <button type="button" onclick="applyZeroProbPreset3B('put', 50)" class="px-2 py-0.5 rounded bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/40 hover:bg-[var(--success)]/30 transition">50點 (2.5k/口)</button>
+              <button type="button" onclick="applyZeroProbPreset3B('put', 100)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--success)] transition">100點 (5k/口)</button>
+              <button type="button" onclick="applyZeroProbPreset3B('put', 200)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--success)] transition">200點 (10k/口)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
         <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3.5 text-xs">
           <div class="flex items-center justify-between border-b border-[var(--border)] pb-2">
@@ -635,8 +690,77 @@
       return netCreditPts + val1 + val3 - val2;
     }
 
+    function getNextSettlementBadge3B() {
+      const tw = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+      const dow = tw.getDay(); // 0=Sun..6=Sat
+      // 找最近一個週三(3)或週五(5)結算日
+      const nextD = new Date(tw);
+      let add = 0;
+      for (let i = 0; i <= 7; i++) {
+        const test = new Date(tw);
+        test.setDate(tw.getDate() + i);
+        const td = test.getDay();
+        if (td === 3 || td === 5) {
+          // 若今天就是結算日且已過 13:30，往後找下一個結算日
+          if (i === 0 && (tw.getHours() * 60 + tw.getMinutes()) >= 810) continue;
+          add = i;
+          nextD.setDate(tw.getDate() + i);
+          break;
+        }
+      }
+      const mm = String(nextD.getMonth() + 1).padStart(2, '0');
+      const dd = String(nextD.getDate()).padStart(2, '0');
+      const nth = Math.ceil(nextD.getDate() / 7);
+      const code = nextD.getDay() === 3 ? (nth === 3 ? `${mm}月選` : `${mm}W${nth}`) : `${mm}F${nth}`;
+      const isEve = (add === 1);
+      return isEve
+        ? `🔥 明日結算 ${code} (${mm}/${dd})｜今日即為建倉日`
+        : `下一結算 ${code} (${mm}/${dd})`;
+    }
+
+    function updateZeroProbBoard3B(idx) {
+      const upPct = parseFloat(document.getElementById('in-up-pct')?.value) || 8.0;
+      const callK2 = Math.ceil((idx * (1 + upPct / 100)) / 50) * 50;
+      const callAbs = Math.round(idx * 1.10);
+      const putK2 = Math.floor((idx * 0.91) / 50) * 50; // 實務 -9.0%
+      const putAbs = Math.round(idx * 0.90);
+
+      const elCallK2 = document.getElementById('zp-call-k2');
+      const elCallAbs = document.getElementById('zp-call-abs');
+      const elPutK2 = document.getElementById('zp-put-k2');
+      const elPutAbs = document.getElementById('zp-put-abs');
+      const elBadge = document.getElementById('badge-next-exp-3b');
+      if (elCallK2) elCallK2.textContent = `${callK2.toLocaleString()} Call`;
+      if (elCallAbs) elCallAbs.textContent = `絕對漲停 +10%：${callAbs.toLocaleString()}`;
+      if (elPutK2) elPutK2.textContent = `${putK2.toLocaleString()} Put`;
+      if (elPutAbs) elPutAbs.textContent = `絕對跌停 -10%：${putAbs.toLocaleString()}`;
+      if (elBadge) elBadge.textContent = getNextSettlementBadge3B();
+    }
+
+    function applyZeroProbPreset3B(dir, width) {
+      const idx = parseFloat(document.getElementById('in-idx-3b').value) || 40000;
+      const upPct = parseFloat(document.getElementById('in-up-pct').value) || 8.0;
+      document.getElementById('in-dir-3b').value = dir;
+      document.getElementById('in-struct-3b').value = 'vertical_1_1';
+      if (dir === 'put') {
+        document.getElementById('in-dn-pct').value = '9.0';
+      }
+      const k2 = dir === 'call'
+        ? Math.ceil((idx * (1 + upPct / 100)) / 50) * 50
+        : Math.floor((idx * 0.91) / 50) * 50;
+      const k1 = dir === 'call' ? (k2 + width) : (k2 - width);
+      document.getElementById('in-k2-3b').value = String(k2);
+      document.getElementById('in-k1-3b').value = String(k1);
+      onStructChange3B();
+      // Keep exact chosen width after onStructChange3B
+      document.getElementById('in-k2-3b').value = String(k2);
+      document.getElementById('in-k1-3b').value = String(k1);
+      calc3B();
+    }
+
     function calc3B() {
       const idx = parseFloat(document.getElementById('in-idx-3b').value) || 40000;
+      updateZeroProbBoard3B(idx);
       const dir = document.getElementById('in-dir-3b').value;
       const structMode = document.getElementById('in-struct-3b') ? document.getElementById('in-struct-3b').value : 'ratio_uncapped';
       const upPct = parseFloat(document.getElementById('in-up-pct').value) || 8.0;

@@ -72,9 +72,9 @@
             <span id="zp-call-abs" class="text-[11px] text-[var(--muted-foreground)] ml-1.5">(+10%：--)</span>
           </div>
           <div class="flex items-center gap-1">
-            <button type="button" onclick="applyZeroProbPreset3B('call', 50)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">50點</button>
-            <button type="button" onclick="applyZeroProbPreset3B('call', 100)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition">100點</button>
-            <button type="button" onclick="applyZeroProbPreset3B('call', 200)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition">200點</button>
+            <button id="btn-zp-call-50" type="button" onclick="applyZeroProbPreset3B('call', 50)" class="zp-btn px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition">50點</button>
+            <button id="btn-zp-call-100" type="button" onclick="applyZeroProbPreset3B('call', 100)" class="zp-btn px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition">100點</button>
+            <button id="btn-zp-call-200" type="button" onclick="applyZeroProbPreset3B('call', 200)" class="zp-btn px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition">200點</button>
           </div>
         </div>
 
@@ -85,9 +85,9 @@
             <span id="zp-put-abs" class="text-[11px] text-[var(--muted-foreground)] ml-1.5">(-10%：--)</span>
           </div>
           <div class="flex items-center gap-1">
-            <button type="button" onclick="applyZeroProbPreset3B('put', 50)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/40 hover:bg-[var(--success)]/30 transition">50點</button>
-            <button type="button" onclick="applyZeroProbPreset3B('put', 100)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--success)] transition">100點</button>
-            <button type="button" onclick="applyZeroProbPreset3B('put', 200)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--success)] transition">200點</button>
+            <button id="btn-zp-put-50" type="button" onclick="applyZeroProbPreset3B('put', 50)" class="zp-btn px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--success)] transition">50點</button>
+            <button id="btn-zp-put-100" type="button" onclick="applyZeroProbPreset3B('put', 100)" class="zp-btn px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--success)] transition">100點</button>
+            <button id="btn-zp-put-200" type="button" onclick="applyZeroProbPreset3B('put', 200)" class="zp-btn px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--success)] transition">200點</button>
           </div>
         </div>
       </div>
@@ -713,17 +713,32 @@
       if (elBadge) elBadge.textContent = getNextSettlementInfo3B().badgeText;
     }
 
+    function highlightZeroProbBtn3B(dir, width) {
+      ['call', 'put'].forEach(d => {
+        [50, 100, 200].forEach(w => {
+          const btn = document.getElementById(`btn-zp-${d}-${w}`);
+          if (!btn) return;
+          const isActive = (d === dir && w === width);
+          if (isActive) {
+            btn.className = d === 'call'
+              ? 'zp-btn px-2 py-0.5 text-[11px] font-bold rounded bg-[var(--primary)] text-white border border-[var(--primary)] transition'
+              : 'zp-btn px-2 py-0.5 text-[11px] font-bold rounded bg-[var(--success)] text-white border border-[var(--success)] transition';
+          } else {
+            btn.className = 'zp-btn px-2 py-0.5 text-[11px] rounded bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] hover:border-[var(--primary)] transition';
+          }
+        });
+      });
+    }
+
     function applyZeroProbPreset3B(dir, width) {
       const idx = parseFloat(document.getElementById('in-idx-3b').value) || 40000;
       const upPct = parseFloat(document.getElementById('in-up-pct').value) || 8.0;
+      const dnPct = parseFloat(document.getElementById('in-dn-pct').value) || 9.0;
       document.getElementById('in-dir-3b').value = dir;
       document.getElementById('in-struct-3b').value = 'vertical_1_1';
-      if (dir === 'put') {
-        document.getElementById('in-dn-pct').value = '9.0';
-      }
       const k2 = dir === 'call'
         ? Math.ceil((idx * (1 + upPct / 100)) / 50) * 50
-        : Math.floor((idx * 0.91) / 50) * 50;
+        : Math.floor((idx * (1 - dnPct / 100)) / 50) * 50;
       const k1 = dir === 'call' ? (k2 + width) : (k2 - width);
       document.getElementById('in-k2-3b').value = String(k2);
       document.getElementById('in-k1-3b').value = String(k1);
@@ -731,6 +746,7 @@
       // Keep exact chosen width after onStructChange3B
       document.getElementById('in-k2-3b').value = String(k2);
       document.getElementById('in-k1-3b').value = String(k1);
+      highlightZeroProbBtn3B(dir, width);
       calc3B();
     }
 

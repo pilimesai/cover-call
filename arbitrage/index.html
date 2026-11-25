@@ -652,10 +652,8 @@
       return netCreditPts + val1 + val3 - val2;
     }
 
-    function getNextSettlementBadge3B() {
+    function getNextSettlementInfo3B() {
       const tw = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-      const dow = tw.getDay(); // 0=Sun..6=Sat
-      // 找最近一個週三(3)或週五(5)結算日
       const nextD = new Date(tw);
       let add = 0;
       for (let i = 0; i <= 7; i++) {
@@ -663,21 +661,37 @@
         test.setDate(tw.getDate() + i);
         const td = test.getDay();
         if (td === 3 || td === 5) {
-          // 若今天就是結算日且已過 13:30，往後找下一個結算日
           if (i === 0 && (tw.getHours() * 60 + tw.getMinutes()) >= 810) continue;
           add = i;
           nextD.setDate(tw.getDate() + i);
           break;
         }
       }
+      const y = nextD.getFullYear();
       const mm = String(nextD.getMonth() + 1).padStart(2, '0');
       const dd = String(nextD.getDate()).padStart(2, '0');
       const nth = Math.ceil(nextD.getDate() / 7);
-      const code = nextD.getDay() === 3 ? (nth === 3 ? `${mm}月選` : `${mm}W${nth}`) : `${mm}F${nth}`;
-      const isEve = (add === 1);
-      return isEve
+      const isWed = nextD.getDay() === 3;
+      const code = isWed ? (nth === 3 ? `${mm}月選` : `${mm}W${nth}`) : `${mm}F${nth}`;
+      const settleDow = isWed ? '週三' : '週五';
+      const entryD = new Date(nextD);
+      entryD.setDate(entryD.getDate() - 1);
+      const ey = entryD.getFullYear();
+      const em = String(entryD.getMonth() + 1).padStart(2, '0');
+      const ed = String(entryD.getDate()).padStart(2, '0');
+      const entryDow = isWed ? '週二' : '週四';
+      const badgeText = (add === 1)
         ? `🔥 明日結算 ${code} (${mm}/${dd})｜今日即為建倉日`
         : `下一結算 ${code} (${mm}/${dd})`;
+      return {
+        dateStr: `${y}-${mm}-${dd}`,
+        code,
+        settleDow,
+        entryDateStr: `${ey}-${em}-${ed}`,
+        entryDow,
+        isEve: add === 1,
+        badgeText
+      };
     }
 
     function updateZeroProbBoard3B(idx) {
@@ -696,7 +710,7 @@
       if (elCallAbs) elCallAbs.textContent = `絕對漲停 +10%：${callAbs.toLocaleString()}`;
       if (elPutK2) elPutK2.textContent = `${putK2.toLocaleString()} Put`;
       if (elPutAbs) elPutAbs.textContent = `絕對跌停 -10%：${putAbs.toLocaleString()}`;
-      if (elBadge) elBadge.textContent = getNextSettlementBadge3B();
+      if (elBadge) elBadge.textContent = getNextSettlementInfo3B().badgeText;
     }
 
     function applyZeroProbPreset3B(dir, width) {
@@ -745,27 +759,10 @@
       const setsSumEl = document.getElementById('out-sets-summary-3b');
       if (setsSumEl) {
         const optType = dir === 'call' ? 'Call' : 'Put';
-        let contractCode = '當週週選';
-        let entryDateTxt = '週二';
-        if (latestMarket3B?.expiryWeekly && /^\d{4}-\d{2}-\d{2}$/.test(latestMarket3B.expiryWeekly)) {
-          const d = new Date(latestMarket3B.expiryWeekly + 'T00:00:00');
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const nth = Math.ceil(d.getDate() / 7);
-          const dow = d.getDay();
-          if (dow === 3) {
-            contractCode = nth === 3 ? `${mm}月選` : `${mm}W${nth}`;
-          } else if (dow === 5) {
-            contractCode = `${mm}F${nth}`;
-          } else {
-            contractCode = `${mm}W${nth}`;
-          }
-          const prevD = new Date(d);
-          prevD.setDate(prevD.getDate() - 1);
-          const y = prevD.getFullYear(), pm = String(prevD.getMonth() + 1).padStart(2, '0'), pday = String(prevD.getDate()).padStart(2, '0');
-          const dowNames = ['日', '一', '二', '三', '四', '五', '六'];
-          entryDateTxt = `${y}-${pm}-${pday} (週${dowNames[prevD.getDay()]})`;
-        }
-        const expTag = latestMarket3B?.expiryWeekly ? `TXO ${contractCode}｜結算 ${latestMarket3B.expiryWeekly}` : `TXO ${contractCode}`;
+        const nextSettle = getNextSettlementInfo3B();
+        const contractCode = nextSettle.code;
+        const entryDateTxt = `${nextSettle.entryDateStr} (${nextSettle.entryDow})`;
+        const expTag = `TXO ${contractCode}｜結算 ${nextSettle.dateStr} (${nextSettle.settleDow})`;
         const perShortNum = creditPts / Math.max(1, n2);
         const perShortPts = perShortNum.toFixed(2).replace(/\.00$/, '');
         const spreadW = Math.abs(k1 - k2);
@@ -847,7 +844,7 @@
           ? `；③ 盤中剛好衝進 ${k2.toLocaleString()} 甜蜜區可提前鎖定尖峰暴利`
           : '';
         const closeHeader =
-          `<div class="border-t border-[var(--border)] pt-1.5 mt-1.5 text-[var(--warning)] font-semibold">🎯 平倉／結算建議（常態週三 13:30 ${normalRule}）</div>` +
+          `<div class="border-t border-[var(--border)] pt-1.5 mt-1.5 text-[var(--warning)] font-semibold">🎯 平倉／結算建議（常態${nextSettle.settleDow} 13:30 ${normalRule}）</div>` +
           `<div class="text-[11px] text-[var(--muted-foreground)]">⏱️ 提前平倉時機：${earlyTrigger}${peakHint}</div>`;
         setsSumEl.innerHTML = headerHtml + lines.join('') + closeHeader + closeLines.join('');
       }

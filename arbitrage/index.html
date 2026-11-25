@@ -46,132 +46,87 @@
     </header>
 
     <!-- ==================== TAB 3-B: 結算日漲跌停極限套利 ==================== -->
-    <section id="tab-3b" class="space-y-4">
-      <div id="verdict-3b" class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div class="space-y-1">
-          <div class="flex items-center gap-2">
-            <span id="dot-3b" class="text-base">🟢</span>
-            <span id="title-3b" class="text-base font-bold">極高勝率準套利（損益兩平點超越單日理論極限）</span>
-          </div>
-          <p id="desc-3b" class="text-xs text-[var(--muted-foreground)]"></p>
-        </div>
-        <div class="flex gap-3 text-right shrink-0">
-          <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
-            <div class="text-xs text-[var(--muted-foreground)]">不動保底淨收</div>
-            <div id="badge-net-3b" class="text-sm font-mono font-bold text-[var(--success)]">+NT$2,400</div>
-          </div>
-          <div class="px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
-            <div class="text-xs text-[var(--muted-foreground)]">甜蜜區最大獲利</div>
-            <div id="badge-max-3b" class="text-sm font-mono font-bold text-[var(--primary)]">+NT$27,400</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 結算前一日：機率≈0 極限點位速查看板 -->
-      <div class="bg-[var(--card)] border border-[var(--primary)]/40 rounded-xl p-4 space-y-3 text-xs">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-[var(--foreground)]">🎯 結算前一日｜「機率 ≈ 0」極限點位速查</span>
+    <section id="tab-3b" class="space-y-3.5">
+      <!-- 1. 精簡狀態列 -->
+      <div id="verdict-3b" class="bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="space-y-0.5 min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="dot-3b" class="text-sm">🟢</span>
+            <span id="title-3b" class="text-sm font-bold">極高勝率準套利</span>
             <span id="badge-next-exp-3b" class="px-2 py-0.5 text-[11px] font-mono rounded bg-[var(--primary)]/20 text-[var(--primary)]">--</span>
           </div>
-          <span class="text-[11px] text-[var(--muted-foreground)]">依「前日日盤加權收盤」鎖定隔日 ±10% 漲跌停物理極限（週二看 W 週選、週四看 F 週選）</span>
+          <p id="desc-3b" class="text-[11px] text-[var(--muted-foreground)]"></p>
+        </div>
+        <div class="hidden">
+          <span id="badge-net-3b"></span>
+          <span id="badge-max-3b"></span>
+        </div>
+      </div>
+
+      <!-- 2. 結算前一日：機率≈0 雙邊一鍵速選 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div class="font-mono">
+            <span class="text-[var(--error)] font-bold">📈 CALL 天花板：</span>
+            <span id="zp-call-k2" class="font-bold text-[var(--foreground)]">--</span>
+            <span id="zp-call-abs" class="text-[11px] text-[var(--muted-foreground)] ml-1.5">(+10%：--)</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="applyZeroProbPreset3B('call', 50)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">50點</button>
+            <button type="button" onclick="applyZeroProbPreset3B('call', 100)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition">100點</button>
+            <button type="button" onclick="applyZeroProbPreset3B('call', 200)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition">200點</button>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <!-- CALL 天花板 -->
-          <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-3 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-[var(--error)]">📈 上方天花板（Sell Call 機率 ≈ 0）</span>
-              <span id="zp-call-abs" class="text-[11px] font-mono text-[var(--muted-foreground)]">絕對漲停 +10%：--</span>
-            </div>
-            <div class="flex items-baseline justify-between font-mono">
-              <div>
-                <span class="text-[var(--muted-foreground)]">實務 +8.0% 賣出門檻：</span>
-                <span id="zp-call-k2" class="text-base font-bold text-[var(--foreground)]">--</span>
-              </div>
-              <span class="text-[11px] text-[var(--muted-foreground)]">50點寬保證金 NT$2,500/口</span>
-            </div>
-            <div class="flex flex-wrap items-center gap-1.5 pt-1">
-              <span class="text-[11px] text-[var(--muted-foreground)]">一鍵套用 1:1 垂直價差：</span>
-              <button type="button" onclick="applyZeroProbPreset3B('call', 50)" class="px-2 py-0.5 rounded bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 hover:bg-[var(--primary)]/30 transition">50點 (2.5k/口)</button>
-              <button type="button" onclick="applyZeroProbPreset3B('call', 100)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--primary)] transition">100點 (5k/口)</button>
-              <button type="button" onclick="applyZeroProbPreset3B('call', 200)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--primary)] transition">200點 (10k/口)</button>
-            </div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div class="font-mono">
+            <span class="text-[var(--success)] font-bold">📉 PUT 地板：</span>
+            <span id="zp-put-k2" class="font-bold text-[var(--foreground)]">--</span>
+            <span id="zp-put-abs" class="text-[11px] text-[var(--muted-foreground)] ml-1.5">(-10%：--)</span>
           </div>
-
-          <!-- PUT 地板 -->
-          <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-3 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-[var(--success)]">📉 下方地板（Sell Put 機率 ≈ 0）</span>
-              <span id="zp-put-abs" class="text-[11px] font-mono text-[var(--muted-foreground)]">絕對跌停 -10%：--</span>
-            </div>
-            <div class="flex items-baseline justify-between font-mono">
-              <div>
-                <span class="text-[var(--muted-foreground)]">實務 -9.0% 賣出門檻：</span>
-                <span id="zp-put-k2" class="text-base font-bold text-[var(--foreground)]">--</span>
-              </div>
-              <span class="text-[11px] text-[var(--muted-foreground)]">50點寬保證金 NT$2,500/口</span>
-            </div>
-            <div class="flex flex-wrap items-center gap-1.5 pt-1">
-              <span class="text-[11px] text-[var(--muted-foreground)]">一鍵套用 1:1 垂直價差：</span>
-              <button type="button" onclick="applyZeroProbPreset3B('put', 50)" class="px-2 py-0.5 rounded bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/40 hover:bg-[var(--success)]/30 transition">50點 (2.5k/口)</button>
-              <button type="button" onclick="applyZeroProbPreset3B('put', 100)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--success)] transition">100點 (5k/口)</button>
-              <button type="button" onclick="applyZeroProbPreset3B('put', 200)" class="px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] hover:border-[var(--success)] transition">200點 (10k/口)</button>
-            </div>
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="applyZeroProbPreset3B('put', 50)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/40 hover:bg-[var(--success)]/30 transition">50點</button>
+            <button type="button" onclick="applyZeroProbPreset3B('put', 100)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--success)] transition">100點</button>
+            <button type="button" onclick="applyZeroProbPreset3B('put', 200)" class="px-2 py-0.5 text-[11px] rounded bg-[var(--background)] border border-[var(--border)] hover:border-[var(--success)] transition">200點</button>
           </div>
         </div>
       </div>
 
+      <!-- 3. 主工作區（左：精簡參數 ｜ 右：核心指標＋複式單指令＋圖表） -->
       <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3.5 text-xs">
+        <div class="md:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3 text-xs">
           <div class="flex items-center justify-between border-b border-[var(--border)] pb-2">
-            <h2 class="text-sm font-bold">✏️ 1. 大盤與單日漲跌停極限設定</h2>
-            <span class="text-[11px] text-[var(--success)] font-mono whitespace-nowrap">⚡ 共享主頁即時大盤</span>
+            <h2 class="text-sm font-bold">⚙️ 建倉參數設定</h2>
+            <span id="out-market-3b" class="text-[11px] text-[var(--success)] font-mono truncate max-w-[65%]">⚡ 共享主頁即時大盤</span>
           </div>
-          <div id="out-market-3b" class="text-[11px] text-[var(--muted-foreground)] bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 font-mono">
-            📡 正在載入最新收盤與期貨夜盤數據...
-          </div>
-          <div class="grid grid-cols-2 gap-3">
+
+          <div class="grid grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">前日大盤收盤指數</label>
+              <label class="block text-[var(--muted-foreground)] mb-1">前日日盤收盤</label>
               <input id="in-idx-3b" type="number" value="40092" step="10" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">操作方向與結構</label>
+              <label class="block text-[var(--muted-foreground)] mb-1">操作方向</label>
               <select id="in-dir-3b" onchange="applyRecommendedStrikes3B(false)" class="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)]">
-                <option value="call">上方天花板（CALL 比例/垂直價差）</option>
-                <option value="put">下方地板（PUT 垂直/比例價差）</option>
+                <option value="call">📈 CALL 天花板</option>
+                <option value="put">📉 PUT 地板</option>
               </select>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">單日極限上漲係數 (%)</label>
-              <input id="in-up-pct" type="number" value="8.0" step="0.1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
-              <span class="text-[var(--muted-foreground)] block mt-0.5">考量金融傳產不全面漲停約 8%</span>
-            </div>
-            <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">單日極限下跌係數 (%)</label>
-              <input id="in-dn-pct" type="number" value="9.7" step="0.1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
-              <span class="text-[var(--muted-foreground)] block mt-0.5">全面跌停取整約 9.5%~9.7%</span>
-            </div>
-          </div>
-
-          <h2 class="text-sm font-bold border-b border-[var(--border)] pb-2 pt-2">⚙️ 2. 結構模式與履約價設定</h2>
           <div>
-            <label class="block text-[var(--muted-foreground)] mb-1">🛡️ 選擇權風控結構模式</label>
+            <label class="block text-[var(--muted-foreground)] mb-1">🛡️ 風控結構模式</label>
             <select id="in-struct-3b" onchange="onStructChange3B()" class="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-medium">
-              <option value="ratio_capped" selected>🛡️ 比例價差 ＋ 遠價外蓋子 (買 K3 封頂｜推薦)</option>
-              <option value="vertical_1_1">🔒 1:1 垂直價差 (風險完全鎖死｜最穩健)</option>
-              <option value="ratio_uncapped">⚡ 純比例價差 (無遠端蓋子｜需盯盤留厚保證金)</option>
+              <option value="ratio_capped" selected>🛡️ 比例價差 ＋ 遠價外蓋子 (買 K3 封頂)</option>
+              <option value="vertical_1_1">🔒 1:1 垂直價差 (風險完全鎖死｜推薦)</option>
+              <option value="ratio_uncapped">⚡ 純比例價差 (無遠端蓋子｜需盯盤)</option>
             </select>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-k1-3b">買方腿履約價 (Buy K1)</label>
-              <input id="in-k1-3b" type="number" value="43000" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-k1-3b">買方腿 (Buy K1)</label>
+              <input id="in-k1-3b" type="number" value="43000" step="50" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
             <div>
               <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-n1-3b">買方口數 (N1)</label>
@@ -179,10 +134,10 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-k2-3b">賣方收租腿履約價 (Sell K2)</label>
-              <input id="in-k2-3b" type="number" value="43100" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-k2-3b">賣方收租腿 (Sell K2)</label>
+              <input id="in-k2-3b" type="number" value="43100" step="50" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
             <div>
               <label class="block text-[var(--muted-foreground)] mb-1" id="lbl-n2-3b">賣方口數 (N2)</label>
@@ -190,18 +145,18 @@
             </div>
           </div>
 
-          <div id="row-k3-3b" class="grid grid-cols-2 gap-3 p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+          <div id="row-k3-3b" class="grid grid-cols-2 gap-2.5 p-2 rounded-lg bg-[var(--background)] border border-[var(--border)]">
             <div>
-              <label class="block text-[var(--primary)] font-medium mb-1">🛡️ 遠價外蓋子 (Buy K3 封頂)</label>
-              <input id="in-k3-3b" type="number" value="43500" step="100" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--card)] border border-[var(--border)] font-mono" />
+              <label class="block text-[var(--primary)] font-medium mb-1">🛡️ 蓋子 (Buy K3)</label>
+              <input id="in-k3-3b" type="number" value="43500" step="50" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--card)] border border-[var(--border)] font-mono" />
             </div>
             <div>
-              <label class="block text-[var(--primary)] font-medium mb-1">蓋子口數 (N3 = N2−N1)</label>
+              <label class="block text-[var(--primary)] font-medium mb-1">蓋子口數 (N3)</label>
               <input id="in-n3-3b" type="number" value="2" min="0" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--card)] border border-[var(--border)] font-mono" />
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-2.5">
+          <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-[var(--primary)] font-medium mb-1">📦 執行組數 (倍數)</label>
               <input id="in-sets-3b" type="number" value="1" min="1" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--primary)] font-mono font-bold" />
@@ -210,59 +165,66 @@
               <label class="block text-[var(--muted-foreground)] mb-1">單組淨收點數 (點)</label>
               <input id="in-credit-3b" type="number" value="48" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
             </div>
-            <div>
-              <label class="block text-[var(--muted-foreground)] mb-1">單口手續費+稅</label>
-              <input id="in-fee-3b" type="number" value="20" step="1" oninput="calc3B()" class="w-full px-2.5 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
-            </div>
           </div>
-          <div id="out-sets-summary-3b" class="text-[var(--muted-foreground)] bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-2 font-mono space-y-1.5 leading-relaxed">--</div>
+
+          <details class="pt-1 border-t border-[var(--border)]">
+            <summary class="cursor-pointer text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] select-none">⚙️ 進階設定（漲跌停係數 % / 單口手續費）</summary>
+            <div class="grid grid-cols-3 gap-2 pt-2">
+              <div>
+                <label class="block text-[11px] text-[var(--muted-foreground)] mb-1">上漲極限 %</label>
+                <input id="in-up-pct" type="number" value="8.0" step="0.1" oninput="calc3B()" class="w-full px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-[var(--muted-foreground)] mb-1">下跌極限 %</label>
+                <input id="in-dn-pct" type="number" value="9.0" step="0.1" oninput="calc3B()" class="w-full px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-[var(--muted-foreground)] mb-1">手續費+稅</label>
+                <input id="in-fee-3b" type="number" value="20" step="1" oninput="calc3B()" class="w-full px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] font-mono" />
+              </div>
+            </div>
+          </details>
         </div>
 
-        <div class="md:col-span-7 space-y-4">
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div class="md:col-span-7 space-y-3.5">
+          <!-- 4 核心指標卡 -->
+          <div class="grid grid-cols-2 gap-3 text-xs">
             <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
-              <div class="text-[var(--muted-foreground)]">隔日理論極限邊界</div>
-              <div id="out-limit-3b" class="text-base font-mono font-bold mt-1">--</div>
-              <div id="out-limit-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
-            </div>
-            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
-              <div class="text-[var(--muted-foreground)]">真實損益兩平點</div>
-              <div id="out-be-3b" class="text-base font-mono font-bold mt-1">--</div>
-              <div id="out-be-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+              <div class="text-[var(--muted-foreground)]">💰 常態結算保底淨利</div>
+              <div id="out-base-3b" class="text-lg font-mono font-bold text-[var(--success)] mt-0.5">--</div>
+              <div id="out-base-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">--</div>
             </div>
             <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
-              <div class="text-[var(--muted-foreground)]">常態結算保底淨利</div>
-              <div id="out-base-3b" class="text-base font-mono font-bold text-[var(--success)] mt-1">--</div>
-              <div id="out-base-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">扣手續費後實拿</div>
+              <div class="text-[var(--muted-foreground)]">🔐 預估保證金 <span id="out-roi-3b" class="text-[var(--success)] font-mono font-bold ml-1"></span></div>
+              <div id="out-margin-3b" class="text-lg font-mono font-bold text-[var(--primary)] mt-0.5">--</div>
+              <div id="out-margin-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5 truncate">--</div>
             </div>
             <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
-              <div class="text-[var(--muted-foreground)]">甜蜜點最高淨利</div>
-              <div id="out-peak-3b" class="text-base font-mono font-bold text-[var(--primary)] mt-1">--</div>
-              <div id="out-peak-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
+              <div class="text-[var(--muted-foreground)]">🛡️ 損益兩平點 / 極限 <span id="out-limit-3b" class="font-mono text-[var(--foreground)]">--</span></div>
+              <div id="out-be-3b" class="text-base font-mono font-bold mt-0.5">--</div>
+              <div id="out-be-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5">--</div>
+              <span id="out-limit-sub" class="hidden"></span>
             </div>
-            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 col-span-2 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div class="text-[var(--muted-foreground)]">🔐 預估所需保證金 <span id="out-roi-3b" class="text-[var(--success)] font-mono font-bold ml-1"></span></div>
-                <div id="out-margin-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
-              </div>
-              <div id="out-margin-3b" class="text-base font-mono font-bold text-[var(--primary)]">--</div>
-            </div>
-            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 col-span-2 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div class="text-[var(--muted-foreground)]">🚨 極端單日 ±10% 漲/跌停損益上限</div>
-                <div id="out-extreme-sub" class="text-xs text-[var(--muted-foreground)] mt-0.5">--</div>
-              </div>
-              <div id="out-extreme-3b" class="text-base font-mono font-bold text-[var(--warning)]">--</div>
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+              <div class="text-[var(--muted-foreground)]">🚨 ±10% 極端損益上限</div>
+              <div id="out-extreme-3b" class="text-base font-mono font-bold text-[var(--warning)] mt-0.5">--</div>
+              <div id="out-extreme-sub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5 line-clamp-2">--</div>
+              <span id="out-peak-3b" class="hidden"></span>
+              <span id="out-peak-sub" class="hidden"></span>
             </div>
           </div>
 
-          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold">📈 結算日到期損益剖面圖（Payoff Diagram）</span>
-              <span id="chart-legend-3b" class="text-[var(--muted-foreground)] font-mono"></span>
-            </div>
-            <canvas id="canvas-3b" width="560" height="210" class="w-full h-48 rounded bg-[var(--background)] border border-[var(--border)]"></canvas>
-          </div>
+          <!-- 寬版建倉與平倉複式單指令 -->
+          <div id="out-sets-summary-3b" class="bg-[var(--card)] border border-[var(--primary)]/40 rounded-xl p-3.5 text-xs font-mono space-y-1.5 leading-relaxed">--</div>
+
+          <!-- 損益剖面圖（可折疊減少視覺干擾，預設展開精簡高度） -->
+          <details open class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5">
+            <summary class="cursor-pointer text-xs font-bold flex items-center justify-between select-none">
+              <span>📈 結算日到期損益圖</span>
+              <span id="chart-legend-3b" class="text-[11px] text-[var(--muted-foreground)] font-mono font-normal"></span>
+            </summary>
+            <canvas id="canvas-3b" width="560" height="175" class="w-full h-40 mt-2 rounded bg-[var(--background)] border border-[var(--border)]"></canvas>
+          </details>
         </div>
       </div>
     </section>

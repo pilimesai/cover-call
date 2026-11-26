@@ -1,22 +1,18 @@
 {
- "generated_at": "2026-11-26T02:44:30+08:00",
+ "generated_at": "2026-11-27T02:32:27+08:00",
  "errors": [
   "trust_trend: 期交所投信歷史資料回傳非 CSV 格式"
  ],
  "tx": {
-  "date": "20261125",
+  "date": "20261126",
   "near_month": "202612",
   "far_month": "202701",
-  "near_price": 38123.0,
-  "far_price": 38219.0,
-  "spread": 96.0,
-  "ma10_spread": 137.8,
+  "near_price": 39492.0,
+  "far_price": 39602.0,
+  "spread": 110.0,
+  "ma10_spread": 134.1,
   "ma10_days": 10,
   "recent_spreads": [
-   {
-    "date": "2026-11-12",
-    "spread": 147.0
-   },
    {
     "date": "2026-11-13",
     "spread": 72.0
@@ -52,18 +48,22 @@
    {
     "date": "2026-11-25",
     "spread": 96.0
+   },
+   {
+    "date": "2026-11-26",
+    "spread": 110.0
    }
   ]
  },
  "foreign": {
-  "date": "20261124",
-  "oi_net": -103182,
-  "net_short": 103182
+  "date": "20261125",
+  "oi_net": -105709,
+  "net_short": 105709
  },
  "trust": {
-  "date": "20261124",
-  "oi_net": 98014,
-  "net_long": 98014,
+  "date": "20261125",
+  "oi_net": 100918,
+  "net_long": 100918,
   "prev_20d_date": "2026-10-27",
   "prev_20d_net_long": 85052,
   "change_20d": 12962,
@@ -71,22 +71,18 @@
   "trend_days": 20
  },
  "rate": {
-  "date": "2026-11-25",
+  "date": "2026-11-26",
   "source": "銀行公會 TAIBOR 1個月期",
   "taibor_1m": 1.604,
   "annual_rate_pct": 1.604
  },
  "taiex": {
-  "date": "2026-11-25",
-  "close": 38195.43,
-  "base_date": "2026-11-18",
-  "base_close": 40194.91,
-  "change_5d_pct": -4.97,
+  "date": "2026-11-26",
+  "close": 39151.81,
+  "base_date": "2026-11-19",
+  "base_close": 38426.89,
+  "change_5d_pct": 1.89,
   "recent_5d_changes": [
-   {
-    "date": "2026-11-19",
-    "change_5d_pct": -10.83
-   },
    {
     "date": "2026-11-20",
     "change_5d_pct": -17.5
@@ -102,43 +98,20 @@
    {
     "date": "2026-11-25",
     "change_5d_pct": -4.97
+   },
+   {
+    "date": "2026-11-26",
+    "change_5d_pct": 1.89
    }
   ]
  },
  "exdiv_meta": {
-  "taiex_close": 38195.43,
-  "total_market_cap_t": 131.585,
-  "divisor_b": 3.445,
-  "constituent_count": 1097
+  "taiex_close": 39151.81,
+  "total_market_cap_t": 125.272,
+  "divisor_b": 3.1996,
+  "constituent_count": 1095
  },
  "exdiv": [
-  {
-   "date": "2026-11-24",
-   "code": "00901",
-   "name": "永豐智能車供應鏈",
-   "type": "息",
-   "cash_dividend": 7.0,
-   "is_constituent": false,
-   "impact_points": 0.0
-  },
-  {
-   "date": "2026-11-24",
-   "code": "00930",
-   "name": "永豐ESG低碳高息",
-   "type": "息",
-   "cash_dividend": 0.75,
-   "is_constituent": false,
-   "impact_points": 0.0
-  },
-  {
-   "date": "2026-11-24",
-   "code": "6655",
-   "name": "科定",
-   "type": "息",
-   "cash_dividend": 2.6,
-   "is_constituent": true,
-   "impact_points": 0.061
-  },
   {
    "date": "2026-11-26",
    "code": "009817",
@@ -164,7 +137,7 @@
    "type": "息",
    "cash_dividend": 0.5,
    "is_constituent": true,
-   "impact_points": 0.077
+   "impact_points": 0.083
   },
   {
    "date": "2026-12-01",
@@ -236,7 +209,7 @@
    "type": "息",
    "cash_dividend": 0.624652,
    "is_constituent": true,
-   "impact_points": 0.037
+   "impact_points": 0.039
   },
   {
    "date": "2026-12-04",
@@ -254,7 +227,7 @@
    "type": "息",
    "cash_dividend": 0.199892,
    "is_constituent": true,
-   "impact_points": 0.014
+   "impact_points": 0.015
   },
   {
    "date": "2026-12-04",
@@ -263,7 +236,7 @@
    "type": "息",
    "cash_dividend": 0.141372,
    "is_constituent": true,
-   "impact_points": 0.033
+   "impact_points": 0.036
   },
   {
    "date": "2026-12-07",
@@ -299,7 +272,7 @@
    "type": "息",
    "cash_dividend": 1.0,
    "is_constituent": true,
-   "impact_points": 0.019
+   "impact_points": 0.021
   },
   {
    "date": "2026-12-08",
@@ -308,7 +281,7 @@
    "type": "息",
    "cash_dividend": 2.3,
    "is_constituent": true,
-   "impact_points": 0.08
+   "impact_points": 0.086
   },
   {
    "date": "2026-12-10",
@@ -321,12 +294,30 @@
   },
   {
    "date": "2026-12-10",
+   "code": "2330",
+   "name": "台積電",
+   "type": "息",
+   "cash_dividend": 7.000001,
+   "is_constituent": true,
+   "impact_points": 56.733
+  },
+  {
+   "date": "2026-12-10",
    "code": "6438",
    "name": "迅得",
    "type": "息",
    "cash_dividend": 3.0,
    "is_constituent": true,
-   "impact_points": 0.072
+   "impact_points": 0.077
+  },
+  {
+   "date": "2026-12-11",
+   "code": "6994",
+   "name": "富威電力",
+   "type": "息",
+   "cash_dividend": 0.6067,
+   "is_constituent": true,
+   "impact_points": 0.014
   },
   {
    "date": "2026-12-21",
@@ -335,7 +326,7 @@
    "type": "息",
    "cash_dividend": 1.8,
    "is_constituent": true,
-   "impact_points": 0.038
+   "impact_points": 0.041
   },
   {
    "date": "2026-12-30",
@@ -344,7 +335,7 @@
    "type": "息",
    "cash_dividend": 1.9,
    "is_constituent": true,
-   "impact_points": 0.082
+   "impact_points": 0.088
   }
  ]
 }
